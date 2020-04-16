@@ -117,117 +117,31 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
 
 
 
-class ActionWrapperFeedback(TFEnvironmentBaseWrapper):
+class ActionWrapper(TFEnvironmentBaseWrapper):
     """
-    Agent produces a 2d action:
-        action[0:2] -- Re and Im of 'alpha'
-    
-    Wrapper rescales it and adds additional action dimensions 'beta' and 'phi' 
-    from the provided script of certain periodicity. 
-    
-    The resulting wrapped action is a 5-vector compatible with environment 
-    in modes 'quantum_circuit_v1' or '..._v2'
-    
-    """
-    def __init__(self, env, action_script, max_amplitude=1.0):
-        super(ActionWrapperFeedback, self).__init__(env)
-        self._action_spec = specs.BoundedTensorSpec(
-            shape=[2], dtype=tf.float32, minimum=-1, maximum=1, name='action')
-        
-        self.MAX_AMPLITUDE = max_amplitude # for rescaling the feedback
-        self.period = action_script.period # periodicity of the protocol
-        
-        # load the script of actions
-        self.beta = tf.constant(action_script.beta, 
-                                shape=[self.period,1], dtype=tf.complex64)
-        self.phi = tf.constant(action_script.phi, shape=[self.period,1])
-
-    def wrap(self, action):        
-        # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps
-        outer_shape = tf.constant(action.shape[0], shape=(1,))
-        assert action.shape[1] == 2
-        phi = common.replicate(self.phi[i%self.period], outer_shape)
-        beta = common.replicate(self.beta[i%self.period], outer_shape)
-        alpha = action*self.MAX_AMPLITUDE
-        # Make a new action compatible with env.action_spec
-        action = tf.concat(
-            [alpha, tf.math.real(beta), tf.math.imag(beta), phi], axis=1)
-        return action
-
-    def action_spec(self):
-        return self._action_spec
-
-    def _step(self, action):
-        return self._env.step(self.wrap(action))
-    
-    
-class ActionWrapperFeedbackTrim(TFEnvironmentBaseWrapper):
-    """
-    Agent produces a 4d action:
+    Agent produces a 2d or 4d action:
         action[0:2] -- Re and Im of 'alpha'
         action[2:4] -- Re and Im of 'epsilon'
     
     Wrapper rescales it and adds additional action dimensions 'beta' and 'phi' 
     from the provided script of certain periodicity. 
     
-    The resulting wrapped action is a 7-vector compatible with environment 
-    in mode 'quantum_circuit_v3'
-    
-    """
-    def __init__(self, env, action_script, max_amplitude=1.0):
-        super(ActionWrapperFeedbackTrim, self).__init__(env)
-        self._action_spec = specs.BoundedTensorSpec(
-            shape=[4], dtype=tf.float32, minimum=-1, maximum=1, name='action')
-        
-        self.MAX_AMPLITUDE = max_amplitude # for rescaling the feedback
-        self.period = action_script.period # periodicity of the protocol
-        self.mask = action_script.mask
-        
-        # load the script of actions
-        self.beta = tf.constant(action_script.beta, 
-                                shape=[self.period,1], dtype=tf.complex64)
-        self.phi = tf.constant(action_script.phi, shape=[self.period,1])
-
-
-
-    def wrap(self, action):        
-        # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps
-        outer_shape = tf.constant(action.shape[0], shape=(1,))
-        assert action.shape[1] == 4
-        phi = common.replicate(self.phi[i%self.period], outer_shape)
-        beta = common.replicate(self.beta[i%self.period], outer_shape)    
-        alpha = action[:,0:2]*self.MAX_AMPLITUDE
-        eps = action[:,2:4]*self.MAX_AMPLITUDE*self.mask[i%self.period]
-        # Make a new action compatible with env.action_spec
-        action = tf.concat(
-            [alpha, tf.math.real(beta), tf.math.imag(beta), eps, phi], axis=1)
-        return action
-
-    def action_spec(self):
-        return self._action_spec
-
-    def _step(self, action):
-        return self._env.step(self.wrap(action))
-
-
-
-class ActionWrapper(TFEnvironmentBaseWrapper):
-    """
-    Agent produces a 2d action:
-        action[0:2] -- Re and Im of 'alpha'
-    
-    Wrapper rescales it and adds additional action dimensions 'beta' and 'phi' 
-    from the provided script of certain periodicity. 
-    
-    The resulting wrapped action is a 5-vector compatible with environment 
-    in modes 'quantum_circuit_v1' or '..._v2'
+    The resulting wrapped action is a 5-vector (7-vector) compatible with 
+    environment in modes 'v1','v2' ('v3').
     
     """
     def __init__(self, env, action_script, quantum_circuit_type,
                  max_amplitude=1.0):
-        
+        """
+        Input:
+            env -- GKP environment
+            action_script -- module or class with attributes 'beta', 'phi',
+                             'period' and optionally 'mask'
+            quantum_circuit_type -- one of the following: 'v1', 'v2', 'v3'
+                                    used to infer action dimensions.
+            max_amplitude -- amplitude used for rescaling of actions
+            
+        """
         self.quantum_circuit_type = quantum_circuit_type
         if quantum_circuit_type in ['v1','v2']: 
             self.act_dim = 2
@@ -249,7 +163,11 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         self.phi = tf.constant(action_script.phi, shape=[self.period,1])
 
 
-    def wrap(self, action):        
+    def wrap(self, action):
+        """
+        Wrap 2d (4d) batched action into 5d (7d) actions. 
+        
+        """
         # step counter to follow the script of periodicity 'period'
         i = self._env._elapsed_steps
         outer_shape = tf.constant(action.shape[0], shape=(1,))
