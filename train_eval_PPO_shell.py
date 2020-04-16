@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # Params for train
     normalize_observations = True
     normalize_rewards = True
-    discount_factor = 0.95
+    discount_factor = 1.0
     lr = 1e-5
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -30,16 +30,16 @@ if __name__ == '__main__':
     importance_ratio_clipping = 0.2
     # Params for log, eval, save
     eval_batch_size = 100
-    eval_interval = 100
-    save_interval = 1000
+    eval_interval = 100 #200
+    save_interval = 100 #1000
     log_interval = 20
     # Params for environment
     horizon = 1
     max_episode_length = 24
-    eval_episode_length = 200
-    reward_mode = 'stabilizers'
+    eval_episode_length = 24 #200
+    reward_mode = 'pauli'
     quantum_circuit_type = 'v3'
-    action_script = 'Baptiste_8round'
+    action_script = 'Baptiste_4round'
     # Policy and value networks
     actor_fc_layers = ()
     value_fc_layers = ()
