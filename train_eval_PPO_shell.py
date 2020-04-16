@@ -5,6 +5,10 @@ Created on Tue Apr 14 10:04:56 2020
 @author: Vladimir Sivak
 """
 
+import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
 from gkp.agents import PPO
 
 if __name__ == '__main__':

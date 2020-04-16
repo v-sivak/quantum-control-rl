@@ -5,12 +5,15 @@ Created on Tue Apr 14 11:13:33 2020
 @author: Vladimir Sivak
 """
 
-from gkp.agents import PPO
 import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
+from gkp.agents import PPO
 
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO'
-root_dir = os.path.join()
+root_dir = os.path.join(root_dir,'test')
 
 
 PPO.train_eval(

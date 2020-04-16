@@ -8,15 +8,16 @@ Created on Tue Apr  7 16:03:22 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
-import gkp_tf_env_wrappers as wrappers
-from gkp_tf_env import GKP
-import policy as plc
+
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import policy as plc
 
 
 env = GKP(init='random', H=1, batch_size=600, episode_length=24, 

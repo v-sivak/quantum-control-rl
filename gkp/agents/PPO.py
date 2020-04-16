@@ -4,13 +4,7 @@ Created on Wed Mar  4 12:24:37 2020
 
 @author: Vladimir Sivak
 """
-from __future__ import absolute_import
-
 import os
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-
 import tensorflow as tf
 
 from tf_agents.replay_buffers import tf_uniform_replay_buffer

@@ -8,7 +8,7 @@ Created on Tue Apr  7 16:24:22 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
@@ -17,12 +17,11 @@ from time import time
 from math import sqrt, pi
 from tf_agents.specs import tensor_spec
 from tf_agents import specs
-import gkp_helper_functions as hf
-from scipy.optimize import curve_fit
-import gkp_tf_env_wrappers as wrappers
 
-from gkp_tf_env import GKP
-import policy as plc
+from gkp.gkp_tf_env import helper_functions as hf
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import policy as plc
 
 
 
@@ -39,7 +38,7 @@ import policy as plc
 env = GKP(init='vac', H=1, batch_size=200, episode_length=200, 
           reward_mode = 'stabilizers', quantum_circuit_type='v1')
 
-import action_script_phase_estimation_4round as action_script
+from gkp.action_script import phase_estimation_4round as action_script
 policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
 
 # env = GKP(init='vac', H=1, batch_size=100, episode_length=200, 

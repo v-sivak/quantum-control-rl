@@ -14,34 +14,34 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
-import gkp_helper_functions as hf
 from scipy.optimize import curve_fit
-import gkp_tf_env_wrappers as wrappers
 
-from gkp_tf_env import GKP
-import policy as plc
-
-
-
-env = GKP(init='Y+', H=1, batch_size=600, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v3')
-
-import action_script_Baptiste_8round as action_script
-env = wrappers.ActionWrapperFeedbackTrim(env, action_script)
-env = wrappers.FlattenObservationsWrapperTF(env, 
-                observations_whitelist=['msmt','alpha','beta','eps','phi'])
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-policy_dir = r'rnn_maxsteps100_lr1e-5\policy\001700000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+from gkp.gkp_tf_env import helper_functions as hf
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import policy as plc
 
 
 
-# env = GKP(init='X+', H=1, batch_size=1000, episode_length=24, 
-#           reward_mode = 'pauli', quantum_circuit_type='v1')
+# env = GKP(init='Y+', H=1, batch_size=600, episode_length=200, 
+#           reward_mode = 'stabilizers', quantum_circuit_type='v3')
 
-# import action_script_phase_estimation_no_rewards_8round as action_script
-# policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
+# import action_script_Baptiste_8round as action_script
+# env = wrappers.ActionWrapperFeedbackTrim(env, action_script)
+# env = wrappers.FlattenObservationsWrapperTF(env, 
+#                 observations_whitelist=['msmt','alpha','beta','eps','phi'])
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
+# policy_dir = r'rnn_maxsteps100_lr1e-5\policy\001700000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+
+env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
+          reward_mode = 'pauli', quantum_circuit_type='v1')
+
+from gkp.action_script import phase_estimation_no_rewards_8round as action_script
+policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
 
 
 
