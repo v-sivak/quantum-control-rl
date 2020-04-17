@@ -105,7 +105,7 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
     max_epoch = 0
     for i, fname in enumerate(all_logs.keys()):
         for log in all_logs[fname]:
-            ax.plot(log['epochs'], log['returns'], color=palette(i))
+            ax.plot(log['epochs'][1:], log['returns'][1:], color=palette(i))
             max_epoch = max(max_epoch, np.max(log['epochs']))
     if baseline:
         ax.plot([0,max_epoch], [baseline,baseline], color='k')

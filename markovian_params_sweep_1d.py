@@ -15,14 +15,15 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
 from math import sqrt, pi
+from scipy.optimize import curve_fit
 from tf_agents.specs import tensor_spec
 from tf_agents import specs
-import gkp_helper_functions as hf
-from scipy.optimize import curve_fit
-import gkp_tf_env_wrappers as wrappers
 
-from gkp_tf_env import GKP
-import policy as plc
+
+from gkp.gkp_tf_env import helper_functions as hf
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import policy as plc
 
 
 class ActionScript(object):
@@ -40,11 +41,11 @@ class ActionScript(object):
 
 
 
-env = GKP(init='random', H=1, batch_size=200, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v4')
+env = GKP(init='random', H=1, batch_size=200, episode_length=50, 
+          reward_mode = 'mixed', quantum_circuit_type='v1')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\Error_model\1d_sweep\gate_and_read_errors'
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\mixed_4round'
 amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 lifetimes = np.zeros(amplitudes.shape)
 returns = np.zeros(amplitudes.shape)
@@ -80,7 +81,7 @@ for jj, a in enumerate(amplitudes):
 
         # measure T1 using cached states
         pauli_batch = tf.stack([pauli]*env.batch_size)
-        pauli_batch = tf.cast(pauli_batch, tf.complex64)    
+        pauli_batch = tf.cast(pauli_batch, tf.complex64)
         phi_batch = tf.stack([0.0]*env.batch_size)
         for j, psi in enumerate(cache):   
             _, z = env.phase_estimation(psi, pauli_batch, phi_batch)

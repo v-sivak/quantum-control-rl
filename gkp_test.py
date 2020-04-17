@@ -12,20 +12,18 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 import tensorflow as tf
-import gkp_helper_functions as hf
-import gkp_tf_env_wrappers as wrappers
 
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import policy as plc
+from gkp.gkp_tf_env import helper_functions as hf
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 
 
 
-
-
-env = GKP(init='vac', H=1, batch_size=1, episode_length=50, 
+env = GKP(init='vac', H=1, batch_size=10, episode_length=50, 
           reward_mode = 'stabilizers', quantum_circuit_type='v3')
 
-import action_script_Baptiste_8round as action_script
+from gkp.action_script import Baptiste_8round as action_script
 policy = plc.ScriptedPolicyV2(env.time_step_spec(), action_script)
 
 
@@ -44,8 +42,8 @@ if 1:
         action_step = policy.action(time_step, policy_state)
         policy_state = action_step.state
         time_step = env.step(action_step.action)
-        hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
-                                  title=str(env._elapsed_steps))
+        # hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
+        #                           title=str(env._elapsed_steps))
     # hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
 
 

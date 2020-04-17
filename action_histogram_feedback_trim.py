@@ -28,16 +28,16 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = GKP(init='random', H=1, batch_size=600, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v3')
+env = GKP(init='random', H=1, batch_size=200, episode_length=30, 
+          reward_mode = 'pauli', quantum_circuit_type='v3')
 
-from gkp.action_script import Baptiste_8round as action_script
-env = wrappers.ActionWrapperFeedbackTrim(env, action_script)
+from gkp.action_script import Baptiste_4round as action_script
+env = wrappers.ActionWrapper(env, action_script, 'v3')
 env = wrappers.FlattenObservationsWrapperTF(env, 
                 observations_whitelist=['msmt','alpha','beta','eps','phi'])
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-policy_dir = r'rnn_maxsteps24_lr1e-5\policy\003340000'
+policy_dir = r'rnn_maxstep24_lr1e-5_pauli_4round\policy\000200000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 #-----------------------------------------------------------------------------

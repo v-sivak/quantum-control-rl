@@ -16,12 +16,12 @@ from time import time
 from math import sqrt, pi
 from tf_agents.specs import tensor_spec
 from tf_agents import specs
-import gkp_helper_functions as hf
 from scipy.optimize import curve_fit
-import gkp_tf_env_wrappers as wrappers
 
-from gkp_tf_env import GKP
-import policy as plc
+from gkp.gkp_tf_env import helper_functions as hf
+from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import policy as plc
 
 
 class ActionScript(object):
@@ -30,29 +30,25 @@ class ActionScript(object):
         self.delta = delta
         self.eps = eps
 
-        self.period = 8
+        self.period = 4
 
-        self.beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
-                     -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
+        self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), 2*sqrt(pi)+0j, 2j*sqrt(pi)]
         
-        self.alpha = [-1j*delta, -2j*sqrt(pi), delta+0j, 2*sqrt(pi)+0j, 
-                      1j*delta, 2j*sqrt(pi), -delta+0j, -2*sqrt(pi)+0j]
+        self.alpha = [0+0j, 0+0j, -1j*delta, delta+0j]
         
-        # self.epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j,
-        #                 -1j*eps, eps+0j, 0j, 0j]
+        self.epsilon = [0, 0, pi/2, pi/2]
         
-        self.phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
-
+        self.phi = [0, 0, pi/2, pi/2]
 
 
 
 env = GKP(init='Z+', H=1, batch_size=200, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v1')
+          reward_mode = 'mixed', quantum_circuit_type='v3')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\Error_model\2d_sweep\no_errors_8round_no_reward'
-feedback_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)[:10]
-trim_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)[:10]
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\mixed_4round_Baptiste'
+feedback_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
+trim_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 lifetimes = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
 returns = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
 
@@ -60,7 +56,7 @@ for jj, fa in enumerate(feedback_amplitudes):
     for ii, ta in enumerate(trim_amplitudes):
 
         action_script = ActionScript(delta=fa, eps=ta)
-        policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
+        policy = plc.ScriptedPolicyV2(env.time_step_spec(), action_script)
 
         
         # This big part is essentially the same as in T1 measurement  

@@ -29,15 +29,15 @@ if __name__ == '__main__':
     kl_cutoff_factor = 0
     importance_ratio_clipping = 0.2
     # Params for log, eval, save
-    eval_batch_size = 100
-    eval_interval = 100 #200
-    save_interval = 100 #1000
+    eval_batch_size = 200
+    eval_interval = 200
+    save_interval = 1000
     log_interval = 20
     # Params for environment
     horizon = 1
-    max_episode_length = 24
-    eval_episode_length = 24 #200
-    reward_mode = 'pauli'
+    max_episode_length = 50
+    eval_episode_length = 200
+    reward_mode = 'mixed'
     quantum_circuit_type = 'v3'
     action_script = 'Baptiste_4round'
     # Policy and value networks

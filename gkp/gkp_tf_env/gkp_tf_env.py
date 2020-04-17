@@ -163,6 +163,7 @@ class GKP(tf_environment.TFEnvironment):
             observation['eps'] = tf.concat(self.history['eps'][-self.H:], axis=1)
 
         reward = self.calculate_reward(obs, action)
+        self._episode_return += reward
         
         if self._episode_ended:
             self._current_time_step_ = ts.termination(observation, reward)
@@ -209,6 +210,7 @@ class GKP(tf_environment.TFEnvironment):
             self.episode_length = np.random.randint(1,self.max_episode_length)
         self._episode_ended = False
         self._elapsed_steps = 0
+        self._episode_return = 0
         self.info = {} # use to cache some intermediate results
 
         # Initialize history by broadcasting initial state to horizon H
@@ -229,7 +231,7 @@ class GKP(tf_environment.TFEnvironment):
             }
         if self.quantum_circuit_type == 'v3':
             observation['eps'] = tf.concat(self.history['eps'][-self.H:], axis=1)
-
+        
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()
 
@@ -679,6 +681,24 @@ class GKP(tf_environment.TFEnvironment):
         return z
 
 
+    def reward_stabilizers_and_pauli(self, obs, act):
+        """
+        At itermediate steps use 'reward_stabilizers', at last step use
+        'reward_pauli'. The last reward is scaled by '_episode_return'  
+        accumulated up to that point. This is done to make sure that its 
+        contribution to the total return is non-negligible. 
+
+        Input:
+            obs -- observations at this time step; shape=(batch_size,)
+            act -- actions at this time step; shape=(batch_size,5)
+            
+        """
+        if self._elapsed_steps < self.episode_length:
+            return self.reward_stabilizers(obs, act)
+        else:
+            return self.reward_pauli(obs, act) * self._episode_return
+
+
 ### Gates
     
     @tf.function
@@ -756,14 +776,17 @@ class GKP(tf_environment.TFEnvironment):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'stabilizers', 'entropy']
+            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed', 'entropy']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
             if mode == 'stabilizers':
                 self.calculate_reward = self.reward_stabilizers
+            # TODO: add check for 'init = vac' in which case these two are invalid
             if mode == 'pauli':
                 self.calculate_reward = self.reward_pauli
+            if mode == 'mixed':
+                self.calculate_reward = self.reward_stabilizers_and_pauli
         except: 
             raise ValueError('Reward mode not supported.') 
     
