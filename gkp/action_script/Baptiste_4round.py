@@ -11,7 +11,7 @@ from numpy import sqrt, pi
 
 
 delta = 0.0
-eps = 0.0
+eps = 0.33
 
 period = 4
 

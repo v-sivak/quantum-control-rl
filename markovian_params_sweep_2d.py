@@ -36,7 +36,7 @@ class ActionScript(object):
         
         self.alpha = [0+0j, 0+0j, -1j*delta, delta+0j]
         
-        self.epsilon = [0, 0, pi/2, pi/2]
+        self.epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j]
         
         self.phi = [0, 0, pi/2, pi/2]
 

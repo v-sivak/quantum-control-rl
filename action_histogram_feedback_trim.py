@@ -37,7 +37,7 @@ env = wrappers.FlattenObservationsWrapperTF(env,
                 observations_whitelist=['msmt','alpha','beta','eps','phi'])
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-policy_dir = r'rnn_maxstep24_lr1e-5_pauli_4round\policy\000200000'
+policy_dir = r'rnn_maxstep24_lr1e-5_pauli_4round_lr3e-6\policy\002500000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 #-----------------------------------------------------------------------------

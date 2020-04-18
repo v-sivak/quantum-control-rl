@@ -143,9 +143,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             
         """
         self.quantum_circuit_type = quantum_circuit_type
-        if quantum_circuit_type in ['v1','v2']: 
+        if quantum_circuit_type in ['v1','v2']:
             self.act_dim = 2
-        if quantum_circuit_type in ['v3']: 
+        if quantum_circuit_type in ['v3']:
             self.act_dim = 4
         
         super(ActionWrapper, self).__init__(env)

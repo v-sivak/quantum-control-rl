@@ -23,7 +23,7 @@ if __name__ == '__main__':
     normalize_observations = True
     normalize_rewards = True
     discount_factor = 1.0
-    lr = 1e-5
+    lr = 3e-6
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
@@ -35,9 +35,9 @@ if __name__ == '__main__':
     log_interval = 20
     # Params for environment
     horizon = 1
-    max_episode_length = 50
-    eval_episode_length = 200
-    reward_mode = 'mixed'
+    max_episode_length = 24
+    eval_episode_length = 24
+    reward_mode = 'pauli'
     quantum_circuit_type = 'v3'
     action_script = 'Baptiste_4round'
     # Policy and value networks

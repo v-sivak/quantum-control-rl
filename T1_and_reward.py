@@ -23,29 +23,30 @@ from gkp.gkp_tf_env import policy as plc
 
 
 
-# env = GKP(init='Y+', H=1, batch_size=600, episode_length=200, 
-#           reward_mode = 'stabilizers', quantum_circuit_type='v3')
 
-# import action_script_Baptiste_8round as action_script
-# env = wrappers.ActionWrapperFeedbackTrim(env, action_script)
-# env = wrappers.FlattenObservationsWrapperTF(env, 
-#                 observations_whitelist=['msmt','alpha','beta','eps','phi'])
+env = GKP(init='X+', H=1, batch_size=600, episode_length=1000, 
+          reward_mode = 'pauli', quantum_circuit_type='v3')
 
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-# policy_dir = r'rnn_maxsteps100_lr1e-5\policy\001700000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+from gkp.action_script import Baptiste_4round as action_script
+env = wrappers.ActionWrapper(env, action_script, 'v3')
+env = wrappers.FlattenObservationsWrapperTF(env, 
+                observations_whitelist=['msmt','alpha','beta','eps','phi'])
 
-
-
-env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
-          reward_mode = 'pauli', quantum_circuit_type='v1')
-
-from gkp.action_script import phase_estimation_no_rewards_8round as action_script
-policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
+policy_dir = r'rnn_maxstep24_lr1e-5_pauli_4round_lr3e-6\policy\001700000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 
-states = ['Y+'] #['X+', 'Y+', 'Z+']
+# env = GKP(init='X+', H=1, batch_size=600, episode_length=1000, 
+#           reward_mode = 'pauli', quantum_circuit_type='v3')
+
+# from gkp.action_script import Baptiste_4round as action_script
+# policy = plc.ScriptedPolicyV2(env.time_step_spec(), action_script)
+
+
+
+states = ['X+'] #['X+', 'Y+', 'Z+']
 results = {state : np.zeros(env.episode_length) for state in states}
 rewards = {state : np.zeros((env.episode_length, env.batch_size)) 
            for state in states}
