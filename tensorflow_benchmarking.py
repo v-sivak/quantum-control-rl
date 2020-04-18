@@ -18,14 +18,8 @@ import matplotlib.pyplot as plt
 from time import time
 from numpy import sqrt, pi
 
+from gkp.utils.rl_train_utils import save_log
 
-
-
-"""
-Use this to determine your hardware names:
-    from tensorflow.python.client import device_lib
-    print(device_lib.list_local_devices()) 
-"""
 
 
 # This works in nightly version, argument k is ignored in tf2.1
@@ -54,17 +48,25 @@ if __name__ == '__main__':
     to matrix exponetiation. 
     
     """
+    # Check what goodies you have
+    from tensorflow.python.client import device_lib
+    print('='*70)
+    print(device_lib.list_local_devices())
+    print('='*70)
+    print(tf.config.experimental.list_physical_devices('GPU'))
+    print('='*70)
 
+    # Setup benchmarking parameters
     displacements = [3*np.exp(1j*phi) for phi in np.linspace(0,pi,100)]
     displacements = np.array(displacements, dtype=complex)
-
     Hilbert_space_size = np.arange(50, 450, 50)
+
     
     times = {
         'scipy' : [],
-        'tf-CPU' : [],
-        'tf-GPU-1050Ti' : [],
-        'tf-GPU-2080Ti' : []
+        'tf-CPU i7-7700K' : [],
+        'tf-GPU 1050Ti' : [],
+        'tf-GPU 2080Ti' : []
     }
 
     for j, N in enumerate(Hilbert_space_size):
@@ -92,7 +94,7 @@ if __name__ == '__main__':
             tf_alpha = tf.reshape(tf_alpha, [tf_alpha.shape[0],1,1])
             tf_batch = tf_alpha * a_dag - tf.math.conj(tf_alpha) * a
             exp =  tf.linalg.expm(tf_batch)
-        times['tf-CPU'].append(time()-t)
+        times['tf-CPU i7-7700K'].append(time()-t)
 
         ### TensorFlow GPU
         t = time()
@@ -106,7 +108,7 @@ if __name__ == '__main__':
             tf_alpha = tf.reshape(tf_alpha, [tf_alpha.shape[0],1,1])
             tf_batch = tf_alpha * a_dag - tf.math.conj(tf_alpha) * a
             exp =  tf.linalg.expm(tf_batch)
-        times['tf-GPU-2080Ti'].append(time()-t)
+        times['tf-GPU 2080Ti'].append(time()-t)
 
         ### TensorFlow GPU
         t = time()
@@ -120,7 +122,7 @@ if __name__ == '__main__':
             tf_alpha = tf.reshape(tf_alpha, [tf_alpha.shape[0],1,1])
             tf_batch = tf_alpha * a_dag - tf.math.conj(tf_alpha) * a
             exp =  tf.linalg.expm(tf_batch)    
-        times['tf-GPU-1050Ti'].append(time()-t)
+        times['tf-GPU 1050Ti'].append(time()-t)
 
         ### Tensorflow function
         # t = time()
@@ -129,7 +131,7 @@ if __name__ == '__main__':
         # batch_displacement(tf_N, tf_displacements)
         # tf_fn_gpu_time.append(time()-t)
 
-
+    # Plot stuff
     fig, ax = plt.subplots(1,1)
     ax.set_ylabel('Time (s)')
     ax.set_xlabel('Hilbert space size')
@@ -139,7 +141,11 @@ if __name__ == '__main__':
         ax.plot(Hilbert_space_size, val, label=key)
     ax.legend()
 
-
+    # Save stuff
+    # dic = times
+    # dic['Hilbert_space_size'] = Hilbert_space_size
+    # dic['displacements'] = displacements
+    # save_log(dic, groupname='analysis_pc', filename='tf_benchmarking.hdf5')
 
 
 

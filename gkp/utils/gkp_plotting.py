@@ -7,9 +7,55 @@ Created on Tue Mar  3 13:36:40 2020
 
 import csv
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import os
 import h5py
+
+fontsize = 14 #6 #1.5
+fontsize_tick = 12 #6 #4 #15
+linewidth = 1.5 #0.5 #0.25
+spinewidth = 0.5 #0.1
+markersize = linewidth*6
+tick_size = 3.0 #0.5 #3
+pad = 2 #0.05 #2
+
+mpl.rcParams['savefig.dpi'] = 600
+mpl.rcParams['savefig.format'] = 'pdf'
+mpl.rcParams['savefig.transparent'] = True
+#mpl.rcParams['figure.subplot.bottom'] = 0.2
+#mpl.rcParams['figure.subplot.right'] = 0.85
+#mpl.rcParams['figure.subplot.left'] = 0.18
+mpl.rcParams['axes.linewidth'] = spinewidth #1.0 #2.0
+mpl.rcParams['axes.labelsize'] = fontsize
+mpl.rcParams['axes.labelpad'] = pad #4
+
+mpl.rcParams['xtick.major.size'] = tick_size
+mpl.rcParams['xtick.major.width'] = spinewidth#2.0
+mpl.rcParams['xtick.minor.size'] = tick_size / 1.5
+mpl.rcParams['xtick.minor.width'] = spinewidth / 1.5
+
+mpl.rcParams['ytick.major.size'] = tick_size
+mpl.rcParams['ytick.major.width'] = spinewidth #2.0
+mpl.rcParams['ytick.minor.size'] = tick_size / 1.5 #3.0
+mpl.rcParams['ytick.minor.width'] = spinewidth / 1.5
+
+mpl.rcParams['xtick.major.pad']= pad #4
+mpl.rcParams['ytick.major.pad']= pad #4
+mpl.rcParams['xtick.minor.pad']= pad / 2.0 #4
+mpl.rcParams['ytick.minor.pad']= pad / 2.0 #4
+
+mpl.rcParams['xtick.labelsize'] = fontsize_tick
+mpl.rcParams['ytick.labelsize'] = fontsize_tick
+
+mpl.rcParams['legend.fontsize'] = fontsize_tick
+mpl.rcParams['legend.frameon'] = True
+
+mpl.rcParams['lines.linewidth'] = linewidth
+mpl.rcParams['lines.markersize'] = markersize
+mpl.rcParams['lines.markeredgewidth'] = linewidth / 2
+            
+mpl.rcParams['legend.markerscale'] = 2.0
 
 
 def plot_supervised_training_log(logslist, xscale=None, yscale=None, metric='loss',
@@ -97,15 +143,16 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
     
     # Plot returns
     fig, ax = plt.subplots(1,1)
-    ax.set_ylabel('Return')
+    ax.set_ylabel('1-Return')
     ax.set_xlabel('Epoch')
     plt.grid(True)
     # ax.set_xscale('log')
+    ax.set_yscale('log')
     palette = plt.get_cmap('tab10')
     max_epoch = 0
     for i, fname in enumerate(all_logs.keys()):
         for log in all_logs[fname]:
-            ax.plot(log['epochs'][1:], log['returns'][1:], color=palette(i))
+            ax.plot(log['epochs'][1:], 1-log['returns'][1:], color=palette(i))
             max_epoch = max(max_epoch, np.max(log['epochs']))
     if baseline:
         ax.plot([0,max_epoch], [baseline,baseline], color='k')
@@ -123,3 +170,39 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
     #         ax.plot(log['epochs'], log['train_time']/3600,
     #                 label='Training: %.1f mins' %(log['train_time'][-1]/60))
     # ax.legend()
+        
+        
+        
+        
+        
+def plot_tensorflow_benchmarking(fname, groupname):
+
+    dic = {}
+    h5file = h5py.File(fname,'r+')
+    try:
+        grp = h5file[groupname]
+        for name in grp.keys():
+            dic[name] = np.array(grp.get(name))
+    finally:
+        h5file.close()
+
+    # Clean up the dictionary
+    Hilbert_space_size = dic['Hilbert_space_size']
+    del(dic['displacements'])
+    del(dic['Hilbert_space_size'])
+
+    # Plot stuff
+    fig, ax = plt.subplots(1,1) # figsize=(3.375, 2.0)
+    ax.set_ylabel('Time (s)')
+    ax.set_xlabel('Hilbert space size')
+    ax.set_yscale('log')
+    ax.set_xticks(Hilbert_space_size)
+    plt.grid(True, which="both")
+    for key, val in dic.items():
+        ax.plot(Hilbert_space_size, val, label=key)
+    ax.legend()
+    
+    fig.savefig(os.path.join(os.path.dirname(fname), 'plot.png'),
+                figsize=(3.375, 2.0))
+        
+        

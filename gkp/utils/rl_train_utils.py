@@ -39,4 +39,4 @@ def save_log(log, filename, groupname):
             grp.create_dataset(name, data=data)
     finally:
         h5file.close()
-        
+ 
