@@ -17,13 +17,13 @@ if __name__ == '__main__':
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
-    train_batch_size = 10
+    train_batch_size = 100
     replay_buffer_capacity = 20000
     # Params for train
     normalize_observations = True
     normalize_rewards = True
     discount_factor = 1.0
-    lr = 3e-6
+    lr = 1e-5
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
@@ -44,8 +44,8 @@ if __name__ == '__main__':
     actor_fc_layers = ()
     value_fc_layers = ()
     use_rnn = True
-    actor_lstm_size = (12,)
-    value_lstm_size = (12,)
+    actor_lstm_size = (12,12,12)
+    value_lstm_size = (12,12,12)
     
     
     import argparse

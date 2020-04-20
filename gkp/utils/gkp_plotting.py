@@ -143,16 +143,16 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
     
     # Plot returns
     fig, ax = plt.subplots(1,1)
-    ax.set_ylabel('1-Return')
+    ax.set_ylabel('Return')
     ax.set_xlabel('Epoch')
     plt.grid(True)
     # ax.set_xscale('log')
-    ax.set_yscale('log')
+    # ax.set_yscale('log')
     palette = plt.get_cmap('tab10')
     max_epoch = 0
     for i, fname in enumerate(all_logs.keys()):
         for log in all_logs[fname]:
-            ax.plot(log['epochs'][1:], 1-log['returns'][1:], color=palette(i))
+            ax.plot(log['epochs'][1:], log['returns'][1:], color=palette(i))
             max_epoch = max(max_epoch, np.max(log['epochs']))
     if baseline:
         ax.plot([0,max_epoch], [baseline,baseline], color='k')

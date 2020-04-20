@@ -131,12 +131,12 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     
     """
     def __init__(self, env, action_script, quantum_circuit_type,
-                 max_amplitude=1.0):
+                  max_amplitude=1.0):
         """
         Input:
             env -- GKP environment
             action_script -- module or class with attributes 'beta', 'phi',
-                             'period' and optionally 'mask'
+                              'period' and optionally 'mask'
             quantum_circuit_type -- one of the following: 'v1', 'v2', 'v3'
                                     used to infer action dimensions.
             max_amplitude -- amplitude used for rescaling of actions
@@ -191,5 +191,4 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
-    
     

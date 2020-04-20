@@ -8,7 +8,7 @@ Created on Wed Apr  8 21:07:58 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,7 +37,7 @@ env = wrappers.FlattenObservationsWrapperTF(env,
                 observations_whitelist=['msmt','alpha','beta','eps','phi'])
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-policy_dir = r'rnn_maxstep24_lr1e-5_pauli_4round_lr3e-6\policy\002500000'
+policy_dir = r'deep_rnn_maxstep24_batch100_pauli\policy\000500000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 #-----------------------------------------------------------------------------
