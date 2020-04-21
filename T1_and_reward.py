@@ -22,31 +22,35 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import policy as plc
 
 
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
-# env = GKP(init='X+', H=1, batch_size=100, episode_length=1000, 
-#           reward_mode = 'pauli', quantum_circuit_type='v3')
+env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
+          reward_mode = 'pauli', quantum_circuit_type='v1')
 
-# from gkp.action_script import Baptiste_4round as action_script
-# to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False}
-# env = wrappers.ActionWrapper(env, action_script, to_learn)
-# env = wrappers.FlattenObservationsWrapperTF(env)
+from gkp.action_script import phase_estimation_4round as action_script
+to_learn = {'alpha':True, 'beta':False, 'phi':True}
+env = wrappers.ActionWrapper(env, action_script, to_learn)
+env = wrappers.FlattenObservationsWrapperTF(env)
 
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\Baptiste'
-# policy_dir = r'rnn_maxstep24_batch100_pauli_test\policy\000280000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-
-env = GKP(init='X+', H=10, batch_size=13, episode_length=500, 
-          reward_mode = 'pauli', quantum_circuit_type='v3')
-
-from gkp.action_script import Baptiste_4round as action_script
-policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\alpha_eps_phi'
+policy_dir = r'rnn_maxstep24_batch100_v4\policy\001200000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 
+# env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
+#           reward_mode = 'pauli', quantum_circuit_type='v1')
 
+# from gkp.action_script import phase_estimation_4round as action_script
+# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+
+
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 states = ['X+'] #['X+', 'Y+', 'Z+']
 results = {state : np.zeros(env.episode_length) for state in states}

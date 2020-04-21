@@ -130,15 +130,13 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     controls which action components are to be learned.
     
     """
-    def __init__(self, env, action_script, to_learn, max_amplitude=1.0):
+    def __init__(self, env, action_script, to_learn):
         """
         Input:
             env -- GKP environment
 
             action_script -- module or class with attributes corresponding to
                              action components such as 'alpha', 'phi' etc
-
-            max_amplitude -- amplitude used for rescaling of actions
             
             to_learn -- dictionary of bool values for action components 
             
@@ -151,8 +149,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         self._action_spec = specs.BoundedTensorSpec(
             shape=[self.input_dim], dtype=tf.float32, minimum=-1, maximum=1)
 
-        self.max_amplitude = max_amplitude # for rescaling the actions
         self.period = action_script.period # periodicity of the protocol
+        self.scale = {'alpha' : 1, 'epsilon' : 1, 'phi' : pi}
         self.to_learn = to_learn
         self.dims_map = dims_map
         
@@ -193,10 +191,10 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                     action[a] = tf.concat([real(A), imag(A)], axis=1)
                 if self.dims_map[a] == 1:
                     action[a] = real(A)
-            # if leanring: take a slice of input tensor in order
+            # if learning: take a slice of input tensor in order
             else:
                 action[a] = input_action[:,:self.dims_map[a]]
-                action[a] *= self.max_amplitude
+                action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
         return action
 

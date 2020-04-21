@@ -23,21 +23,22 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = GKP(init='random', H=1, batch_size=200, episode_length=30, 
-          reward_mode = 'pauli', quantum_circuit_type='v3')
+env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
+          reward_mode = 'pauli', quantum_circuit_type='v1')
 
-from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False}
+from gkp.action_script import phase_estimation_4round as action_script
+to_learn = {'alpha':True, 'beta':False, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\Baptiste'
-policy_dir = r'rnn_maxstep24_batch100_pauli_test\policy\000280000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\alpha_eps_phi'
+policy_dir = r'rnn_maxstep24_batch100_v4\policy\001200000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
+
 # from gkp.action_script import Baptiste_4round as action_script
-# policy = plc.ScriptedPolicyV2(env.time_step_spec(), action_script)
+# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -61,9 +62,9 @@ while not time_step.is_last()[0]:
 
 ### Plot actions and rewards
 
-for a in ['alpha','epsilon']:
-    
-    action_cache = np.stack(env.history[a][1:]).squeeze() # shape=[t,b,2]    
+for a in ['alpha']:
+    # shape=[t,b,2] 
+    action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()    
     all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
     
     # Plot combined histogram of actions at all time steps
@@ -84,23 +85,36 @@ for a in ['alpha','epsilon']:
     plt.suptitle(a)
     palette = plt.get_cmap('tab10')
     axes = axes.ravel()
-    axes[0].set_xlim(-1.05,1.05)
-    axes[0].set_ylim(-1.05,1.05)
+    axes[0].set_xlim(-0.5,0.5)
+    axes[0].set_ylim(-0.5,0.5)
     for t in range(30):
         axes[t].plot(action_cache[t,:,0], action_cache[t,:,1],
                      linestyle='none', marker='.', markersize=2, 
                      color=palette(t % 10))
 
 
-# Plot rewards during the episode
+# Plot histogram of 'phi'
+a = 'phi'
+action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()
+all_actions = action_cache.flatten()
+H, edges = np.histogram(all_actions, bins=101, range=[-2,2])
+centers = (edges[1:] + edges[:-1]) / 2
+
 fig, ax = plt.subplots(1,1)
-ax.set_xlabel('Time step')
-ax.set_ylabel('Reward')
-reward_cache = np.array(reward_cache)
-mean = np.mean(reward_cache, axis=1)
-std = np.std(reward_cache, axis=1)
-ax.plot(range(env.episode_length), mean, color='black')
-ax.fill_between(range(env.episode_length), 
-                np.clip(mean-std,-1,1), np.clip(mean+std,-1,1))
-print(np.sum(mean))
+ax.set_title(a)
+ax.set_ylabel('Counts')
+ax.plot(centers, H)
+
+
+# Plot rewards during the episode
+# fig, ax = plt.subplots(1,1)
+# ax.set_xlabel('Time step')
+# ax.set_ylabel('Reward')
+# reward_cache = np.array(reward_cache)
+# mean = np.mean(reward_cache, axis=1)
+# std = np.std(reward_cache, axis=1)
+# ax.plot(range(env.episode_length), mean, color='black')
+# ax.fill_between(range(env.episode_length), 
+#                 np.clip(mean-std,-1,1), np.clip(mean+std,-1,1))
+# print(np.sum(mean))
 

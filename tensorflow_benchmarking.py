@@ -8,7 +8,7 @@ Created on Sat Apr 18 12:57:18 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 
 import numpy as np

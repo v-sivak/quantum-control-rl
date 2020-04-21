@@ -281,7 +281,7 @@ class GKP(tf_environment.TFEnvironment):
         
         # Define Hamiltonian and collapse ops
         Hamiltonian = -1/2*(2*pi)*self.K_osc*n*n  # Kerr
-        c_ops = [sqrt(1/self.T1_osc)*a]      # photon loss
+        c_ops = [sqrt(1/self.T1_osc)*a]           # photon loss
         
         # Create Kraus ops
         Kraus = {}
@@ -322,7 +322,6 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        # extract parameters
         alpha = self.vec_to_complex(action['alpha'])
         beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
@@ -358,11 +357,9 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = tf.cast(action[:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,1], dtype=tf.complex64)
-        beta  = tf.cast(action[:,2], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,3], dtype=tf.complex64)
-        phi   = action[:,4]
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        phi = action['phi']
         
         Kraus = {}
         T = {'a' : self.translate(alpha),
@@ -395,11 +392,9 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = tf.cast(action[:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,1], dtype=tf.complex64)
-        beta  = tf.cast(action[:,2], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,3], dtype=tf.complex64)
-        phi   = action[:,4]
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        phi = action['phi']
         
         # Create tensors
         T = {'a' : self.translate(alpha),
@@ -451,11 +446,9 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = tf.cast(action[:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,1], dtype=tf.complex64)
-        beta  = tf.cast(action[:,2], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,3], dtype=tf.complex64)
-        phi   = action[:,4]
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        phi = action['phi']
         
         # Create tensors
         T = {'a' : self.translate(alpha),
@@ -626,7 +619,7 @@ class GKP(tf_environment.TFEnvironment):
             act -- actions at this time step; shape=(batch_size,5)
             
         """        
-        mask = tf.math.equal(act[:,-1], 0.0)
+        mask = tf.math.equal(act['phi'][:,0], 0.0)
         mask = tf.cast(mask, tf.float32)
         z = tf.reshape(obs, shape=(self.batch_size,))*mask
         return z
@@ -655,24 +648,6 @@ class GKP(tf_environment.TFEnvironment):
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
         return z
-
-
-    def reward_stabilizers_and_pauli(self, obs, act):
-        """
-        At itermediate steps use 'reward_stabilizers', at last step use
-        'reward_pauli'. The last reward is scaled by '_episode_return'  
-        accumulated up to that point. This is done to make sure that its 
-        contribution to the total return is non-negligible. 
-
-        Input:
-            obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,5)
-            
-        """
-        if self._elapsed_steps < self.episode_length:
-            return self.reward_stabilizers(obs, act)
-        else:
-            return self.reward_pauli(obs, act) * self._episode_return
 
 
 ### Gates
@@ -761,8 +736,6 @@ class GKP(tf_environment.TFEnvironment):
             # TODO: add check for 'init = vac' in which case these two are invalid
             if mode == 'pauli':
                 self.calculate_reward = self.reward_pauli
-            if mode == 'mixed':
-                self.calculate_reward = self.reward_stabilizers_and_pauli
         except: 
             raise ValueError('Reward mode not supported.') 
     
