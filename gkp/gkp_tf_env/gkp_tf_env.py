@@ -10,6 +10,7 @@ import qutip as qt
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
+from tensorflow.keras.layers import Reshape
 from math import pi, sqrt
 from tf_agents import specs
 from tf_agents.environments import tf_environment
@@ -78,44 +79,24 @@ class GKP(tf_environment.TFEnvironment):
                       [0, 1]])
         self.define_stabilizer_code(S)
         
-
+    # TODO: check all docs after upgrading to dict actions
     def create_specs(self):
         """
         Depending on the 'quantum_circuit_type', create action and time_step
         specs required by parent class. 
         
         """
-        if self.quantum_circuit_type in ['v1','v2', 'v4', 'v5']:
-            action_spec = specs.TensorSpec(shape=[5], dtype=tf.float32)
-        elif self.quantum_circuit_type == 'v3':
-            action_spec = specs.TensorSpec(shape=[7], dtype=tf.float32)
-        
-        measurement_spec = specs.BoundedTensorSpec(
-            shape=[self.H,1], dtype=tf.float32, minimum=-1, maximum=1)
+        spec_2d = specs.TensorSpec(shape=[self.H,2], dtype=tf.float32)
+        spec_1d = specs.TensorSpec(shape=[self.H,1], dtype=tf.float32)
+        action_spec = {'alpha' : spec_2d, 'beta' : spec_2d, 'phi': spec_1d}
+        if self.quantum_circuit_type == 'v3': action_spec['eps'] = spec_2d
 
-        observation_spec = {
-            'msmt' : measurement_spec,
-            'alpha': specs.TensorSpec(shape=[self.H,2], dtype=tf.float32),
-            'beta': specs.TensorSpec(shape=[self.H,2], dtype=tf.float32),
-            'phi': specs.TensorSpec(shape=[self.H,1], dtype=tf.float32)
-            }
-        # add trimmin amplitude to observations in 'v3'
-        if self.quantum_circuit_type == 'v3':
-            observation_spec['eps'] = specs.TensorSpec(
-                shape=[self.H,2], dtype=tf.float32)
-
+        observation_spec = action_spec.copy()
+        observation_spec['msmt'] = spec_1d
         time_step_spec = ts.time_step_spec(observation_spec)
 
-        if self.quantum_circuit_type == 'v3':
-            self.quantum_circuit = self.quantum_circuit_v3
-        if self.quantum_circuit_type == 'v2':
-            self.quantum_circuit = self.quantum_circuit_v2
-        if self.quantum_circuit_type == 'v1':
-            self.quantum_circuit = self.quantum_circuit_v1
-        if self.quantum_circuit_type == 'v4':
-            self.quantum_circuit = self.quantum_circuit_v4
-        if self.quantum_circuit_type == 'v5':
-            self.quantum_circuit = self.quantum_circuit_v5
+        self.quantum_circuit = self.__getattribute__(
+            'quantum_circuit_' + self.quantum_circuit_type)
         
         return action_spec, time_step_spec
         
@@ -128,7 +109,7 @@ class GKP(tf_environment.TFEnvironment):
         Execute one time step in the environment.
         
         Input:
-            action -- batch of actions; shape=[batch_size,5]
+            action -- dictionary of batched actions
         
         Output:
             TimeStep object (see tf-agents docs)  
@@ -139,28 +120,15 @@ class GKP(tf_environment.TFEnvironment):
         # Calculate rewards
         self._elapsed_steps += 1
         self._episode_ended = (self._elapsed_steps == self.episode_length)
-        # Add history dimension to this step observation components
-        msmt = tf.keras.layers.Reshape(target_shape=(1,1))(obs)
-        alpha = tf.keras.layers.Reshape(target_shape=(1,2))(action[:,0:2])
-        beta = tf.keras.layers.Reshape(target_shape=(1,2))(action[:,2:4])
-        phi = tf.keras.layers.Reshape(target_shape=(1,1))(action[:,-1])
-        if self.quantum_circuit_type == 'v3':
-            eps = tf.keras.layers.Reshape(target_shape=(1,2))(action[:,4:6])
-            self.history['eps'].append(eps)
-        # Append to episode history
-        self.history['msmt'].append(msmt)
-        self.history['alpha'].append(alpha)
-        self.history['beta'].append(beta)
-        self.history['phi'].append(phi)
-        # Make observation of horizon H, shape=[batch_size,H,dim] of each
-        observation = {
-            'msmt' : tf.concat(self.history['msmt'][-self.H:], axis=1),
-            'alpha': tf.concat(self.history['alpha'][-self.H:], axis=1),
-            'beta' : tf.concat(self.history['beta'][-self.H:], axis=1),
-            'phi'  : tf.concat(self.history['phi'][-self.H:], axis=1)
-            }
-        if self.quantum_circuit_type == 'v3':
-            observation['eps'] = tf.concat(self.history['eps'][-self.H:], axis=1)
+        
+        # Add dummy time dimension to tensors and append them to history
+        for a in action.keys():
+            self.history[a].append(tf.expand_dims(action[a], axis=1))
+        self.history['msmt'].append(tf.expand_dims(obs, axis=1))
+        
+        # Make observations of horizon H, shape=[batch_size,H,dim]
+        observation = {key : tf.concat(val[-self.H:], axis=1) 
+                       for key, val in self.history.items()}
 
         reward = self.calculate_reward(obs, action)
         self._episode_return += reward
@@ -213,6 +181,8 @@ class GKP(tf_environment.TFEnvironment):
         self._episode_return = 0
         self.info = {} # use to cache some intermediate results
 
+        # TODO: rewrite this using action_spec
+
         # Initialize history by broadcasting initial state to horizon H
         self.history = {
             'msmt' : [tf.ones(shape=[self.batch_size,1,1])]*self.H, 
@@ -222,15 +192,10 @@ class GKP(tf_environment.TFEnvironment):
             }
         if self.quantum_circuit_type == 'v3':
             self.history['eps'] = [tf.zeros(shape=[self.batch_size,1,2])]*self.H
+            
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
-        observation = {
-            'msmt' : tf.concat(self.history['msmt'][-self.H:], axis=1),
-            'alpha': tf.concat(self.history['alpha'][-self.H:], axis=1),
-            'beta' : tf.concat(self.history['beta'][-self.H:], axis=1),
-            'phi'  : tf.concat(self.history['phi'][-self.H:], axis=1)
-            }
-        if self.quantum_circuit_type == 'v3':
-            observation['eps'] = tf.concat(self.history['eps'][-self.H:], axis=1)
+        observation = {key : tf.concat(val[-self.H:], axis=1) 
+                       for key, val in self.history.items()}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()
@@ -537,13 +502,13 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = tf.cast(action[:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,1], dtype=tf.complex64)
-        beta  = tf.cast(action[:,2], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,3], dtype=tf.complex64)
-        epsilon  = tf.cast(action[:,4], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,5], dtype=tf.complex64)
-        phi   = action[:,-1]
+        alpha = tf.cast(action['alpha'][:,0], dtype=tf.complex64) \
+            + 1j*tf.cast(action['alpha'][:,1], dtype=tf.complex64)
+        beta  = tf.cast(action['beta'][:,0], dtype=tf.complex64) \
+            + 1j*tf.cast(action['beta'][:,1], dtype=tf.complex64)
+        epsilon  = tf.cast(action['epsilon'][:,0], dtype=tf.complex64) \
+            + 1j*tf.cast(action['epsilon'][:,1], dtype=tf.complex64)
+        phi   = action['phi']
         
         Kraus = {}
         T = {}

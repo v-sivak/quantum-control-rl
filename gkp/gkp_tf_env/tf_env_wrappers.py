@@ -13,6 +13,8 @@ from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step as ts
 
+from tensorflow_core._api.v2.math import real, imag
+
 class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
     """
     This is the same wrapper as FlattenObservationsWrapper from
@@ -119,71 +121,83 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
 
 class ActionWrapper(TFEnvironmentBaseWrapper):
     """
-    Agent produces a 2d or 4d action:
-        action[0:2] -- Re and Im of 'alpha'
-        action[2:4] -- Re and Im of 'epsilon'
+    Agent produces input action as real-valued tensor of shape [batch_size,?]
     
-    Wrapper rescales it and adds additional action dimensions 'beta' and 'phi' 
-    from the provided script of certain periodicity. 
-    
-    The resulting wrapped action is a 5-vector (7-vector) compatible with 
-    environment in modes 'v1','v2' ('v3').
+    Wrapper produces a dictionary with action components such as 'alpha', 
+    'beta', 'epsilon', 'phi' as dictionary keys. Some action components are
+    taken from the action script provided at initialization, and some are 
+    taken from the input action produced by the agent. Parameter 'to_learn'
+    controls which action components are to be learned.
     
     """
-    def __init__(self, env, action_script, quantum_circuit_type,
-                  max_amplitude=1.0):
+    def __init__(self, env, action_script, to_learn, max_amplitude=1.0):
         """
         Input:
             env -- GKP environment
-            action_script -- module or class with attributes 'beta', 'phi',
-                              'period' and optionally 'mask'
-            quantum_circuit_type -- one of the following: 'v1', 'v2', 'v3'
-                                    used to infer action dimensions.
+
+            action_script -- module or class with attributes corresponding to
+                             action components such as 'alpha', 'phi' etc
+
             max_amplitude -- amplitude used for rescaling of actions
             
+            to_learn -- dictionary of bool values for action components 
+            
         """
-        self.quantum_circuit_type = quantum_circuit_type
-        if quantum_circuit_type in ['v1','v2']:
-            self.act_dim = 2
-        if quantum_circuit_type in ['v3']:
-            self.act_dim = 4
+        # determine the size of the input action vector 
+        dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
+        self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
         
         super(ActionWrapper, self).__init__(env)
         self._action_spec = specs.BoundedTensorSpec(
-            shape=[self.act_dim], dtype=tf.float32, minimum=-1, maximum=1)
-        
-        self.MAX_AMPLITUDE = max_amplitude # for rescaling the actions
+            shape=[self.input_dim], dtype=tf.float32, minimum=-1, maximum=1)
+
+        self.max_amplitude = max_amplitude # for rescaling the actions
         self.period = action_script.period # periodicity of the protocol
-        if quantum_circuit_type in ['v3']:
-            self.mask = action_script.mask # for masking reward rounds
+        self.to_learn = to_learn
+        self.dims_map = dims_map
+        
+        # ordered list of action components
+        action_order = ['alpha', 'beta', 'epsilon', 'phi']
+        action_order = [a for a in action_order if a in to_learn.keys()]
+        self.action_order = action_order
         
         # load the script of actions
-        self.beta = tf.constant(action_script.beta, 
-                                shape=[self.period,1], dtype=tf.complex64)
-        self.phi = tf.constant(action_script.phi, shape=[self.period,1])
+        self.script = {}
+        for a in to_learn.keys():
+            if a in action_script.__dir__():
+                a_tf = tf.constant(action_script.__getattr__(a),
+                                   shape=[self.period,1], dtype=tf.complex64)
+                self.script[a] = a_tf
+            else:
+                raise ValueError(a + ' is not in the provided action script.')
 
 
-    def wrap(self, action):
+    def wrap(self, input_action):
         """
-        Wrap 2d (4d) batched action into 5d (7d) actions. 
+        Output:
+            actions -- dictionary of batched actions. Dictionary keys are same
+                       as supplied in 'to_learn'
         
         """
         # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps
-        outer_shape = tf.constant(action.shape[0], shape=(1,))
-        assert action.shape[1] == self.act_dim
+        i = self._env._elapsed_steps % self.period
+        out_shape = tf.constant(input_action.shape[0], shape=(1,))
+        assert input_action.shape[1] == self.input_dim
         
-        phi = common.replicate(self.phi[i%self.period], outer_shape)
-        beta = common.replicate(self.beta[i%self.period], outer_shape)
-        alpha = action[:,0:2]*self.MAX_AMPLITUDE
-        
-        if self.quantum_circuit_type in ['v3']:
-            eps = action[:,2:4]*self.MAX_AMPLITUDE*self.mask[i%self.period]
-            action = tf.concat([alpha, tf.math.real(beta), tf.math.imag(beta), 
-                                eps, phi], axis=1)
-        if self.quantum_circuit_type in ['v1','v2']:
-            action = tf.concat([alpha, tf.math.real(beta), tf.math.imag(beta), 
-                                phi], axis=1)
+        action = {}
+        for a in self.action_order:
+            # if not learning: replicate scripted action     
+            if not self.to_learn[a]:
+                A = common.replicate(self.script[a][i], out_shape)
+                if self.dims_map[a] == 2:
+                    action[a] = tf.concat([real(A), imag(A)], axis=1)
+                if self.dims_map[a] == 1:
+                    action[a] = real(A)
+            # if leanring: take a slice of input tensor in order
+            else:
+                action[a] = input_action[:,:self.dims_map(a)]
+                action[a] *= self.max_amplitude
+                input_action = input_action[:,self.dims_map(a):]
         return action
 
     def action_spec(self):
@@ -191,4 +205,5 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
+    
     
