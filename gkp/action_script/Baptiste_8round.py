@@ -20,8 +20,8 @@ period = 8
 beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), 2*sqrt(pi)+0j, 2j*sqrt(pi),
         2*sqrt(pi)+0j, 2j*sqrt(pi), 1*sqrt(pi)+0j, 1j*sqrt(pi)]
 
-alpha = [-1j*delta, delta+0j, -1j*delta, delta+0j, 
-         -1j*delta, delta+0j, 0j, 0j]
+alpha = [0j, -1j*delta, delta+0j, -1j*delta, 
+         delta+0j, -1j*delta, delta+0j, 0j]
 
 epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j,
            -1j*eps, eps+0j, 0j, 0j]

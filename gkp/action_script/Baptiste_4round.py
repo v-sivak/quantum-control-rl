@@ -19,7 +19,7 @@ period = 4
 
 beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), 2*sqrt(pi)+0j, 2j*sqrt(pi)]
 
-alpha = [0+0j, 0+0j, -1j*delta, delta+0j]
+alpha = [delta+0j, 0+0j, 0+0j, -1j*delta]
 
 epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j]
 

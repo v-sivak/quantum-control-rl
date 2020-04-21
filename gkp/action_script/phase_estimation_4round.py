@@ -19,7 +19,7 @@ period = 4
 
 beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), -2*sqrt(pi)+0j, -2j*sqrt(pi)]
 
-alpha = [0j, 0j, 1j*delta, -delta+0j]
+alpha = [-delta+0j, 0j, 0j, 1j*delta]
 
 phi = [0, 0, pi/2, pi/2]
 

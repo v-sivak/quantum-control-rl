@@ -15,6 +15,7 @@ from math import pi, sqrt
 from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
+from tf_agents.specs import tensor_spec
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import config
@@ -79,20 +80,30 @@ class GKP(tf_environment.TFEnvironment):
                       [0, 1]])
         self.define_stabilizer_code(S)
         
-    # TODO: check all docs after upgrading to dict actions
+        
     def create_specs(self):
         """
         Depending on the 'quantum_circuit_type', create action and time_step
         specs required by parent class. 
         
         """
-        spec_2d = specs.TensorSpec(shape=[self.H,2], dtype=tf.float32)
-        spec_1d = specs.TensorSpec(shape=[self.H,1], dtype=tf.float32)
-        action_spec = {'alpha' : spec_2d, 'beta' : spec_2d, 'phi': spec_1d}
-        if self.quantum_circuit_type == 'v3': action_spec['eps'] = spec_2d
+        # Create action spec
+        spec = lambda x,y: specs.TensorSpec(shape=[x,y], dtype=tf.float32)
+        action_spec = {
+            'alpha' : spec(1,2), 
+            'beta'  : spec(1,2), 
+            'phi'   : spec(1,1)}
+        if self.quantum_circuit_type == 'v3': 
+            action_spec['epsilon'] = spec(1,2)
 
-        observation_spec = action_spec.copy()
-        observation_spec['msmt'] = spec_1d
+        # Create time step spec
+        observation_spec = {
+            'alpha' : spec(self.H, 2), 
+            'beta'  : spec(self.H, 2), 
+            'phi'   : spec(self.H, 1),
+            'msmt'  : spec(self.H, 1)}
+        if self.quantum_circuit_type == 'v3': 
+            observation_spec['epsilon'] = spec(self.H, 2)
         time_step_spec = ts.time_step_spec(observation_spec)
 
         self.quantum_circuit = self.__getattribute__(
@@ -147,9 +158,9 @@ class GKP(tf_environment.TFEnvironment):
         
         Input:
             init -- type of states to create in a batch
-                'vac': vacuum state
-                'X+','X-','Y+','Y-','Z+','Z-': one of the cardinal states
-                'random': sample a batch of random states from 'X+','Y+','Z+'
+                * 'vac': vacuum state
+                * 'X+','X-','Y+','Y-','Z+','Z-': one of the cardinal states
+                * 'random': sample batch of random states from 'X+','Y+','Z+'
                 
         Output:
             TimeStep object (see tf-agents docs)
@@ -181,18 +192,13 @@ class GKP(tf_environment.TFEnvironment):
         self._episode_return = 0
         self.info = {} # use to cache some intermediate results
 
-        # TODO: rewrite this using action_spec
-
-        # Initialize history by broadcasting initial state to horizon H
-        self.history = {
-            'msmt' : [tf.ones(shape=[self.batch_size,1,1])]*self.H, 
-            'alpha': [tf.zeros(shape=[self.batch_size,1,2])]*self.H,
-            'beta' : [tf.zeros(shape=[self.batch_size,1,2])]*self.H,
-            'phi'  : [tf.zeros(shape=[self.batch_size,1,1])]*self.H
-            }
-        if self.quantum_circuit_type == 'v3':
-            self.history['eps'] = [tf.zeros(shape=[self.batch_size,1,2])]*self.H
-            
+        # Initialize history of horizon H with actions=0 and measurements=1 
+        self.history = tensor_spec.zero_spec_nest(self.action_spec(), 
+                                      outer_dims=(self.batch_size,))
+        self.history['msmt'] = tf.ones(shape=[self.batch_size,1,1])
+        for key in self.history.keys():
+            self.history[key] = [self.history[key]]*self.H
+        
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {key : tf.concat(val[-self.H:], axis=1) 
                        for key, val in self.history.items()}
@@ -306,7 +312,8 @@ class GKP(tf_environment.TFEnvironment):
         'beta' is not symmetric (translates by +beta if qubit is in state 1). 
         
         Input:
-            action -- batch of actions; shape=[batch_size,5]
+            action -- dictionary of batched actions. Dictionary keys are
+                      'alpha', 'beta', 'phi'
             
         Output:
             psi_final -- batch of final states; shape=[batch_size,N]
@@ -315,11 +322,10 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = tf.cast(action[:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,1], dtype=tf.complex64)
-        beta  = tf.cast(action[:,2], dtype=tf.complex64) \
-            + 1j*tf.cast(action[:,3], dtype=tf.complex64)
-        phi   = action[:,4]
+        # extract parameters
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        phi = action['phi']
         
         Kraus = {}
         T = {'a' : self.translate(alpha),
@@ -488,27 +494,25 @@ class GKP(tf_environment.TFEnvironment):
     @tf.function
     def quantum_circuit_v3(self, psi, action):
         """
-        Apply Kraus map version 3. This is the protocol proposed by Baptiste.
+        Apply Kraus map version 3. This is a protocol proposed by Baptiste.
         It essentially combines trimming and sharpening in a single round. 
         Trimming is controlled by 'epsilon'.
         
         Input:
-            action -- batch of actions; shape=[batch_size,7]
+            action -- dictionary of batched actions. Dictionary keys are
+                      'alpha', 'beta', 'epsilon', 'phi'
             
         Output:
             psi_final -- batch of final states; shape=[batch_size,N]
             psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=(batch_size,)
+            obs -- measurement outcomes; shape=[batch_size,1]
             
         """
         # extract parameters
-        alpha = tf.cast(action['alpha'][:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action['alpha'][:,1], dtype=tf.complex64)
-        beta  = tf.cast(action['beta'][:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action['beta'][:,1], dtype=tf.complex64)
-        epsilon  = tf.cast(action['epsilon'][:,0], dtype=tf.complex64) \
-            + 1j*tf.cast(action['epsilon'][:,1], dtype=tf.complex64)
-        phi   = action['phi']
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        epsilon = self.vec_to_complex(action['epsilon'])
+        phi = action['phi']
         
         Kraus = {}
         T = {}
@@ -540,7 +544,14 @@ class GKP(tf_environment.TFEnvironment):
         
         return psi_final, psi_cached, obs
         
+    @tf.function
+    def vec_to_complex(self, a):
+        """
+        Convert vectorized action of shape [batch_sized,2] to complex-valued
+        action of shape (batch_sized,)
         
+        """
+        return tf.cast(a[:,0], tf.complex64) + 1j*tf.cast(a[:,1], tf.complex64)        
 
     @tf.function
     def phase_estimation(self, psi, beta, angle, sample = False):

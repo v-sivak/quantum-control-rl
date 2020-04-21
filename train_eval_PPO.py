@@ -12,8 +12,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 from gkp.agents import PPO
 
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Baptiste'
-root_dir = os.path.join(root_dir,'rnn_maxstep50_lr1e-5_mixed_4round')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\Baptiste'
+root_dir = os.path.join(root_dir,'mlp_maxstep24_batch100_pauli_test')
 
 
 PPO.train_eval(
@@ -21,10 +21,10 @@ PPO.train_eval(
         random_seed = 0,
         # Params for collect
         num_iterations = 1000000,
-        train_batch_size = 10,
+        train_batch_size = 100,
         replay_buffer_capacity = 20000,
         # Params for train
-        normalize_observations = True,
+        normalize_observations = False,
         normalize_rewards = True,
         discount_factor = 1.0,
         lr = 1e-5,
@@ -38,16 +38,17 @@ PPO.train_eval(
         save_interval = 1000,
         log_interval = 20,
         # Params for environment
-        horizon = 1,
-        max_episode_length = 50,
-        eval_episode_length = 200,
-        reward_mode = 'mixed',
+        horizon = 12,
+        max_episode_length = 24,
+        eval_episode_length = 24,
+        reward_mode = 'pauli',
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_4round',
+        to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
         # Policy and value networks
-        actor_fc_layers = (),
-        value_fc_layers = (),
-        use_rnn = True,
+        actor_fc_layers = (200,),
+        value_fc_layers = (200,),
+        use_rnn = False,
         actor_lstm_size = (12,),
         value_lstm_size = (12,)
         )

@@ -20,8 +20,8 @@ period = 6
 beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi),
         2j*sqrt(pi), 1j*eps, 2*sqrt(pi)+0j]
 
-alpha = [-1j*delta, -1j*sqrt(pi), 0+0j,  
-         delta+0j, sqrt(pi)+0j, 0+0j]
+alpha = [0+0j, -1j*delta, -1j*sqrt(pi), 
+         0+0j, delta+0j, sqrt(pi)+0j, ]
 
 phi = [pi/2, pi/2, 0, pi/2, pi/2, 0]
 

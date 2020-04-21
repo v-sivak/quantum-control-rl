@@ -11,6 +11,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
 
+#TODO: add 'to_learn' to argparser
+
 if __name__ == '__main__':
 
     root_dir = None
@@ -34,18 +36,19 @@ if __name__ == '__main__':
     save_interval = 1000
     log_interval = 20
     # Params for environment
-    horizon = 1
+    horizon = 12
     max_episode_length = 24
     eval_episode_length = 24
     reward_mode = 'pauli'
     quantum_circuit_type = 'v3'
     action_script = 'Baptiste_4round'
+    to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False}
     # Policy and value networks
-    actor_fc_layers = ()
-    value_fc_layers = ()
-    use_rnn = True
-    actor_lstm_size = (12,12,12)
-    value_lstm_size = (12,12,12)
+    actor_fc_layers = (200,)
+    value_fc_layers = (200,)
+    use_rnn = False
+    actor_lstm_size = (12,)
+    value_lstm_size = (12,)
     
     
     import argparse
@@ -173,9 +176,10 @@ if __name__ == '__main__':
         reward_mode=args.reward_mode,
         quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
+        to_learn=to_learn,
         actor_fc_layers=args.actor_fc_layers,
         value_fc_layers=args.value_fc_layers,
         use_rnn=args.use_rnn,
         actor_lstm_size=args.actor_lstm_size,
-        value_lstm_size=args.value_lstm_size
+        value_lstm_size=args.value_lstm_size,
         )

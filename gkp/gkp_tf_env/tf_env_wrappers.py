@@ -165,7 +165,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         self.script = {}
         for a in to_learn.keys():
             if a in action_script.__dir__():
-                a_tf = tf.constant(action_script.__getattr__(a),
+                a_tf = tf.constant(action_script.__getattribute__(a),
                                    shape=[self.period,1], dtype=tf.complex64)
                 self.script[a] = a_tf
             else:
@@ -195,9 +195,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                     action[a] = real(A)
             # if leanring: take a slice of input tensor in order
             else:
-                action[a] = input_action[:,:self.dims_map(a)]
+                action[a] = input_action[:,:self.dims_map[a]]
                 action[a] *= self.max_amplitude
-                input_action = input_action[:,self.dims_map(a):]
+                input_action = input_action[:,self.dims_map[a]:]
         return action
 
     def action_spec(self):

@@ -16,6 +16,8 @@ from tf_agents.utils import nest_utils
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
 
+from tensorflow_core._api.v2.math import real, imag
+
 __all__ = ['IdlePolicy', 'ScriptedPolicyV1', 'ScriptedPolicyV2',
            'SupervisedNeuralNet']
     
@@ -34,12 +36,14 @@ class IdlePolicy(fixed_policy.FixedPolicy):
                                          time_step_spec, action_spec)
 
 
-class ScriptedPolicyV1(tf_policy.Base):
+
+class ScriptedPolicy(tf_policy.Base):
     """
     Policy that follows script of actions.
     
-    Actions are parametrized according to <quantum_circuit_v1> or <..._v2>
-    [Re(alpha), Im(alpha), Re(beta), Im(beta), phi]
+    Actions are parametrized according to different gates in the quantum
+    circuit executed by the agent at each time step. Action components 
+    include 'alpha', 'beta', 'phi' and for certain type of circuit 'epsilon'.
     
     Policy has its own memory / clock which stores the current round number.
     
@@ -48,74 +52,28 @@ class ScriptedPolicyV1(tf_policy.Base):
         """
         Input:
             time_step_spec -- see tf-agents docs
-            action_script -- module or class with attributes 'alpha', 'beta',
-                             'phi' and 'period'.
             
-        """        
-        self.period = action_script.period # periodicity of the protocol
-        
-        # load the script of actions
-        self.beta = tf.constant(action_script.beta, 
-                                shape=[self.period,1], dtype=tf.complex64)
-        self.alpha = tf.constant(action_script.alpha, 
-                                 shape=[self.period,1], dtype=tf.complex64)
-        self.phi = tf.constant(action_script.phi, shape=[self.period,1])
-
-        action_spec = specs.TensorSpec(shape=[5], dtype=tf.float32)
-        policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32, 
-                                             name='clock')
-        super(ScriptedPolicyV1, self).__init__(time_step_spec, action_spec,
-                                              policy_state_spec,
-                                              automatic_state_reset=True)
-        self._policy_info = ()
-
-
-    def _action(self, time_step, policy_state, seed):
-        i = policy_state[0] % self.period # position within the policy period
-        outer_shape = nest_utils.get_outer_shape(time_step, self._time_step_spec)
-        phi = common.replicate(self.phi[(i+1)%self.period], outer_shape)
-        beta = common.replicate(self.beta[(i+1)%self.period], outer_shape)
-        m = time_step.observation['msmt'][:,-1,:] # for Markovian feedback
-        alpha = self.alpha[i]*tf.cast(m, dtype=tf.complex64)
-        alpha = tf.reshape(alpha, beta.shape)
-        action = tf.concat([tf.math.real(alpha), tf.math.imag(alpha), 
-                            tf.math.real(beta), tf.math.imag(beta), phi], axis=1)
-        return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
-
-
-class ScriptedPolicyV2(tf_policy.Base):
-    """
-    Policy that follows script of actions.
-    
-    Actions are parametrized according to <quantum_circuit_v3>:
-    [Re(alpha), Im(alpha), Re(beta), Im(beta), Re(eps), Im(eps), phi]
-    
-    Policy has its own memory / clock which stores the current round number.
-    
-    """
-    def __init__(self, time_step_spec, action_script):
-        """
-        Input:
-            time_step_spec -- see tf-agents docs
             action_script -- module or class with attributes 'alpha', 'beta',
                              'epsilon', 'phi' and 'period'.
-            
         """        
         self.period = action_script.period # periodicity of the protocol
-        
         # load the script of actions
-        self.beta = tf.constant(action_script.beta, 
-                                shape=[self.period,1], dtype=tf.complex64)
-        self.alpha = tf.constant(action_script.alpha, 
-                                 shape=[self.period,1], dtype=tf.complex64)
-        self.epsilon = tf.constant(action_script.epsilon, 
+        action_components = ['alpha', 'beta', 'epsilon', 'phi']
+        self.script = {}
+        for a in action_components:
+            if a in action_script.__dir__():
+                a_tf = tf.constant(action_script.__getattribute__(a),
                                    shape=[self.period,1], dtype=tf.complex64)
-        self.phi = tf.constant(action_script.phi, shape=[self.period,1])
+                self.script[a] = a_tf
 
-        action_spec = specs.TensorSpec(shape=[7], dtype=tf.float32)
+        # Calculate specs and call init of parent class
+        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
+        spec = lambda x: specs.TensorSpec(shape=[x], dtype=tf.float32)
+        action_spec = {a : spec(self.dims_map[a]) for a in self.script.keys()}        
         policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32, 
                                              name='clock')
-        super(ScriptedPolicyV2, self).__init__(time_step_spec, action_spec,
+        
+        super(ScriptedPolicy, self).__init__(time_step_spec, action_spec,
                                               policy_state_spec,
                                               automatic_state_reset=True)
         self._policy_info = ()
@@ -123,16 +81,18 @@ class ScriptedPolicyV2(tf_policy.Base):
 
     def _action(self, time_step, policy_state, seed):
         i = policy_state[0] % self.period # position within the policy period
-        outer_shape = nest_utils.get_outer_shape(time_step, self._time_step_spec)
-        phi = common.replicate(self.phi[(i+1)%self.period], outer_shape)
-        eps = common.replicate(self.epsilon[(i+1)%self.period], outer_shape)
-        beta = common.replicate(self.beta[(i+1)%self.period], outer_shape)
-        m = time_step.observation['msmt'][:,-1,:] # for Markovian feedback
-        alpha = self.alpha[i]*tf.cast(m, dtype=tf.complex64)
-        alpha = tf.reshape(alpha, beta.shape)
-        action = tf.concat([tf.math.real(alpha), tf.math.imag(alpha), 
-                            tf.math.real(beta), tf.math.imag(beta), 
-                            tf.math.real(eps), tf.math.imag(eps), phi], axis=1)
+        out_shape = nest_utils.get_outer_shape(time_step, self._time_step_spec)
+        action = {} 
+        for a in self.script:
+            A = common.replicate(self.script[a][i], out_shape)
+            if a == 'alpha': # do Markovian feedback
+                m = time_step.observation['msmt'][:,-1,:]
+                A *= tf.cast(m, dtype=tf.complex64)
+            if self.dims_map[a] == 2:
+                action[a] = tf.concat([real(A), imag(A)], axis=1)
+            if self.dims_map[a] == 1:
+                action[a] = real(A)                
+
         return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
 
 
