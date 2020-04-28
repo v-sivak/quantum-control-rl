@@ -8,7 +8,7 @@ Created on Tue Apr  7 17:13:46 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
@@ -35,25 +35,26 @@ class ActionScript(object):
 
         self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), -2*sqrt(pi)+0j, -2j*sqrt(pi)]
         
-        self.alpha = [0j, 0j, 1j*delta, -delta+0j]
+        self.alpha = [-delta+0j, 0j, 0j, 1j*delta]
         
         self.phi = [0, 0, pi/2, pi/2]
 
 
 
-env = GKP(init='random', H=1, batch_size=200, episode_length=50, 
+
+env = GKP(init='Z+', H=1, batch_size=600, episode_length=100, 
           reward_mode = 'mixed', quantum_circuit_type='v1')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\mixed_4round'
-amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\stabilizers_at_the_end'
+amplitudes = np.linspace(0.0, 0.8, 20, dtype=complex)
 lifetimes = np.zeros(amplitudes.shape)
 returns = np.zeros(amplitudes.shape)
 
 for jj, a in enumerate(amplitudes):
 
     action_script = ActionScript(delta=a)
-    policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
+    policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
     
     # This big part is essentially the same as in T1 measurement  
     states = ['Z+']
@@ -61,7 +62,7 @@ for jj, a in enumerate(amplitudes):
     rewards = {state : np.zeros((env.episode_length, env.batch_size)) 
                for state in states}
     for state in states:
-        pauli = env.code_displacements[state[0]]
+        pauli = env.code_map[state[0]]
         cache = [] # store intermediate states
         reward_cache = []
         env.init = state

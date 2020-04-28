@@ -7,7 +7,7 @@ Created on Wed Apr  8 21:07:58 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,7 +23,7 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
+env = GKP(init='random', H=4, batch_size=600, episode_length=30, 
           reward_mode = 'pauli', quantum_circuit_type='v1')
 
 from gkp.action_script import phase_estimation_4round as action_script
@@ -31,10 +31,22 @@ to_learn = {'alpha':True, 'beta':False, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\alpha_eps_phi'
-policy_dir = r'rnn_maxstep24_batch100_v4\policy\001200000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
+policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000080000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
+
+# env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
+#           reward_mode = 'mixed', quantum_circuit_type='v3')
+
+# from gkp.action_script import Baptiste_4round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# env = wrappers.FlattenObservationsWrapperTF(env)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
+# policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000000000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # from gkp.action_script import Baptiste_4round as action_script
@@ -62,31 +74,38 @@ while not time_step.is_last()[0]:
 
 ### Plot actions and rewards
 
-for a in ['alpha']:
+for a in to_learn.keys() - ['phi']:
     # shape=[t,b,2] 
     action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()    
     all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
-    
+
+    lim = env.scale[a]    
     # Plot combined histogram of actions at all time steps
     H, Re_edges, Im_edges = np.histogram2d(all_actions[:,0], all_actions[:,1], 
-                                        bins=51, range=[[-1,1],[-1,1]])
+                                        bins=51, 
+                                        range=[[-lim-0.2, lim+0.2],
+                                               [-lim-0.2, lim+0.2]])
     Re_centers = (Re_edges[1:] + Re_edges[:-1]) / 2
     Im_centers = (Im_edges[1:] + Im_edges[:-1]) / 2
     
     fig, ax = plt.subplots(1,1)
+    ax.set_aspect('equal')
     ax.set_title(a)
     ax.set_xlabel(r'${\rm Re}$ ' + a)
     ax.set_ylabel(r'${\rm Im}$ ' + a)
+    ax.set_xlim(-lim-0.2, lim+0.2)
+    ax.set_ylim(-lim-0.2, lim+0.2)
     ax.pcolormesh(Re_centers, Im_centers, np.log10(np.transpose(H)), 
                   cmap='Reds')
+    plt.grid(True)
 
     # Scatter plot of actions in separate panels for each time step
     fig, axes = plt.subplots(6,5, sharex=True, sharey=True)
     plt.suptitle(a)
     palette = plt.get_cmap('tab10')
     axes = axes.ravel()
-    axes[0].set_xlim(-0.5,0.5)
-    axes[0].set_ylim(-0.5,0.5)
+    axes[0].set_xlim(-lim-0.2, lim+0.2) #(-0.5,0.5)
+    axes[0].set_ylim(-lim-0.2, lim+0.2) #(-0.5,0.5)
     for t in range(30):
         axes[t].plot(action_cache[t,:,0], action_cache[t,:,1],
                      linestyle='none', marker='.', markersize=2, 
@@ -99,7 +118,6 @@ action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()
 all_actions = action_cache.flatten()
 H, edges = np.histogram(all_actions, bins=101, range=[-2,2])
 centers = (edges[1:] + edges[:-1]) / 2
-
 fig, ax = plt.subplots(1,1)
 ax.set_title(a)
 ax.set_ylabel('Counts')

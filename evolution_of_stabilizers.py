@@ -27,19 +27,26 @@ from gkp.gkp_tf_env import policy as plc
 
 
 
-# env = GKP(init='vac', H=1, batch_size=600, episode_length=200, 
-#           reward_mode = 'stabilizers', quantum_circuit_type='v3')
-
-# import action_script_Baptiste_8round as action_script
-# policy = plc.ScriptedPolicyV3(env.time_step_spec(), action_script)
+env = GKP(init='random', H=1, batch_size=600, episode_length=100, 
+          reward_mode = 'mixed', quantum_circuit_type='v3')
 
 
+from gkp.action_script import Baptiste_4round as action_script
+to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+env = wrappers.ActionWrapper(env, action_script, to_learn)
+env = wrappers.FlattenObservationsWrapperTF(env)
 
-env = GKP(init='vac', H=1, batch_size=200, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v1')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\learn_everything'
+policy_dir = r'deep_rnn_all_maxsteps12_lr1e-3_sqrt_v3\policy\002600000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
-from gkp.action_script import phase_estimation_4round as action_script
-policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
+
+
+# env = GKP(init='vac', H=1, batch_size=200, episode_length=200, 
+#           reward_mode = 'stabilizers', quantum_circuit_type='v1')
+
+# from gkp.action_script import phase_estimation_4round as action_script
+# policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
 
 # env = GKP(init='vac', H=1, batch_size=100, episode_length=200, 
 #           reward_mode = 'stabilizers', quantum_circuit_type='v1')
@@ -50,8 +57,8 @@ policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
 
 
 names = ['Re(S_p)', 'Im(S_p)', 'Re(S_q)', 'Im(S_q)']
-stabilizers = [env.code_displacements['S_p'], env.code_displacements['S_p'], 
-               env.code_displacements['S_q'], env.code_displacements['S_q']]
+stabilizers = [env.code_map['S_p'], env.code_map['S_p'], 
+               env.code_map['S_q'], env.code_map['S_q']]
 angles = [0, -pi/2, 0, -pi/2]
 results = {name : np.zeros(env.episode_length) for name in names}
 cache = [] # store intermediate states

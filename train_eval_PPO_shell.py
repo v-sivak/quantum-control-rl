@@ -16,7 +16,7 @@ from gkp.agents import PPO
 if __name__ == '__main__':
 
     root_dir = None
-    random_seed = 1
+    random_seed = 0
     # Params for collect
     num_iterations = 1000000
     train_batch_size = 100
@@ -36,17 +36,17 @@ if __name__ == '__main__':
     save_interval = 1000
     log_interval = 20
     # Params for environment
-    horizon = 1
-    max_episode_length = 12
-    eval_episode_length = 12
+    horizon = 4
+    max_episode_length = 24
+    eval_episode_length = 24
     reward_mode = 'pauli'
     quantum_circuit_type = 'v1'
     action_script = 'phase_estimation_4round'
     to_learn = {'alpha':True, 'beta':False, 'phi':True}
     # Policy and value networks
-    actor_fc_layers = ()
-    value_fc_layers = ()
-    use_rnn = True
+    actor_fc_layers = (200,)
+    value_fc_layers = (100,)
+    use_rnn = False
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     

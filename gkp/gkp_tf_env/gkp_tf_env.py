@@ -229,7 +229,7 @@ class GKP(tf_environment.TFEnvironment):
             eps -- envelope size in Fock basis
             
         """
-        stabilizers, pauli, states, self.code_displacements = \
+        stabilizers, pauli, states, self.code_map = \
             hf.GKP_state(self.N, S, hf.epsilon_normalizer(self.N, eps))
         # convert to tensorflow tensors
         self.stabilizers = {key : tf.constant(val.full(), dtype=tf.complex64)
@@ -605,7 +605,8 @@ class GKP(tf_environment.TFEnvironment):
         
         """
         return tf.zeros(self.batch_size, dtype=tf.float32)
-        
+    
+    # TODO: remove arguments from all reward functions once this is obsolete
     @tf.function
     def reward_stabilizers(self, obs, act):
         """
@@ -639,7 +640,7 @@ class GKP(tf_environment.TFEnvironment):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:
-            pauli = [self.code_displacements[self._original[i][0]] 
+            pauli = [self.code_map[self._original[i][0]] 
                          for i in range(self.batch_size)]
             pauli = tf.convert_to_tensor(pauli, dtype=tf.complex64)
             phi = tf.zeros(self.batch_size)
@@ -649,6 +650,30 @@ class GKP(tf_environment.TFEnvironment):
             z = tf.reshape(z, shape=(self.batch_size,))
         return z
 
+    def reward_mixed(self, obs, act):
+        """
+        Reward only on last time step with the result of measurement of 
+        randomly selected stabilizer. This reinforces high degree of 
+        squeezing in the GKP subspace.
+
+        Input:
+            obs -- observations at this time step; shape=(batch_size,)
+            act -- actions at this time step; shape=(batch_size,5)
+            
+        """
+        if self._elapsed_steps < self.episode_length:
+            z = tf.zeros(self.batch_size, dtype=tf.float32)
+        else:        
+            mask = tfp.distributions.Bernoulli(probs=[0.5]*self.batch_size, 
+                                               dtype=tf.float32).sample()
+            beta = self.code_map['S_q']*mask + self.code_map['S_p']*(1-mask)
+            beta = tf.cast(beta, dtype=tf.complex64)
+            phi = tf.zeros(self.batch_size)
+            _, z = self.phase_estimation(self.info['psi_cached'], beta, 
+                                         angle=phi, sample=True)
+            z = tf.cast(z, dtype=tf.float32)
+            z = tf.reshape(z, shape=(self.batch_size,))
+        return z
 
 ### Gates
     
@@ -736,6 +761,8 @@ class GKP(tf_environment.TFEnvironment):
             # TODO: add check for 'init = vac' in which case these two are invalid
             if mode == 'pauli':
                 self.calculate_reward = self.reward_pauli
+            if mode == 'mixed':
+                self.calculate_reward = self.reward_mixed
         except: 
             raise ValueError('Reward mode not supported.') 
     
@@ -770,7 +797,7 @@ class GKP(tf_environment.TFEnvironment):
     
     @N.setter
     def N(self, n):
-        if 'code_displacements' in self.__dir__():
+        if 'code_map' in self.__dir__():
             raise ValueError('Cannot change N after initialization.')
         else:
             self._N = n
