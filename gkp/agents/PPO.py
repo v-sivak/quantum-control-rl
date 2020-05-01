@@ -49,7 +49,6 @@ def train_eval(
         eval_episode_length = 200,
         reward_mode = 'stabilizers',
         quantum_circuit_type = 'v3',
-        complex_form = 'cartesian',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
         # Policy and value networks
@@ -69,8 +68,7 @@ def train_eval(
     train_env = GKP(init='random', H=horizon, batch_size=train_batch_size,
                     max_episode_length=max_episode_length,
                     reward_mode=reward_mode, 
-                    quantum_circuit_type=quantum_circuit_type,
-                    complex_form=complex_form)
+                    quantum_circuit_type=quantum_circuit_type)
     
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
     train_env = wrappers.FlattenObservationsWrapperTF(train_env)
@@ -79,8 +77,7 @@ def train_eval(
     eval_env = GKP(init='random', H=horizon, batch_size=eval_batch_size,
                    episode_length=eval_episode_length,
                    reward_mode=reward_mode, 
-                   quantum_circuit_type=quantum_circuit_type,
-                   complex_form=complex_form)
+                   quantum_circuit_type=quantum_circuit_type)
     
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
     eval_env = wrappers.FlattenObservationsWrapperTF(eval_env)

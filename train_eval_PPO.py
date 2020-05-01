@@ -43,7 +43,6 @@ PPO.train_eval(
         eval_episode_length = 24,
         reward_mode = 'pauli',
         quantum_circuit_type = 'v3',
-        complex_form = 'cartesian',
         action_script = 'Baptiste_4round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
         # Policy and value networks

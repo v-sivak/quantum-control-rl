@@ -7,7 +7,7 @@ Created on Wed Apr  8 21:07:58 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,32 +23,30 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-# env = GKP(init='random', H=16, batch_size=600, episode_length=30, 
-#           reward_mode = 'pauli', quantum_circuit_type='v1',
-#           complex_form='polar')
+env = GKP(init='random', H=4, batch_size=600, episode_length=30, 
+          reward_mode = 'pauli', quantum_circuit_type='v1')
 
-# from gkp.action_script import phase_estimation_4round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'phi':True}
-# env = wrappers.ActionWrapper(env, action_script, to_learn)
-# env = wrappers.FlattenObservationsWrapperTF(env)
-
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-# policy_dir = r'deep_mlp_polar_steps24_v1\policy\000080000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-env = GKP(init='random', H=16, batch_size=600, episode_length=30, 
-          reward_mode = 'pauli', quantum_circuit_type='v3',
-          complex_form='polar')
-
-from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+from gkp.action_script import phase_estimation_4round as action_script
+to_learn = {'alpha':True, 'beta':False, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-policy_dir = r'deep_mlp_polar_steps24_v3\policy\000160000'
+policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000080000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+# env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
+#           reward_mode = 'mixed', quantum_circuit_type='v3')
+
+# from gkp.action_script import Baptiste_4round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# env = wrappers.FlattenObservationsWrapperTF(env)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
+# policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000000000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # from gkp.action_script import Baptiste_4round as action_script
@@ -78,13 +76,12 @@ while not time_step.is_last()[0]:
 
 for a in to_learn.keys() - ['phi']:
     # shape=[t,b,2] 
-    all_actions = np.stack(env.history[a][-env.episode_length:]).squeeze()
-    all_actions = all_actions.reshape([env.episode_length*env.batch_size,2])
-    all_actions = env.vector_to_complex(all_actions).numpy()
+    action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()    
+    all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
 
+    lim = env.scale[a]    
     # Plot combined histogram of actions at all time steps
-    lim = (1 + env.offset[a].numpy()[0,0])*env.scale[a].numpy()[0,0]
-    H, Re_edges, Im_edges = np.histogram2d(all_actions.real, all_actions.imag, 
+    H, Re_edges, Im_edges = np.histogram2d(all_actions[:,0], all_actions[:,1], 
                                         bins=51, 
                                         range=[[-lim-0.2, lim+0.2],
                                                [-lim-0.2, lim+0.2]])
@@ -107,19 +104,18 @@ for a in to_learn.keys() - ['phi']:
     plt.suptitle(a)
     palette = plt.get_cmap('tab10')
     axes = axes.ravel()
-    axes[0].set_xlim(-lim-0.2, lim+0.2) 
-    axes[0].set_ylim(-lim-0.2, lim+0.2) 
+    axes[0].set_xlim(-lim-0.2, lim+0.2) #(-0.5,0.5)
+    axes[0].set_ylim(-lim-0.2, lim+0.2) #(-0.5,0.5)
     for t in range(30):
-        axes[t].plot(all_actions[t*env.batch_size : (t+1)*env.batch_size].real, 
-                     all_actions[t*env.batch_size : (t+1)*env.batch_size].imag,
+        axes[t].plot(action_cache[t,:,0], action_cache[t,:,1],
                      linestyle='none', marker='.', markersize=2, 
                      color=palette(t % 10))
 
 
 # Plot histogram of 'phi'
 a = 'phi'
-all_actions = np.stack(env.history[a][-env.episode_length:]).squeeze()
-all_actions = all_actions.flatten()
+action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()
+all_actions = action_cache.flatten()
 H, edges = np.histogram(all_actions, bins=101, range=[-2,2])
 centers = (edges[1:] + edges[:-1]) / 2
 fig, ax = plt.subplots(1,1)

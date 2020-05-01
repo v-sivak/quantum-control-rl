@@ -150,7 +150,11 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             shape=[self.input_dim], dtype=tf.float32, minimum=-1, maximum=1)
 
         self.period = action_script.period # periodicity of the protocol
-        self.set_scale(env.complex_form)
+        self.scale = {
+            'alpha' : 1, 
+            'beta' : 2*sqrt(pi),
+            'epsilon' : 1, 
+            'phi' : pi}
         self.to_learn = to_learn
         self.dims_map = dims_map
         
@@ -194,7 +198,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             # if learning: take a slice of input tensor in order
             else:
                 action[a] = input_action[:,:self.dims_map[a]]
-                action[a] = (action[a] + self.offset[a])*self.scale[a]
+                action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
         return action
 
@@ -203,34 +207,5 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
-
-    def set_scale(self, complex_form):
-        self._complex_form = complex_form
-        if complex_form == 'cartesian':
-            self.scale = {
-                'alpha' : tf.constant(1.0, shape=[1,2]),
-                'beta' : tf.constant(2*sqrt(pi), shape=[1,2]),
-                'epsilon' : tf.constant(1.0, shape=[1,2]), 
-                'phi' : tf.constant(pi, shape=[1,1])}
-            self.offset = {
-                'alpha' : 0.0,
-                'beta' : 0.0,
-                'epsilon' : 0.0, 
-                'phi' : 0.0}
-        if complex_form == 'polar':
-            self.scale = {
-                'alpha' : tf.constant([0.5, pi], shape=[1,2]),
-                'beta' : tf.constant([sqrt(pi), pi], shape=[1,2]),
-                'epsilon' : tf.constant([0.5, pi], shape=[1,2]),
-                'phi' : tf.constant(pi, shape=[1,1])}
-            self.offset = {
-                'alpha' : tf.constant([1.0, 0.0], shape=[1,2]),
-                'beta' : tf.constant([1.0, 0.0], shape=[1,2]),
-                'epsilon' : tf.constant([1.0, 0.0], shape=[1,2]),
-                'phi' : tf.constant(0.0, shape=[1,1])}
-        for key, val in self.scale.items():
-            self.scale[key] = tf.cast(val, tf.float32)
-
     
-
     

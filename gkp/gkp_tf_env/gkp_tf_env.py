@@ -64,7 +64,6 @@ class GKP(tf_environment.TFEnvironment):
         self.init = 'vac'
         self.reward_mode = 'stabilizers'
         self.quantum_circuit_type = 'v1'
-        self.complex_form = 'cartesian' 
 
         # Overwrite defaults if any, e.g. init, reward_mode, etc
         for key, val in kwargs.items():
@@ -323,8 +322,8 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = self.vector_to_complex(action['alpha'])
-        beta = self.vector_to_complex(action['beta'])
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
         
         Kraus = {}
@@ -358,8 +357,8 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = self.vector_to_complex(action['alpha'])
-        beta = self.vector_to_complex(action['beta'])
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
         
         Kraus = {}
@@ -393,8 +392,8 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = self.vector_to_complex(action['alpha'])
-        beta = self.vector_to_complex(action['beta'])
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
         
         # Create tensors
@@ -447,8 +446,8 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = self.vector_to_complex(action['alpha'])
-        beta = self.vector_to_complex(action['beta'])
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
         
         # Create tensors
@@ -503,9 +502,9 @@ class GKP(tf_environment.TFEnvironment):
             
         """
         # extract parameters
-        alpha = self.vector_to_complex(action['alpha'])
-        beta = self.vector_to_complex(action['beta'])
-        epsilon = self.vector_to_complex(action['epsilon'])
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        epsilon = self.vec_to_complex(action['epsilon'])
         phi = action['phi']
         
         Kraus = {}
@@ -539,24 +538,13 @@ class GKP(tf_environment.TFEnvironment):
         return psi_final, psi_cached, obs
         
     @tf.function
-    def cartesian_to_complex(self, a):
+    def vec_to_complex(self, a):
         """
-        Convert vectorized action of shape [batch_sized,2] specified in
-        cartesian coordinates to complex-valued action of shape (batch_sized,)
+        Convert vectorized action of shape [batch_sized,2] to complex-valued
+        action of shape (batch_sized,)
         
         """
-        return tf.cast(a[:,0], tf.complex64) + 1j*tf.cast(a[:,1], tf.complex64)
-
-    @tf.function
-    def polar_to_complex(self, a):
-        """
-        Convert vectorized action of shape [batch_sized,2] specified in
-        polar coordinates to complex-valued action of shape (batch_sized,)
-        
-        """
-        x = a[:,0]*tf.math.cos(a[:,1])
-        y = a[:,0]*tf.math.sin(a[:,1])
-        return tf.cast(x, tf.complex64) + 1j*tf.cast(y, tf.complex64)
+        return tf.cast(a[:,0], tf.complex64) + 1j*tf.cast(a[:,1], tf.complex64)        
 
     @tf.function
     def phase_estimation(self, psi, beta, angle, sample = False):
@@ -777,22 +765,6 @@ class GKP(tf_environment.TFEnvironment):
                 self.calculate_reward = self.reward_mixed
         except: 
             raise ValueError('Reward mode not supported.') 
-
-    @property
-    def complex_form(self):
-        return self._complex_form
-
-    @complex_form.setter
-    def complex_form(self, form):
-        try:
-            assert form in ['cartesian', 'polar']
-            self._complex_form = form
-            if form == 'cartesian':
-                self.vector_to_complex = self.cartesian_to_complex
-            if form == 'polar':
-                self.vector_to_complex = self.polar_to_complex
-        except: 
-            raise ValueError('Complex form not supported.') 
     
     @property
     def init(self):
