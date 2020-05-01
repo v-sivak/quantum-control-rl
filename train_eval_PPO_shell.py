@@ -36,16 +36,17 @@ if __name__ == '__main__':
     save_interval = 1000
     log_interval = 20
     # Params for environment
-    horizon = 4
+    horizon = 16
     max_episode_length = 24
     eval_episode_length = 24
     reward_mode = 'pauli'
     quantum_circuit_type = 'v1'
+    complex_form = 'polar'
     action_script = 'phase_estimation_4round'
-    to_learn = {'alpha':True, 'beta':False, 'phi':True}
+    to_learn = {'alpha':True, 'beta':True, 'phi':True}
     # Policy and value networks
-    actor_fc_layers = (200,)
-    value_fc_layers = (100,)
+    actor_fc_layers = (200,100,50)
+    value_fc_layers = (100,100,50)
     use_rnn = False
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
@@ -127,6 +128,9 @@ if __name__ == '__main__':
     
     parser.add_argument('--quantum_circuit_type', type=str,
                         default=quantum_circuit_type)
+
+    parser.add_argument('--complex_form', type=str,
+                        default=complex_form)
     
     parser.add_argument('--action_script', type=str,
                         default=action_script)
@@ -175,6 +179,7 @@ if __name__ == '__main__':
         eval_episode_length=args.eval_episode_length,
         reward_mode=args.reward_mode,
         quantum_circuit_type=args.quantum_circuit_type,
+        complex_form=args.complex_form,
         action_script=args.action_script,
         to_learn=to_learn,
         actor_fc_layers=args.actor_fc_layers,
