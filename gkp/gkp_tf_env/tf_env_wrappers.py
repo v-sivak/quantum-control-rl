@@ -157,6 +157,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             'phi' : pi}
         self.to_learn = to_learn
         self.dims_map = dims_map
+        self.use_mask = to_learn['beta']
+        self.mask = action_script.mask
         
         # ordered list of action components
         action_order = ['alpha', 'beta', 'epsilon', 'phi']
@@ -186,9 +188,12 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         out_shape = tf.constant(input_action.shape[0], shape=(1,))
         assert input_action.shape[1] == self.input_dim
         
+        # use mask to learn 'beta' on some steps and use script on others
+        if self.use_mask: self.to_learn['beta'] = bool(self.mask[i])
+        
         action = {}
         for a in self.action_order:
-            # if not learning: replicate scripted action     
+            # if not learning: replicate scripted action
             if not self.to_learn[a]:
                 A = common.replicate(self.script[a][i], out_shape)
                 if self.dims_map[a] == 2:

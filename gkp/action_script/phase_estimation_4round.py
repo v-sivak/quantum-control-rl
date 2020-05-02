@@ -23,5 +23,5 @@ alpha = [-delta+0j, 0j, 0j, 1j*delta]
 
 phi = [0, 0, pi/2, pi/2]
 
-
+mask = [1, 1, 0, 0]
 

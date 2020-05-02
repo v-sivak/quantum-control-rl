@@ -23,21 +23,21 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = GKP(init='random', H=4, batch_size=600, episode_length=30, 
+env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
           reward_mode = 'pauli', quantum_circuit_type='v1')
 
 from gkp.action_script import phase_estimation_4round as action_script
-to_learn = {'alpha':True, 'beta':False, 'phi':True}
+to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000080000'
+policy_dir = r'rnn_steps24_mask_v1\policy\001160000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
-#           reward_mode = 'mixed', quantum_circuit_type='v3')
+#           reward_mode = 'pauli', quantum_circuit_type='v3')
 
 # from gkp.action_script import Baptiste_4round as action_script
 # to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
@@ -45,7 +45,7 @@ policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 # env = wrappers.FlattenObservationsWrapperTF(env)
 
 # root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-# policy_dir = r'mlp_h4_steps24_lr1e-5_v1\policy\000000000'
+# policy_dir = r'rnn_steps24_mask_v3\policy\001160000'
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 

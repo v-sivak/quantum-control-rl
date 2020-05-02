@@ -36,17 +36,17 @@ if __name__ == '__main__':
     save_interval = 1000
     log_interval = 20
     # Params for environment
-    horizon = 4
+    horizon = 1
     max_episode_length = 24
     eval_episode_length = 24
     reward_mode = 'pauli'
     quantum_circuit_type = 'v1'
     action_script = 'phase_estimation_4round'
-    to_learn = {'alpha':True, 'beta':False, 'phi':True}
+    to_learn = {'alpha':True, 'beta':True, 'phi':True}
     # Policy and value networks
-    actor_fc_layers = (200,)
-    value_fc_layers = (100,)
-    use_rnn = False
+    actor_fc_layers = ()
+    value_fc_layers = ()
+    use_rnn = True
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     
