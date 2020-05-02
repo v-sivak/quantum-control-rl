@@ -11,7 +11,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
 
-#TODO: add 'to_learn' to argparser
+#TODO: add 'to_learn' to parser
+#TODO: add 'lr_schedule' to parser
 
 if __name__ == '__main__':
 
@@ -26,6 +27,7 @@ if __name__ == '__main__':
     normalize_rewards = True
     discount_factor = 1.0
     lr = 1e-5
+    lr_schedule = lambda t: max(1/(1e3+t), 1e-5)
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
@@ -161,6 +163,7 @@ if __name__ == '__main__':
         normalize_observations=args.normalize_observations,
         normalize_rewards=args.normalize_rewards, 
         lr=args.lr,
+        lr_schedule=lr_schedule,
         discount_factor=args.discount_factor, 
         num_policy_epochs=args.num_policy_epochs,
         initial_adaptive_kl_beta=args.initial_adaptive_kl_beta,

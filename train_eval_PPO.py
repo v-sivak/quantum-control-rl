@@ -7,13 +7,13 @@ Created on Tue Apr 14 11:13:33 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from gkp.agents import PPO
 
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\Baptiste'
-root_dir = os.path.join(root_dir,'mlp_maxstep24_batch100_pauli_test')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
+root_dir = os.path.join(root_dir,'test')
 
 
 PPO.train_eval(
@@ -24,10 +24,11 @@ PPO.train_eval(
         train_batch_size = 100,
         replay_buffer_capacity = 20000,
         # Params for train
-        normalize_observations = False,
+        normalize_observations = True,
         normalize_rewards = True,
         discount_factor = 1.0,
         lr = 1e-5,
+        lr_schedule = lambda t: max(1/(1e3+t), 1e-5),
         num_policy_epochs = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
@@ -35,20 +36,20 @@ PPO.train_eval(
         # Params for log, eval, save
         eval_batch_size = 200,
         eval_interval = 200,
-        save_interval = 1000,
+        save_interval = 200,
         log_interval = 20,
         # Params for environment
-        horizon = 12,
+        horizon = 1,
         max_episode_length = 24,
         eval_episode_length = 24,
         reward_mode = 'pauli',
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_4round',
-        to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
+        to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True},
         # Policy and value networks
-        actor_fc_layers = (200,),
-        value_fc_layers = (200,),
-        use_rnn = False,
+        actor_fc_layers = (),
+        value_fc_layers = (),
+        use_rnn = True,
         actor_lstm_size = (12,),
         value_lstm_size = (12,)
         )

@@ -34,6 +34,7 @@ def train_eval(
         normalize_rewards = True,
         discount_factor = 0.95,
         lr = 1e-5,
+        lr_schedule = None,
         num_policy_epochs = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
@@ -62,7 +63,7 @@ def train_eval(
     if root_dir is None:
         raise AttributeError('PPO requires a root_dir.')    
     tf.compat.v1.set_random_seed(random_seed)
-    action_script = act_scripts.__getattribute__(action_script)    
+    action_script = act_scripts.__getattribute__(action_script)
         
     # Create training env
     train_env = GKP(init='random', H=horizon, batch_size=train_batch_size,
@@ -149,11 +150,11 @@ def train_eval(
         max_length=replay_buffer_capacity)
 
     def train_step():
+        if lr_schedule: optimizer._lr = lr_schedule(global_step.numpy())
         experience = replay_buffer.gather_all()
         return tf_agent.train(experience)
 
     tf_agent.train = common.function(tf_agent.train)
-    train_step = common.function(train_step)
 
     collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
         train_env,
