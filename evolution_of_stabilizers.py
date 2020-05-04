@@ -20,38 +20,34 @@ from tf_agents import specs
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env.oscillator_env import OscillatorGKP
 from gkp.gkp_tf_env import policy as plc
 
 
 
 
 
-env = GKP(init='random', H=1, batch_size=600, episode_length=100, 
-          reward_mode = 'mixed', quantum_circuit_type='v3')
+# env = GKP(init='random', H=1, batch_size=600, episode_length=100, 
+#           reward_mode = 'mixed', quantum_circuit_type='v3')
 
+
+# from gkp.action_script import Baptiste_4round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# env = wrappers.FlattenObservationsWrapperTF(env)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\learn_everything'
+# policy_dir = r'deep_rnn_all_maxsteps12_lr1e-3_sqrt_v3\policy\002600000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+
+env = OscillatorGKP(init='X+', H=1, batch_size=100, episode_length=200, 
+          reward_mode = 'stabilizers', quantum_circuit_type='v3')
 
 from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\learn_everything'
-policy_dir = r'deep_rnn_all_maxsteps12_lr1e-3_sqrt_v3\policy\002600000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-
-# env = GKP(init='vac', H=1, batch_size=200, episode_length=200, 
-#           reward_mode = 'stabilizers', quantum_circuit_type='v1')
-
-# from gkp.action_script import phase_estimation_4round as action_script
-# policy = plc.ScriptedPolicyV1(env.time_step_spec(), action_script)
-
-# env = GKP(init='vac', H=1, batch_size=100, episode_length=200, 
-#           reward_mode = 'stabilizers', quantum_circuit_type='v1')
-
-# policy = plc.MarkovianPolicyV2(env.time_step_spec())
 
 
 

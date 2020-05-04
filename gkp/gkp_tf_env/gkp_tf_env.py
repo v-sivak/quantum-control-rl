@@ -10,7 +10,6 @@ import qutip as qt
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
-from tensorflow.keras.layers import Reshape
 from math import pi, sqrt
 from tf_agents import specs
 from tf_agents.environments import tf_environment
@@ -57,7 +56,7 @@ class GKP(tf_environment.TFEnvironment):
 
         # Default simulation parameters
         self.N = 100 # size of the oscillator Hilbert space truncation
-        self.H = 1 # horizon for history returned in observations
+        self.H = 1   # horizon for history returned in observations
         self.max_episode_length = None
         self.episode_length = 20
         self.batch_size = 50
@@ -154,7 +153,7 @@ class GKP(tf_environment.TFEnvironment):
     def _reset(self):
         """
         Reset the state of the environment to an initial state. States are 
-        represented as tensors of shape [batch_size,N]. 
+        represented as batched tensors. 
         
         Input:
             init -- type of states to create in a batch
@@ -166,17 +165,10 @@ class GKP(tf_environment.TFEnvironment):
             TimeStep object (see tf-agents docs)
             
         """        
-        if self.init == 'vac':
-            psi = qt.basis(self.N,0).full()
-            psi = tf.squeeze(tf.convert_to_tensor(psi, dtype=tf.complex64))
+        if self.init in ['vac','X+','X-','Y+','Y-','Z+','Z-']:
+            psi = self.states[self.init]
             psi_batch = tf.stack([psi]*self.batch_size)
             self._state = psi_batch
-            self._original = np.array([self.init]*self.batch_size)
-        elif self.init in ['X+','X-','Y+','Y-','Z+','Z-']:
-            psi = self.states[self.init]
-            psi = tf.convert_to_tensor(psi, dtype=tf.complex64)
-            psi_batch = tf.stack([psi]*self.batch_size)
-            self._state = psi_batch                
             self._original = np.array([self.init]*self.batch_size)
         elif self.init == 'random':
             self._original = np.random.choice(['X+','Y+','Z+'], 
@@ -204,7 +196,7 @@ class GKP(tf_environment.TFEnvironment):
                        for key, val in self.history.items()}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
-        return self.current_time_step()
+        return self.current_time_step()    
 
 
     def render(self):
@@ -212,26 +204,25 @@ class GKP(tf_environment.TFEnvironment):
         Render environment to the screen (plot Wigner function).
         
         """
-        hf.plot_wigner_tf_wrapper(self._state)
-    
+        hf.plot_wigner_tf_wrapper(self._state, tensorstate=self.tensorstate)
+
 
     def _current_time_step(self):
         return self._current_time_step_
     
 ### GKP-specific methods
 
-    def define_stabilizer_code(self, S, eps = 0.1): 
+    def define_stabilizer_code(self, S): 
         """
         Create stabilizer tensors, logical Pauli tensors and GKP state tensors.
         
         Input:
-            S   -- symplectic 2x2 matrix that defines the code
-            eps -- envelope size in Fock basis
+            S   -- symplectic 2x2 matrix that defines the code subspace
             
         """
         stabilizers, pauli, states, self.code_map = \
-            hf.GKP_state(self.N, S, hf.epsilon_normalizer(self.N, eps))
-        # convert to tensorflow tensors
+            hf.GKP_state(self.tensorstate, self.N, S)
+        # Convert to tensorflow tensors.
         self.stabilizers = {key : tf.constant(val.full(), dtype=tf.complex64)
                             for key, val in stabilizers.items()}
         self.pauli = {key : tf.constant(val.full(), dtype=tf.complex64)
@@ -239,7 +230,8 @@ class GKP(tf_environment.TFEnvironment):
         self.states = {key : tf.squeeze(tf.constant(val.full(), 
                                                     dtype=tf.complex64))
                        for key, val in states.items()}
-
+        self.states['vac'] = tf.squeeze(tf.constant(qt.basis(self.N,0).full(), 
+                                                    dtype=tf.complex64))
 
     def define_operators(self):
         """
@@ -367,114 +359,6 @@ class GKP(tf_environment.TFEnvironment):
         Kraus[0] = 1/2*(tf.linalg.adjoint(T['b']) + self.phase(phi)*T['b'])
         Kraus[1] = 1/2*(tf.linalg.adjoint(T['b']) - self.phase(phi)*T['b'])
 
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
-        
-        return psi_final, psi_cached, obs
-
-
-    @tf.function
-    def quantum_circuit_v4(self, psi, action):
-        """
-        Apply Kraus map version 1. In this version conditional translation by
-        'beta' is not symmetric (translates by +beta if qubit is in state 1). 
-        
-        Input:
-            action -- batch of actions; shape=[batch_size,5]
-            
-        Output:
-            psi_final -- batch of final states; shape=[batch_size,N]
-            psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=(batch_size,)
-            
-        """
-        # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        phi = action['phi']
-        
-        # Create tensors
-        T = {'a' : self.translate(alpha),
-             'b' : self.translate(beta)}
-        I = tf.stack([self.I]*self.batch_size)
-
-        Kraus = {}
-        # No-error channel
-        probs = 1 - self.error_prob*tf.ones(shape=[self.batch_size,1,1])
-        mask0 = tfp.distributions.Bernoulli(probs=probs).sample()
-        mask0 = tf.cast(mask0, tf.complex64)
-        Kraus[0] = 1/2*(I + self.phase(phi)*T['b']) * mask0
-        Kraus[1] = 1/2*(I - self.phase(phi)*T['b']) * mask0
-        # Readout error channel
-        mask0 = tf.cast(mask0, tf.float32)
-        probs = (1 - mask0) * self.read_err / (self.read_err + self.gate_err)        
-        mask1 = tfp.distributions.Bernoulli(probs=probs).sample()
-        mask1 = tf.cast(mask1, tf.complex64)
-        Kraus[0] += 1/2*(I - self.phase(phi)*T['b']) * mask1
-        Kraus[1] += 1/2*(I + self.phase(phi)*T['b']) * mask1
-        # Gate error channel
-        mask2 = 1 - tf.cast(mask0, tf.complex64) - mask1
-        Kraus[0] += 1/2*(T['b'] + self.phase(phi)*I) * mask2
-        Kraus[1] += 1/2*(T['b'] - self.phase(phi)*I) * mask2
-        
-        # Decoherence and measurement
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
-        
-        return psi_final, psi_cached, obs
-
-
-    @tf.function
-    def quantum_circuit_v5(self, psi, action):
-        """
-        Apply Kraus map version 1. In this version conditional translation by
-        'beta' is not symmetric (translates by +beta if qubit is in state 1). 
-        
-        Input:
-            action -- batch of actions; shape=[batch_size,5]
-            
-        Output:
-            psi_final -- batch of final states; shape=[batch_size,N]
-            psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=(batch_size,)
-            
-        """
-        # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        phi = action['phi']
-        
-        # Create tensors
-        T = {'a' : self.translate(alpha),
-             'b' : self.translate(beta/2.0)}
-        T['-b'] = tf.linalg.adjoint(T['b'])
-
-        Kraus = {}
-        # No-error channel
-        probs = 1 - self.error_prob*tf.ones(shape=[self.batch_size,1,1])
-        mask0 = tfp.distributions.Bernoulli(probs=probs).sample()
-        mask0 = tf.cast(mask0, tf.complex64)
-        Kraus[0] = 1/2*(T['-b'] + self.phase(phi)*T['b']) * mask0
-        Kraus[1] = 1/2*(T['-b'] - self.phase(phi)*T['b']) * mask0
-        # Readout error channel
-        mask0 = tf.cast(mask0, tf.float32)
-        probs = (1 - mask0) * self.read_err / (self.read_err + self.gate_err)        
-        mask1 = tfp.distributions.Bernoulli(probs=probs).sample()
-        mask1 = tf.cast(mask1, tf.complex64)
-        Kraus[0] += 1/2*(T['-b'] - self.phase(phi)*T['b']) * mask1
-        Kraus[1] += 1/2*(T['-b'] + self.phase(phi)*T['b']) * mask1
-        # Gate error channel
-        mask2 = 1 - tf.cast(mask0, tf.complex64) - mask1
-        Kraus[0] += 1/2*(T['b'] + self.phase(phi)*T['-b']) * mask2
-        Kraus[1] += 1/2*(T['b'] - self.phase(phi)*T['-b']) * mask2
-        
-        # Decoherence and measurement
         psi = self.mc_sim_delay.run(psi)
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mc_sim_round.run(psi_cached)
