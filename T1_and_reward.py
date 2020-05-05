@@ -18,7 +18,7 @@ from scipy.optimize import curve_fit
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env.oscillator_env import OscillatorGKP
 from gkp.gkp_tf_env import policy as plc
 
 
@@ -27,25 +27,25 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 
 
-env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
-          reward_mode = 'pauli', quantum_circuit_type='v1')
-
-from gkp.action_script import phase_estimation_4round as action_script
-to_learn = {'alpha':True, 'beta':False, 'phi':True}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\alpha_eps_phi'
-policy_dir = r'rnn_maxstep24_batch100_v4\policy\001200000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-
-# env = GKP(init='X+', H=1, batch_size=600, episode_length=200, 
-#           reward_mode = 'pauli', quantum_circuit_type='v1')
+# env = OscillatorGKP(init='X+', H=1, batch_size=600, episode_length=200, 
+#                     reward_mode = 'pauli', quantum_circuit_type='v1')
 
 # from gkp.action_script import phase_estimation_4round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# to_learn = {'alpha':True, 'beta':False, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# env = wrappers.FlattenObservationsWrapperTF(env)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\dict_actions\alpha_eps_phi'
+# policy_dir = r'rnn_maxstep24_batch100_v4\policy\001200000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+
+env = OscillatorGKP(init='X+', H=1, batch_size=200, episode_length=200, 
+                    reward_mode = 'pauli', quantum_circuit_type='v1')
+
+from gkp.action_script import phase_estimation_4round as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
 #-----------------------------------------------------------------------------
@@ -57,7 +57,7 @@ results = {state : np.zeros(env.episode_length) for state in states}
 rewards = {state : np.zeros((env.episode_length, env.batch_size)) 
            for state in states}
 for state in states:
-    pauli = env.code_displacements[state[0]]
+    pauli = env.code_map[state[0]]
     cache = [] # store intermediate states
     reward_cache = []
     env.init = state

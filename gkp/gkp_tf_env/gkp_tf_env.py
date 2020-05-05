@@ -9,6 +9,7 @@ import numpy as np
 import qutip as qt
 import tensorflow as tf
 import tensorflow_probability as tfp
+from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from math import pi, sqrt
 from tf_agents import specs
@@ -29,7 +30,7 @@ class GKP(tf_environment.TFEnvironment):
     
     This implementation heavily relies on tensorflow to do fast computations 
     in parallel on GPU by adding batch dimension to all tensors. The speedup
-    over all-qutip implementation is about x200. 
+    over all-qutip implementation is about x100 on NVIDIA RTX 2080Ti.
     
     Actions are parametrized according to the sequence of gates applied at 
     each time step, see <quantum_circuit_v1>, <...v2> or <...v3> 
@@ -111,7 +112,7 @@ class GKP(tf_environment.TFEnvironment):
         return action_spec, time_step_spec
         
 
-### Standard methods    
+    ### STANDARD
 
 
     def _step(self, action):
@@ -174,7 +175,7 @@ class GKP(tf_environment.TFEnvironment):
             self._original = np.random.choice(['X+','Y+','Z+'], 
                                               size=self.batch_size)
             psi_batch = [self.states[init] for init in self._original]
-            psi_batch = tf.convert_to_tensor(psi_batch, dtype=tf.complex64)
+            psi_batch = tf.convert_to_tensor(psi_batch, dtype=c64)
             self._state = psi_batch
         
         if self.max_episode_length:
@@ -210,11 +211,16 @@ class GKP(tf_environment.TFEnvironment):
     def _current_time_step(self):
         return self._current_time_step_
     
-### GKP-specific methods
 
-    def define_stabilizer_code(self, S): 
+    ### GKP - SPECIFIC
+
+
+    def define_stabilizer_code(self, S):
         """
         Create stabilizer tensors, logical Pauli tensors and GKP state tensors.
+        The simulation Hilbert space consists of N levels of the oscillator 
+        and, if the 'tensorstate' flag is set, it also includes the qubit. In 
+        the latter case the qubit comes first in the tensor product. 
         
         Input:
             S   -- symplectic 2x2 matrix that defines the code subspace
@@ -223,69 +229,33 @@ class GKP(tf_environment.TFEnvironment):
         stabilizers, pauli, states, self.code_map = \
             hf.GKP_state(self.tensorstate, self.N, S)
         # Convert to tensorflow tensors.
-        self.stabilizers = {key : tf.constant(val.full(), dtype=tf.complex64)
+        self.stabilizers = {key : tf.constant(val.full(), dtype=c64)
                             for key, val in stabilizers.items()}
-        self.pauli = {key : tf.constant(val.full(), dtype=tf.complex64)
+        self.pauli = {key : tf.constant(val.full(), dtype=c64)
                       for key, val in pauli.items()}
-        self.states = {key : tf.squeeze(tf.constant(val.full(), 
-                                                    dtype=tf.complex64))
+        self.states = {key : tf.squeeze(tf.constant(val.full(), dtype=c64))
                        for key, val in states.items()}
-        self.states['vac'] = tf.squeeze(tf.constant(qt.basis(self.N,0).full(), 
-                                                    dtype=tf.complex64))
-
-    def define_operators(self):
-        """
-        Define all relevant operators as tensorflow constants. 
-        
-        Shape of each operator is [N,N]; methods need to take care of batch
-        dimension explicitly. This is done to allow changing batch_size after
-        the environment is created.
-        
-        """
-        N = self.N
-        # Create qutip tensors
-        I = qt.identity(N)
-        a = qt.destroy(N)
-        a_dag = qt.create(N)
-        q = (a.dag() + a) / sqrt(2)
-        p = 1j*(a.dag() - a) / sqrt(2)
-        n = qt.num(N)
-        # Convert to tensorflow tensors
-        self.I = tf.constant(I.full(), dtype=tf.complex64)
-        self.a = tf.constant(a.full(), dtype=tf.complex64)
-        self.a_dag = tf.constant(a_dag.full(), dtype=tf.complex64)
-        self.q = tf.constant(q.full(), dtype=tf.complex64)
-        self.p = tf.constant(p.full(), dtype=tf.complex64)
-        self.n = tf.constant(n.full(), dtype=tf.complex64)
+        vac = qt.basis(self.N,0)
+        self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
 
 
-    # TODO: use tf ops defined in the method above instead of qutip
     def init_monte_carlo_sim(self):
         """
-        Initialize tensorflow quantum trajectories simulator. This is used to
-        simulate decoherence, dephasing, Kerr etc on the oscillator.
+        Initialize tensorflow quantum trajectory simulator. This is used to
+        simulate decoherence, dephasing, Kerr etc using quantum jumps.
         
-        """
-        a = qt.destroy(self.N)
-        n = qt.num(self.N)
-        I = qt.identity(self.N)
-        dt = self.discrete_step_duration
-        
-        # Define Hamiltonian and collapse ops
-        Hamiltonian = -1/2*(2*pi)*self.K_osc*n*n  # Kerr
-        c_ops = [sqrt(1/self.T1_osc)*a]           # photon loss
-        
+        """        
         # Create Kraus ops
         Kraus = {}
-        Kraus[0] = I - 1j*Hamiltonian*dt
-        for i, c in enumerate(c_ops):
+        dt = self.discrete_step_duration
+        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
+        for i, c in enumerate(self.c_ops):
             Kraus[i+1] = sqrt(dt) * c
-            Kraus[0] -= 1/2 * c.dag() * c * dt
+            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
         
         Kraus_tf = {}
         for i, op in Kraus.items():
-            op_tf = tf.constant(op.full(), dtype=tf.complex64)
-            Kraus_tf[i] = tf.stack([op_tf]*self.batch_size)
+            Kraus_tf[i] = tf.stack([op]*self.batch_size)
         
         # Initialize quantum trajectories simulator 
         mc_steps_round = int((self.t_gate + self.t_read) / dt)
@@ -295,175 +265,6 @@ class GKP(tf_environment.TFEnvironment):
         mc_steps_delay = int(self.t_delay / dt)
         self.mc_sim_delay = QuantumTrajectorySim(Kraus_tf, mc_steps_delay)
         self.mc_sim_delay.run = tf.function(self.mc_sim_delay.run)
-        
-
-    @tf.function
-    def quantum_circuit_v1(self, psi, action):
-        """
-        Apply Kraus map version 1. In this version conditional translation by
-        'beta' is not symmetric (translates by +beta if qubit is in state 1). 
-        
-        Input:
-            action -- dictionary of batched actions. Dictionary keys are
-                      'alpha', 'beta', 'phi'
-            
-        Output:
-            psi_final -- batch of final states; shape=[batch_size,N]
-            psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=(batch_size,)
-            
-        """
-        # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        phi = action['phi']
-        
-        Kraus = {}
-        T = {'a' : self.translate(alpha),
-             'b' : self.translate(beta)}
-        I = tf.stack([self.I]*self.batch_size)
-        Kraus[0] = 1/2*(I + self.phase(phi)*T['b'])
-        Kraus[1] = 1/2*(I - self.phase(phi)*T['b'])
-        
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
-        
-        return psi_final, psi_cached, obs
-
-    @tf.function
-    def quantum_circuit_v2(self, psi, action):
-        """
-        Apply Kraus map version 2. In this version conditional translation by
-        'beta' is symmetric (translates by +-beta/2 controlled by the qubit)
-        
-        Input:
-            action -- batch of actions; shape=[batch_size,5]
-            
-        Output:
-            psi_final -- batch of final states; shape=[batch_size,N]
-            psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=(batch_size,)
-            
-        """
-        # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        phi = action['phi']
-        
-        Kraus = {}
-        T = {'a' : self.translate(alpha),
-             'b' : self.translate(beta/2.0)}
-        Kraus[0] = 1/2*(tf.linalg.adjoint(T['b']) + self.phase(phi)*T['b'])
-        Kraus[1] = 1/2*(tf.linalg.adjoint(T['b']) - self.phase(phi)*T['b'])
-
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
-        
-        return psi_final, psi_cached, obs
-
-
-    @tf.function
-    def quantum_circuit_v3(self, psi, action):
-        """
-        Apply Kraus map version 3. This is a protocol proposed by Baptiste.
-        It essentially combines trimming and sharpening in a single round. 
-        Trimming is controlled by 'epsilon'.
-        
-        Input:
-            action -- dictionary of batched actions. Dictionary keys are
-                      'alpha', 'beta', 'epsilon', 'phi'
-            
-        Output:
-            psi_final -- batch of final states; shape=[batch_size,N]
-            psi_cached -- batch of cached states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=[batch_size,1]
-            
-        """
-        # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        epsilon = self.vec_to_complex(action['epsilon'])
-        phi = action['phi']
-        
-        Kraus = {}
-        T = {}
-        T['a'] = self.translate(alpha)
-        T['+b'] = self.translate(beta/2.0)
-        T['-b'] = tf.linalg.adjoint(T['+b'])
-        T['+e'] = self.translate(epsilon/2.0)
-        T['-e'] = tf.linalg.adjoint(T['+e'])
-
-        
-        chunk1 = 1j*batch_dot(T['-b'], batch_dot(T['+e'], T['+b'])) \
-                - 1j*batch_dot(T['-b'], batch_dot(T['-e'], T['+b'])) \
-                + batch_dot(T['-b'], batch_dot(T['-e'], T['-b'])) \
-                + batch_dot(T['-b'], batch_dot(T['+e'], T['-b']))
-                    
-        chunk2 = 1j*batch_dot(T['+b'], batch_dot(T['-e'], T['-b'])) \
-                - 1j*batch_dot(T['+b'], batch_dot(T['+e'], T['-b'])) \
-                + batch_dot(T['+b'], batch_dot(T['-e'], T['+b'])) \
-                + batch_dot(T['+b'], batch_dot(T['+e'], T['+b']))
-        
-        Kraus[0] = 1/4*(chunk1 + self.phase(phi)*chunk2)
-        Kraus[1] = 1/4*(chunk1 - self.phase(phi)*chunk2)
-
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
-        
-        return psi_final, psi_cached, obs
-        
-    @tf.function
-    def vec_to_complex(self, a):
-        """
-        Convert vectorized action of shape [batch_sized,2] to complex-valued
-        action of shape (batch_sized,)
-        
-        """
-        return tf.cast(a[:,0], tf.complex64) + 1j*tf.cast(a[:,1], tf.complex64)        
-
-    @tf.function
-    def phase_estimation(self, psi, beta, angle, sample = False):
-        """
-        One round of phase estimation. 
-        
-        Input:
-            psi -- batch of state vectors; shape=[batch_size,N]
-            beta -- translation amplitude. shape=(batch_size,)
-            angle -- angle along which to measure qubit. shape=(batch_size,)
-        
-        Output:
-            psi -- batch of collapsed states if sample==True, otherwise same 
-                   as input psi; shape=[batch_size,N]
-            z -- batch of measurement outcomes if sample==True, otherwise
-                 batch of expectation values of qubit sigma_z.
-                 
-        """
-        Kraus = {}
-        I = tf.stack([self.I]*self.batch_size)
-        T_b = self.translate(beta)
-        Kraus[0] = 1/2*(I + self.phase(angle)*T_b)
-        Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
-        
-        psi = self.normalize(psi)
-        if sample:
-            return self.measurement(psi, Kraus)
-        else:
-            # TODO: this can be done in 'measurement', pass 'sample' flag
-            collapsed, p = {}, {}
-            for i in [0,1]:
-                collapsed[i] = batch_dot(Kraus[i], psi)
-                p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
-                p[i] = tf.math.real(p[i])
-            return psi, p[0]-p[1] # expectation of sigma_z
 
 
     @tf.function
@@ -472,15 +273,57 @@ class GKP(tf_environment.TFEnvironment):
         Batch normalization of the wave function.
         
         Input:
-            state -- batch of state vectors; shape=[batch_size,N]
+            state -- batch of state vectors; shape=[batch_size,NH]
             
         """
         norm = tf.math.real(batch_dot(tf.math.conj(state),state))
-        norm = tf.cast(tf.math.sqrt(norm), dtype=tf.complex64)
+        norm = tf.cast(tf.math.sqrt(norm), dtype=c64)
         state = state / norm
-        return state
+        return state     
 
-### Reward functions
+
+    @tf.function
+    def vec_to_complex(self, a):
+        """
+        Convert vectorized action of shape [batch_sized,2] to complex-valued
+        action of shape (batch_sized,)
+        
+        """
+        return tf.cast(a[:,0], c64) + 1j*tf.cast(a[:,1], c64)
+
+
+    @tf.function
+    def measurement(self, psi, Kraus):
+        """
+        Batch measurement projection.
+        
+        Input:
+            psi -- batch of states; shape=[batch_size, NH]
+            Kraus -- dictionary of Kraus operators corresponding to 2 different 
+                     qubit measurement outcomes. Shape of each operator is 
+                     [b,NH,NH], where b is batch size
+            
+        Output:
+            psi -- batch of collapsed states; shape=[batch_size,NH]
+            obs -- measurement outcomes; shape=[batch_size,1]
+            
+        """    
+        collapsed, p = {}, {}
+        for i in Kraus.keys():
+            collapsed[i] = batch_dot(Kraus[i], psi)
+            p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
+            p[i] = tf.math.real(p[i])
+            
+        obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
+        mask = tf.cast(obs, dtype=c64)
+        psi = collapsed[0] * (1-mask) + collapsed[1] * mask
+        obs = 1 - 2*obs # convert to {-1,1}
+        obs = tf.cast(obs, dtype=tf.float32)
+        return psi, obs
+
+
+    ### REWARD FUNCTION
+
 
     @tf.function
     def reward_zero(self, obs, act):
@@ -501,7 +344,7 @@ class GKP(tf_environment.TFEnvironment):
 
         Input:
             obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,5)
+            act -- actions at this time step; shape=(batch_size,act_dim)
             
         """        
         mask = tf.math.equal(act['phi'][:,0], 0.0)
@@ -518,7 +361,7 @@ class GKP(tf_environment.TFEnvironment):
 
         Input:
             obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,5)
+            act -- actions at this time step; shape=(batch_size,act_dim)
             
         """     
         if self._elapsed_steps < self.episode_length:
@@ -526,7 +369,7 @@ class GKP(tf_environment.TFEnvironment):
         else:
             pauli = [self.code_map[self._original[i][0]] 
                          for i in range(self.batch_size)]
-            pauli = tf.convert_to_tensor(pauli, dtype=tf.complex64)
+            pauli = tf.convert_to_tensor(pauli, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
                                          angle=phi, sample=True)
@@ -542,7 +385,7 @@ class GKP(tf_environment.TFEnvironment):
 
         Input:
             obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,5)
+            act -- actions at this time step; shape=(batch_size,act_dim)
             
         """
         if self._elapsed_steps < self.episode_length:
@@ -551,7 +394,7 @@ class GKP(tf_environment.TFEnvironment):
             mask = tfp.distributions.Bernoulli(probs=[0.5]*self.batch_size, 
                                                dtype=tf.float32).sample()
             beta = self.code_map['S_q']*mask + self.code_map['S_p']*(1-mask)
-            beta = tf.cast(beta, dtype=tf.complex64)
+            beta = tf.cast(beta, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], beta, 
                                          angle=phi, sample=True)
@@ -559,75 +402,9 @@ class GKP(tf_environment.TFEnvironment):
             z = tf.reshape(z, shape=(self.batch_size,))
         return z
 
-### Gates
+
+    ### PROPERTIES
     
-    @tf.function
-    def phase(self, phi):
-        """
-        Batch phase factor.
-        
-        Input:
-            phi -- tensor of shape (batch_size,) or compatible
-
-        Output:
-            op -- phase factor; shape=[batch_size,1,1]
-            
-        """
-        phi = tf.cast(phi, dtype=tf.complex64)
-        phi = tf.reshape(phi, shape=[self.batch_size,1,1])        
-        op = tf.linalg.expm(1j*phi)
-        return op
-
-    @tf.function
-    def translate(self, amplitude):
-        """
-        Batch oscillator translation operator. 
-        
-        Input:
-            amplitude -- tensor of shape (batch_size,) or compatible
-            
-        Output:
-            op -- translation operator; shape=[batch_size,N,N]
-
-        """
-        a = tf.stack([self.a]*self.batch_size)
-        a_dag = tf.stack([self.a_dag]*self.batch_size)
-        amplitude = tf.reshape(amplitude, shape=[self.batch_size,1,1])
-        batch = amplitude/sqrt(2)*a_dag - tf.math.conj(amplitude)/sqrt(2)*a
-        op = tf.linalg.expm(batch)
-        return op
-
-
-    @tf.function
-    def measurement(self, psi, Kraus):
-        """
-        Batch measurement projection.
-        
-        Input:
-            psi -- batch of states; shape=[batch_size,N]
-            Kraus -- dictionary of Kraus operators operators corresponding 
-                     to 2 different qubit measurement outcomes. Shape of each 
-                     operator is [b,N,N], where b is batch size
-            
-        Output:
-            psi -- batch of collapsed states; shape=[batch_size,N]
-            obs -- measurement outcomes; shape=[batch_size,1]
-            
-        """    
-        collapsed, p = {}, {}
-        for i in Kraus.keys():
-            collapsed[i] = batch_dot(Kraus[i], psi)
-            p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
-            p[i] = tf.math.real(p[i])
-            
-        obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
-        mask = tf.cast(obs, dtype=tf.complex64)
-        psi = collapsed[0] * (1-mask) + collapsed[1] * mask
-        obs = 1 - 2*obs # convert to {-1,1}
-        obs = tf.cast(obs, dtype=tf.float32)
-        return psi, obs
-
-### Properties
     
     @property
     def reward_mode(self):
@@ -636,14 +413,15 @@ class GKP(tf_environment.TFEnvironment):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed', 'entropy']
+            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
             if mode == 'stabilizers':
                 self.calculate_reward = self.reward_stabilizers
-            # TODO: add check for 'init = vac' in which case these two are invalid
             if mode == 'pauli':
+                if self.init == 'vac':
+                    raise Exception('Pauli reward not supported for vac')
                 self.calculate_reward = self.reward_pauli
             if mode == 'mixed':
                 self.calculate_reward = self.reward_mixed
@@ -668,10 +446,11 @@ class GKP(tf_environment.TFEnvironment):
 
     @batch_size.setter
     def batch_size(self, size):
+        if 'code_map' in self.__dir__():
+            raise ValueError('Cannot change batch_size after initialization.')
         try:
             assert size>0 and isinstance(size,int)
             self._batch_size = size
-            self.init_monte_carlo_sim()
         except:
             raise ValueError('Batch size should be positive integer.')
     

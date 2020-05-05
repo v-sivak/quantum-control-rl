@@ -14,11 +14,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
-from math import sqrt, pi
-from tf_agents.specs import tensor_spec
-from tf_agents import specs
-
-from gkp.gkp_tf_env import helper_functions as hf
+from math import pi
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.gkp_tf_env.oscillator_env import OscillatorGKP
 from gkp.gkp_tf_env import policy as plc
@@ -42,7 +38,7 @@ from gkp.gkp_tf_env import policy as plc
 
 
 
-env = OscillatorGKP(init='X+', H=1, batch_size=100, episode_length=200, 
+env = OscillatorGKP(init='vac', H=1, batch_size=100, episode_length=200, 
           reward_mode = 'stabilizers', quantum_circuit_type='v3')
 
 from gkp.action_script import Baptiste_4round as action_script
