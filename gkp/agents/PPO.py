@@ -17,7 +17,7 @@ from tf_agents.eval import metric_utils
 from tf_agents.agents.ppo import ppo_agent
 from tf_agents.utils import timer
 
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import gkp_init
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.utils.rl_train_utils import compute_avg_return, save_log
 import gkp.action_script as act_scripts
@@ -45,6 +45,7 @@ def train_eval(
         save_interval = 1000,
         log_interval = 20,
         # Params for environment
+        simulate = 'oscillator',
         horizon = 1,
         max_episode_length = 24,
         eval_episode_length = 200,
@@ -66,7 +67,8 @@ def train_eval(
     action_script = act_scripts.__getattribute__(action_script)
         
     # Create training env
-    train_env = GKP(init='random', H=horizon, batch_size=train_batch_size,
+    train_env = gkp_init(simulate=simulate,                 
+                    init='random', H=horizon, batch_size=train_batch_size,
                     max_episode_length=max_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
@@ -75,10 +77,11 @@ def train_eval(
     train_env = wrappers.FlattenObservationsWrapperTF(train_env)
 
     # Create evaluation env    
-    eval_env = GKP(init='random', H=horizon, batch_size=eval_batch_size,
-                   episode_length=eval_episode_length,
-                   reward_mode=reward_mode, 
-                   quantum_circuit_type=quantum_circuit_type)
+    eval_env = gkp_init(simulate=simulate,
+                    init='random', H=horizon, batch_size=eval_batch_size,
+                    episode_length=eval_episode_length,
+                    reward_mode=reward_mode, 
+                    quantum_circuit_type=quantum_circuit_type)
     
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
     eval_env = wrappers.FlattenObservationsWrapperTF(eval_env)

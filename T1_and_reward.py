@@ -15,12 +15,10 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
 from scipy.optimize import curve_fit
-
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.oscillator_env import OscillatorGKP
 from gkp.gkp_tf_env import policy as plc
-
+from gkp.gkp_tf_env import gkp_init
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -41,10 +39,11 @@ from gkp.gkp_tf_env import policy as plc
 
 
 
-env = OscillatorGKP(init='X+', H=1, batch_size=200, episode_length=200, 
-                    reward_mode = 'pauli', quantum_circuit_type='v1')
+env = gkp_init(simulate='oscillator',
+               init='X+', H=1, batch_size=200, episode_length=200, 
+               reward_mode = 'pauli', quantum_circuit_type='v1')
 
-from gkp.action_script import phase_estimation_4round as action_script
+from gkp.action_script import phase_estimation_8round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 

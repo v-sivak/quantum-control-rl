@@ -235,7 +235,7 @@ class GKP(tf_environment.TFEnvironment):
                       for key, val in pauli.items()}
         self.states = {key : tf.squeeze(tf.constant(val.full(), dtype=c64))
                        for key, val in states.items()}
-        vac = qt.basis(self.N,0)
+        vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
         self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
 
 
@@ -293,7 +293,7 @@ class GKP(tf_environment.TFEnvironment):
 
 
     @tf.function
-    def measurement(self, psi, Kraus):
+    def measurement(self, psi, Kraus, sample=True):
         """
         Batch measurement projection.
         
@@ -302,6 +302,7 @@ class GKP(tf_environment.TFEnvironment):
             Kraus -- dictionary of Kraus operators corresponding to 2 different 
                      qubit measurement outcomes. Shape of each operator is 
                      [b,NH,NH], where b is batch size
+            sample -- bool flag to sample or return expectation value
             
         Output:
             psi -- batch of collapsed states; shape=[batch_size,NH]
@@ -313,13 +314,57 @@ class GKP(tf_environment.TFEnvironment):
             collapsed[i] = batch_dot(Kraus[i], psi)
             p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
             p[i] = tf.math.real(p[i])
+        
+        if sample:
+            obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
+            mask = tf.cast(obs, dtype=c64)
+            psi = collapsed[0] * (1-mask) + collapsed[1] * mask
+            obs = 1 - 2*obs # convert to {-1,1}
+            obs = tf.cast(obs, dtype=tf.float32)
+            return psi, obs
+        else:
+            return psi, p[0]-p[1]
+
+
+    ### GATES
+
+
+    @tf.function
+    def phase(self, phi):
+        """
+        Batch phase factor.
+        
+        Input:
+            phi -- tensor of shape (batch_size,) or compatible
+
+        Output:
+            op -- phase factor; shape=[batch_size,1,1]
             
-        obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
-        mask = tf.cast(obs, dtype=c64)
-        psi = collapsed[0] * (1-mask) + collapsed[1] * mask
-        obs = 1 - 2*obs # convert to {-1,1}
-        obs = tf.cast(obs, dtype=tf.float32)
-        return psi, obs
+        """
+        phi = tf.cast(phi, dtype=c64)
+        phi = tf.reshape(phi, shape=[self.batch_size,1,1])        
+        op = tf.linalg.expm(1j*phi)
+        return op
+
+
+    @tf.function
+    def translate(self, amplitude):
+        """
+        Batch oscillator translation operator. 
+        
+        Input:
+            amplitude -- tensor of shape (batch_size,) or compatible
+            
+        Output:
+            op -- translation operator; shape=[batch_size,N,N]
+
+        """
+        a = tf.stack([self.a]*self.batch_size)
+        a_dag = tf.stack([self.a_dag]*self.batch_size)
+        amplitude = tf.reshape(amplitude, shape=[self.batch_size,1,1])
+        batch = amplitude/sqrt(2)*a_dag - tf.math.conj(amplitude)/sqrt(2)*a
+        op = tf.linalg.expm(batch)
+        return op
 
 
     ### REWARD FUNCTION

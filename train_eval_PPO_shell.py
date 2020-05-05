@@ -38,6 +38,7 @@ if __name__ == '__main__':
     save_interval = 1000
     log_interval = 20
     # Params for environment
+    simulate = 'oscillator'
     horizon = 1
     max_episode_length = 24
     eval_episode_length = 24
@@ -114,7 +115,10 @@ if __name__ == '__main__':
                         default=log_interval)
 
     ### Params for environment
-
+    
+    parser.add_argument('--simulate', type=str, 
+                        default=simulate)
+    
     parser.add_argument('--horizon', type=int, 
                         default=horizon)
     
@@ -173,6 +177,7 @@ if __name__ == '__main__':
         eval_interval=args.eval_interval,
         save_interval=args.save_interval,
         log_interval=args.log_interval,
+        simulate=args.simulate,
         horizon=args.horizon,
         max_episode_length=args.max_episode_length,
         eval_episode_length=args.eval_episode_length,

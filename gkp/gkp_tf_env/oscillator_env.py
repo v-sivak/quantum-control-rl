@@ -59,7 +59,7 @@ class OscillatorGKP(GKP):
     def quantum_circuit_v1(self, psi, action):
         """
         Apply Kraus map version 1. In this version conditional translation by
-        'beta' is not symmetric (translates by beta if qubit is in state 1). 
+        'beta' is not symmetric (translates if qubit is in '1') 
         
         Input:
             action -- dictionary of batched actions. Dictionary keys are
@@ -87,7 +87,7 @@ class OscillatorGKP(GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mc_sim_round.run(psi_cached)
         psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
+        psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
 
@@ -121,7 +121,7 @@ class OscillatorGKP(GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mc_sim_round.run(psi_cached)
         psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
+        psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
 
@@ -175,13 +175,13 @@ class OscillatorGKP(GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mc_sim_round.run(psi_cached)
         psi = self.normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus)
+        psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
 
 
     @tf.function
-    def phase_estimation(self, psi, beta, angle, sample = False):
+    def phase_estimation(self, psi, beta, angle, sample=False):
         """
         One round of phase estimation. 
         
@@ -189,6 +189,7 @@ class OscillatorGKP(GKP):
             psi -- batch of state vectors; shape=[batch_size,N]
             beta -- translation amplitude. shape=(batch_size,)
             angle -- angle along which to measure qubit. shape=(batch_size,)
+            sample -- bool flag to sample or return expectation value
         
         Output:
             psi -- batch of collapsed states if sample==True, otherwise same 
@@ -204,56 +205,6 @@ class OscillatorGKP(GKP):
         Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
         
         psi = self.normalize(psi)
-        if sample:
-            return self.measurement(psi, Kraus)
-        else:
-            # TODO: this can be done in 'measurement', pass 'sample' flag
-            collapsed, p = {}, {}
-            for i in [0,1]:
-                collapsed[i] = batch_dot(Kraus[i], psi)
-                p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
-                p[i] = tf.math.real(p[i])
-            return psi, p[0]-p[1] # expectation of sigma_z    
+        return self.measurement(psi, Kraus, sample=sample)
 
 
-    ### GATES
-
-
-    @tf.function
-    def phase(self, phi):
-        """
-        Batch phase factor.
-        
-        Input:
-            phi -- tensor of shape (batch_size,) or compatible
-
-        Output:
-            op -- phase factor; shape=[batch_size,1,1]
-            
-        """
-        phi = tf.cast(phi, dtype=c64)
-        phi = tf.reshape(phi, shape=[self.batch_size,1,1])        
-        op = tf.linalg.expm(1j*phi)
-        return op
-
-
-    @tf.function
-    def translate(self, amplitude):
-        """
-        Batch oscillator translation operator. 
-        
-        Input:
-            amplitude -- tensor of shape (batch_size,) or compatible
-            
-        Output:
-            op -- translation operator; shape=[batch_size,N,N]
-
-        """
-        a = tf.stack([self.a]*self.batch_size)
-        a_dag = tf.stack([self.a_dag]*self.batch_size)
-        amplitude = tf.reshape(amplitude, shape=[self.batch_size,1,1])
-        batch = amplitude/sqrt(2)*a_dag - tf.math.conj(amplitude)/sqrt(2)*a
-        op = tf.linalg.expm(batch)
-        return op
-
-    

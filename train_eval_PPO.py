@@ -39,6 +39,7 @@ PPO.train_eval(
         save_interval = 200,
         log_interval = 20,
         # Params for environment
+        simulate = 'oscillator',
         horizon = 1,
         max_episode_length = 24,
         eval_episode_length = 24,

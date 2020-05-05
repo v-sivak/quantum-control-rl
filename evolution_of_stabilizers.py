@@ -16,11 +16,12 @@ import matplotlib.pyplot as plt
 from time import time
 from math import pi
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.oscillator_env import OscillatorGKP
 from gkp.gkp_tf_env import policy as plc
+from gkp.gkp_tf_env import gkp_init
 
-
-
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
 # env = GKP(init='random', H=1, batch_size=600, episode_length=100, 
@@ -38,15 +39,17 @@ from gkp.gkp_tf_env import policy as plc
 
 
 
-env = OscillatorGKP(init='vac', H=1, batch_size=100, episode_length=200, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v3')
+env = gkp_init(simulate='oscillator', 
+               init='vac', H=1, batch_size=100, episode_length=200, 
+               reward_mode = 'stabilizers', quantum_circuit_type='v1')
 
-from gkp.action_script import Baptiste_4round as action_script
+from gkp.action_script import phase_estimation_8round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
-
-
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 names = ['Re(S_p)', 'Im(S_p)', 'Re(S_q)', 'Im(S_q)']
 stabilizers = [env.code_map['S_p'], env.code_map['S_p'], 

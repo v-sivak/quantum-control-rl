@@ -12,18 +12,17 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 import tensorflow as tf
-
-from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import policy as plc
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.gkp_tf_env import gkp_init
 
 
+env = gkp_init(simulate='oscillator_qubit',
+               init='X+', H=10, batch_size=1, episode_length=60, 
+               reward_mode = 'stabilizers', quantum_circuit_type='v1')
 
-env = GKP(init='X+', H=10, batch_size=1, episode_length=60, 
-          reward_mode = 'stabilizers', quantum_circuit_type='v3')
-
-from gkp.action_script import Baptiste_4round as action_script
+from gkp.action_script import phase_estimation_8round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
