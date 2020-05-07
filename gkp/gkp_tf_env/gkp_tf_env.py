@@ -74,8 +74,7 @@ class GKP(tf_environment.TFEnvironment):
         super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
 
         # create all tensors
-        self.define_operators()
-        self.init_monte_carlo_sim()
+        self.setup_simulator()
         S = np.array([[1, 0],
                       [0, 1]])
         self.define_stabilizer_code(S)

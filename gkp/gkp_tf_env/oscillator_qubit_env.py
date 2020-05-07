@@ -20,20 +20,24 @@ class OscillatorQubitGKP(GKP):
     space and using gate-based approach to quantum circuits.
     
     """
-    
     def __init__(self, **kwargs):
         self.tensorstate = True
         super(OscillatorQubitGKP, self).__init__(**kwargs)
 
-    def define_operators(self):
+
+    def setup_simulator(self):
         """
         Define all relevant operators as tensorflow tensors of shape [2N,2N].
-        We adopt the notation in which qt.basis(2,0) is a ground state
+        We adopt the notation in which qt.basis(2,0) is a qubit ground state.
         Methods need to take care of batch dimension explicitly. 
+
+        Initialize tensorflow quantum trajectory simulator. This is used to
+        simulate decoherence, dephasing, Kerr etc using quantum jumps.
         
         """
         N = self.N
-        # Create qutip tensors
+        
+        # Create qutip tensor ops acting on oscillator Hilbert space
         I = qt.tensor(qt.identity(2), qt.identity(N))
         a = qt.tensor(qt.identity(2), qt.destroy(N))
         a_dag = qt.tensor(qt.identity(2), qt.create(N))
@@ -49,14 +53,13 @@ class OscillatorQubitGKP(GKP):
         P = {0 : qt.tensor(qt.ket2dm(qt.basis(2,0)), qt.identity(N)),
              1 : qt.tensor(qt.ket2dm(qt.basis(2,1)), qt.identity(N))}
 
+        # Create qutip Hamiltonian and collapse ops
         Hamiltonian = -1/2 * (2*pi) * self.K_osc * n * n 
         
-        # TODO: include other channels
         c_ops = [sqrt(1/self.T1_osc)*a,       # photon loss
                  sqrt(1/self.T1_qb)*sm,       # qubit decay
                  sqrt(0.5/self.Tphi_qb)*sz]   # qubit dephasing
 
-        
         # Convert to tensorflow tensors
         self.I = tf.constant(I.full(), dtype=c64)
         self.a = tf.constant(a.full(), dtype=c64)
@@ -74,6 +77,25 @@ class OscillatorQubitGKP(GKP):
         self.Hamiltonian = tf.constant(Hamiltonian.full(), dtype=c64)
         self.c_ops = [tf.constant(op.full(), dtype=c64) for op in c_ops]  
         
+        # Create Kraus ops for free evolution simulator
+        Kraus = {}
+        dt = self.discrete_step_duration
+        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
+        for i, c in enumerate(self.c_ops):
+            Kraus[i+1] = sqrt(dt) * c
+            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
+        
+        Kraus_tf = {}
+        for i, op in Kraus.items():
+            Kraus_tf[i] = tf.stack([op]*self.batch_size)
+
+        # Initialize quantum trajectories simulator 
+        self.mcsim = QuantumTrajectorySim(Kraus_tf)
+
+        self.mcsteps_read = tf.constant(int(self.t_read / 2 / dt))
+        self.mcsteps_gate = tf.constant(int((self.t_gate) / dt))
+        self.mcsteps_delay = tf.constant(int(self.t_delay / dt))
+
         
     @tf.function
     def quantum_circuit_v1(self, psi, action):
@@ -110,16 +132,16 @@ class OscillatorQubitGKP(GKP):
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation
         psi = batch_dot(CT, psi)
-        psi = self.mcsim_gate.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_gate)
         # Qubit gates
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
-        psi = self.mcsim_read.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_read)
         psi, obs = self.measurement(psi, self.P, sample=True)
-        psi = self.mcsim_read.run(psi)
+        psi = self.mcsim.run(psi,self.mcsteps_read)
         # Feedback delay
-        psi = self.mcsim_delay.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_delay)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64) \
             + batch_dot(sx, psi) * tf.cast((obs==-1), c64)
@@ -162,17 +184,17 @@ class OscillatorQubitGKP(GKP):
         # Conditional translation
         psi = batch_dot(tf.linalg.adjoint(T['b']), psi)
         psi = batch_dot(CT, psi)
-        psi = self.mcsim_gate.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_gate)
         psi = batch_dot(CT, psi)
         # Qubit gates
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
-        psi = self.mcsim_read.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_read)
         psi, obs = self.measurement(psi, self.P, sample=True)
-        psi = self.mcsim_read.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_read)
         # Feedback delay
-        psi = self.mcsim_delay.run(psi)
+        psi = self.mcsim.run(psi, self.mcsteps_delay)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64) \
             + batch_dot(sx, psi) * tf.cast((obs==-1), c64)
@@ -225,34 +247,3 @@ class OscillatorQubitGKP(GKP):
         return self.P[0] + batch_dot(self.P[1], U)
     
 
-    def init_monte_carlo_sim(self):
-        """
-        Initialize tensorflow quantum trajectory simulator. This is used to
-        simulate decoherence, dephasing, Kerr etc using quantum jumps.
-        
-        """        
-        # Create Kraus ops
-        Kraus = {}
-        dt = self.discrete_step_duration
-        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
-        for i, c in enumerate(self.c_ops):
-            Kraus[i+1] = sqrt(dt) * c
-            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
-        
-        Kraus_tf = {}
-        for i, op in Kraus.items():
-            Kraus_tf[i] = tf.stack([op]*self.batch_size)
-
-        # Initialize quantum trajectories simulator 
-        mcsteps_read = int(self.t_read / 2 / dt)
-        self.mcsim_read = QuantumTrajectorySim(Kraus_tf, mcsteps_read)
-        self.mcsim_read.run = tf.function(self.mcsim_read.run)
-        
-        # Initialize quantum trajectories simulator 
-        mcsteps_gate = int((self.t_gate) / dt)
-        self.mcsim_gate = QuantumTrajectorySim(Kraus_tf, mcsteps_gate)
-        self.mcsim_gate.run = tf.function(self.mcsim_gate.run)
-
-        mcsteps_delay = int(self.t_delay / dt)
-        self.mcsim_delay = QuantumTrajectorySim(Kraus_tf, mcsteps_delay)
-        self.mcsim_delay.run = tf.function(self.mcsim_delay.run)

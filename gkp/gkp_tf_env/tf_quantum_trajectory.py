@@ -11,26 +11,24 @@ import tensorflow_probability as tfp
 
 
 
-# TODO: For now supports only a single collapse op, add multiple
+# TODO: This implementation has some issue with Nans
 class QuantumTrajectorySim(object):
     """
     Tensorflow implementation of the Monte Carlo quantum trajectory simulator.
     
     """
-    def __init__(self, Kraus, steps):
+    def __init__(self, Kraus):
         """
         Input:
             Kraus -- dictionary of Kraus operators. Dict keys are integers. 
                      K[0] is no-jump operator, the rest are jump operators.
                      Shape of each operator is [b,NH,NH], b is batch size
-            steps -- number of steps to run the trajectory
             
         """
         self.Kraus = Kraus
-        self.steps = steps
 
 
-    def _step(self, j, psi):
+    def _step(self, j, psi, steps):
         """
         One step in the Markov chain.
         
@@ -56,30 +54,11 @@ class QuantumTrajectorySim(object):
             state += traj[i] * mask1 * mask2
             cumulant += p[i]
 
-        return [j+1, state]
+        return [j+1, state, steps]
 
 
-    # def _step(self, j, psi):
-    #     """
-    #     One step in the Markov chain.
-        
-    #     """
-    #     traj, p, norm = {}, {}, {} 
-    #     for i in self.Kraus.keys():
-    #         traj[i] = batch_dot(self.Kraus[i], psi)            # shape = [b,N]
-    #         p[i] = batch_dot(tf.math.conj(traj[i]), traj[i])   # shape = [b,1]
-    #         p[i] = tf.math.real(p[i])                           
-    #         norm[i] = tf.math.sqrt(p[i])                       # shape = [b,1]
-    #         norm[i] = tf.cast(norm[i], dtype=tf.complex64)
-    #         traj[i] = traj[i] / norm[i]
-        
-    #     jumps = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
-    #     mask  = tf.cast(jumps, dtype=tf.complex64)
-    #     state = traj[1] * mask + traj[0] * (1 - mask)
-    #     return [j+1, state]
-
-    def _cond(self, j, psi):
-        return tf.less(j, self.steps)
+    def _cond(self, j, psi, steps):
+        return tf.less(j, steps)
 
     def normalize(self, state):
         """
@@ -94,19 +73,21 @@ class QuantumTrajectorySim(object):
         state = state / norm
         return state
 
-
-    def run(self, psi):
+    @tf.function
+    def run(self, psi, steps):
         """
         Simulate a batch of trajectories for 'steps' steps.
         
         Input:
             psi -- batch of state vectors; shape=[b,NH]
+            steps -- number of steps to run the trajectory
             
         """
         psi = self.normalize(psi)
+
         j = tf.constant(0)
-        _, psi = tf.while_loop(self._cond, self._step, 
-                               loop_vars=[j, psi])
+        _, psi, steps = tf.while_loop(self._cond, self._step, 
+                                      loop_vars=[j, psi, steps])
         return psi
     
     

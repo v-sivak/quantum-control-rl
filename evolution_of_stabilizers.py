@@ -39,7 +39,7 @@ from gkp.gkp_tf_env import gkp_init
 
 
 
-env = gkp_init(simulate='oscillator_qubit', 
+env = gkp_init(simulate='oscillator', 
                init='vac', H=1, batch_size=100, episode_length=100, 
                reward_mode = 'stabilizers', quantum_circuit_type='v1')
 

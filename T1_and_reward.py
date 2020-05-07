@@ -39,12 +39,13 @@ from gkp.gkp_tf_env import gkp_init
 
 
 
-env = gkp_init(simulate='oscillator_qubit',
+env = gkp_init(simulate='oscillator',
                init='X+', H=1, batch_size=200, episode_length=200, 
                reward_mode = 'pauli', quantum_circuit_type='v2')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # from gkp.action_script import phase_estimation_8round as action_script
+# from gkp.action_script import Baptiste_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
