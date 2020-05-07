@@ -11,6 +11,7 @@ import tensorflow as tf
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env.tf_quantum_trajectory import QuantumTrajectorySim
 
 class OscillatorGKP(GKP):
     """
@@ -208,3 +209,29 @@ class OscillatorGKP(GKP):
         return self.measurement(psi, Kraus, sample=sample)
 
 
+    def init_monte_carlo_sim(self):
+        """
+        Initialize tensorflow quantum trajectory simulator. This is used to
+        simulate decoherence, dephasing, Kerr etc using quantum jumps.
+        
+        """        
+        # Create Kraus ops
+        Kraus = {}
+        dt = self.discrete_step_duration
+        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
+        for i, c in enumerate(self.c_ops):
+            Kraus[i+1] = sqrt(dt) * c
+            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
+        
+        Kraus_tf = {}
+        for i, op in Kraus.items():
+            Kraus_tf[i] = tf.stack([op]*self.batch_size)
+        
+        # Initialize quantum trajectories simulator 
+        mc_steps_round = int((self.t_gate + self.t_read) / dt)
+        self.mc_sim_round = QuantumTrajectorySim(Kraus_tf, mc_steps_round)
+        self.mc_sim_round.run = tf.function(self.mc_sim_round.run)
+
+        mc_steps_delay = int(self.t_delay / dt)
+        self.mc_sim_delay = QuantumTrajectorySim(Kraus_tf, mc_steps_delay)
+        self.mc_sim_delay.run = tf.function(self.mc_sim_delay.run)

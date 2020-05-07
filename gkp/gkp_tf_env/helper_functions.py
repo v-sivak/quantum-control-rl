@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 # TODO: add docs
 
-
 def exp_decay(x, a, b):
     return a*np.exp(-x/b)
 

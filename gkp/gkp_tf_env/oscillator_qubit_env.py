@@ -10,6 +10,8 @@ from numpy import sqrt, pi
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
+from gkp.gkp_tf_env.tf_quantum_trajectory import QuantumTrajectorySim
+
 
 class OscillatorQubitGKP(GKP):
     """
@@ -47,13 +49,12 @@ class OscillatorQubitGKP(GKP):
         P = {0 : qt.tensor(qt.ket2dm(qt.basis(2,0)), qt.identity(N)),
              1 : qt.tensor(qt.ket2dm(qt.basis(2,1)), qt.identity(N))}
 
-        Kerr = -1/2 * (2*pi) * self.K_osc * n * n 
-        dispersive = -1/2 * (2*pi) * self.chi * sz * n
-        Hamiltonian = Kerr # + dispersive    # TODO: include dispersive
-                                             # TODO: include other channels
-        c_ops = [sqrt(1/self.T1_osc)*a] #,       # photon loss
-              #   sqrt(1/self.T1_qb)*sm,       # qubit decay
-            #     sqrt(0.5/self.Tphi_qb)*sz]   # qubit dephasing
+        Hamiltonian = -1/2 * (2*pi) * self.K_osc * n * n 
+        
+        # TODO: include other channels
+        c_ops = [sqrt(1/self.T1_osc)*a,       # photon loss
+                 sqrt(1/self.T1_qb)*sm,       # qubit decay
+                 sqrt(0.5/self.Tphi_qb)*sz]   # qubit dephasing
 
         
         # Convert to tensorflow tensors
@@ -90,27 +91,96 @@ class OscillatorQubitGKP(GKP):
             obs -- measurement outcomes; shape=(batch_size,)
             
         """
-        # extract parameters
+        # Extract parameters
         alpha = self.vec_to_complex(action['alpha'])
         beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
         
-        # execute gates
-        psi = self.mc_sim_delay.run(psi)
-        psi_cached = batch_dot(self.translate(alpha), psi)
-        psi = self.mc_sim_round.run(psi_cached)
-        psi = self.normalize(psi)
-        psi, obs = self.phase_estimation(psi, beta, angle=phi, sample=True)
-        
-        # flip qubit conditioned on the measurement
+        # Construct gates
+        T = {'a' : self.translate(alpha),
+             'b' : self.translate(beta)}
+        CT = self.ctrl(T['b'])
+        Phase = self.ctrl(self.phase(phi)*self.I)
+        Hadamard = tf.stack([self.hadamard]*self.batch_size)
         sx = tf.stack([self.sx]*self.batch_size)
-        psi_final = psi * tf.cast((obs == 1), c64) \
-            + batch_dot(sx, psi) * tf.cast((obs == -1), c64)
+
+        # Feedback translation
+        psi_cached = batch_dot(T['a'], psi)
+        # Qubit gates
+        psi = batch_dot(Hadamard, psi_cached)
+        # Conditional translation
+        psi = batch_dot(CT, psi)
+        psi = self.mcsim_gate.run(psi)
+        # Qubit gates
+        psi = batch_dot(Phase, psi)
+        psi = batch_dot(Hadamard, psi)
+        # Readout of finite duration
+        psi = self.mcsim_read.run(psi)
+        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi = self.mcsim_read.run(psi)
+        # Feedback delay
+        psi = self.mcsim_delay.run(psi)
+        # Flip qubit conditioned on the measurement
+        psi_final = psi * tf.cast((obs==1), c64) \
+            + batch_dot(sx, psi) * tf.cast((obs==-1), c64)
 
         return psi_final, psi_cached, obs
-    
 
     @tf.function
+    def quantum_circuit_v2(self, psi, action):
+        """
+        Apply sequenct of quantum gates version 1. In this version conditional 
+        translation by 'beta' is not symmetric (translates if qubit is in '1') 
+        
+        Input:
+            action -- dictionary of batched actions. Dictionary keys are
+                      'alpha', 'beta', 'phi'
+            
+        Output:
+            psi_final -- batch of final states; shape=[batch_size,N]
+            psi_cached -- batch of cached states; shape=[batch_size,N]
+            obs -- measurement outcomes; shape=(batch_size,)
+            
+        """
+        # Extract parameters
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        phi = action['phi']
+        
+        # Construct gates
+        T = {'a' : self.translate(alpha),
+             'b' : self.translate(beta/2.0)}
+        CT = self.ctrl(T['b'])
+        Phase = self.ctrl(self.phase(phi)*self.I)
+        Hadamard = tf.stack([self.hadamard]*self.batch_size)
+        sx = tf.stack([self.sx]*self.batch_size)
+
+        # Feedback translation
+        psi_cached = batch_dot(T['a'], psi)
+        # Qubit gates
+        psi = batch_dot(Hadamard, psi_cached)
+        # Conditional translation
+        psi = batch_dot(tf.linalg.adjoint(T['b']), psi)
+        psi = batch_dot(CT, psi)
+        psi = self.mcsim_gate.run(psi)
+        psi = batch_dot(CT, psi)
+        # Qubit gates
+        psi = batch_dot(Phase, psi)
+        psi = batch_dot(Hadamard, psi)
+        # Readout of finite duration
+        psi = self.mcsim_read.run(psi)
+        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi = self.mcsim_read.run(psi)
+        # Feedback delay
+        psi = self.mcsim_delay.run(psi)
+        # Flip qubit conditioned on the measurement
+        psi_final = psi * tf.cast((obs==1), c64) \
+            + batch_dot(sx, psi) * tf.cast((obs==-1), c64)
+
+        return psi_final, psi_cached, obs
+
+
+    @tf.function # TODO: add losses to it?
     def phase_estimation(self, psi, beta, angle, sample=False):
         """
         One round of phase estimation. 
@@ -154,3 +224,35 @@ class OscillatorQubitGKP(GKP):
         """
         return self.P[0] + batch_dot(self.P[1], U)
     
+
+    def init_monte_carlo_sim(self):
+        """
+        Initialize tensorflow quantum trajectory simulator. This is used to
+        simulate decoherence, dephasing, Kerr etc using quantum jumps.
+        
+        """        
+        # Create Kraus ops
+        Kraus = {}
+        dt = self.discrete_step_duration
+        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
+        for i, c in enumerate(self.c_ops):
+            Kraus[i+1] = sqrt(dt) * c
+            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
+        
+        Kraus_tf = {}
+        for i, op in Kraus.items():
+            Kraus_tf[i] = tf.stack([op]*self.batch_size)
+
+        # Initialize quantum trajectories simulator 
+        mcsteps_read = int(self.t_read / 2 / dt)
+        self.mcsim_read = QuantumTrajectorySim(Kraus_tf, mcsteps_read)
+        self.mcsim_read.run = tf.function(self.mcsim_read.run)
+        
+        # Initialize quantum trajectories simulator 
+        mcsteps_gate = int((self.t_gate) / dt)
+        self.mcsim_gate = QuantumTrajectorySim(Kraus_tf, mcsteps_gate)
+        self.mcsim_gate.run = tf.function(self.mcsim_gate.run)
+
+        mcsteps_delay = int(self.t_delay / dt)
+        self.mcsim_delay = QuantumTrajectorySim(Kraus_tf, mcsteps_delay)
+        self.mcsim_delay.run = tf.function(self.mcsim_delay.run)

@@ -4,3 +4,4 @@ from gkp.action_script import phase_estimation_4round
 from gkp.action_script import phase_estimation_symmetric_4round
 from gkp.action_script import phase_estimation_8round
 from gkp.action_script import phase_estimation_with_trim_6round
+from gkp.action_script import phase_estimation_symmetric_with_trim_4round

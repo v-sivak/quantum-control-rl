@@ -22,7 +22,7 @@ chi = 28e3
 
 # Imperfections
 t_gate  = 1.2e-6
-t_read  = 0.7e-6
+t_read  = 0.6e-6
 t_delay = 0.6e-6
 
 discrete_step_duration = 100e-9

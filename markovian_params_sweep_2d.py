@@ -20,7 +20,7 @@ from scipy.optimize import curve_fit
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import gkp_init
 from gkp.gkp_tf_env import policy as plc
 
 
@@ -30,23 +30,23 @@ class ActionScript(object):
         self.delta = delta
         self.eps = eps
 
-        self.period = 4
+        self.period = 8
 
-        self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), 2*sqrt(pi)+0j, 2j*sqrt(pi)]
+        self.beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
+                     -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
         
-        self.alpha = [0+0j, 0+0j, -1j*delta, delta+0j]
+        self.alpha = [-2*sqrt(pi)+0j, -1j*delta, -2j*sqrt(pi), delta+0j, 
+                      2*sqrt(pi)+0j, 1j*delta, 2j*sqrt(pi), -delta+0j]
         
-        self.epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j]
-        
-        self.phi = [0, 0, pi/2, pi/2]
+        self.phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
 
 
+env = gkp_init(simulate='oscillator_qubit',
+               init='Z+', H=1, batch_size=200, episode_length=200, 
+               reward_mode = 'pauli', quantum_circuit_type='v1')
 
-env = GKP(init='Z+', H=1, batch_size=200, episode_length=200, 
-          reward_mode = 'mixed', quantum_circuit_type='v3')
 
-
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\mixed_4round_Baptiste'
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\chi\phase_estimation_8round_2d_sweep'
 feedback_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 trim_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 lifetimes = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
@@ -56,7 +56,7 @@ for jj, fa in enumerate(feedback_amplitudes):
     for ii, ta in enumerate(trim_amplitudes):
 
         action_script = ActionScript(delta=fa, eps=ta)
-        policy = plc.ScriptedPolicyV2(env.time_step_spec(), action_script)
+        policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
         
         # This big part is essentially the same as in T1 measurement  
@@ -65,7 +65,7 @@ for jj, fa in enumerate(feedback_amplitudes):
         rewards = {state : np.zeros((env.episode_length, env.batch_size)) 
                    for state in states}
         for state in states:
-            pauli = env.code_displacements[state[0]]
+            pauli = env.code_map[state[0]]
             cache = [] # store intermediate states
             reward_cache = []
             env.init = state
@@ -101,11 +101,11 @@ for jj, fa in enumerate(feedback_amplitudes):
             # ax.plot(times*1e6, results[state], color=palette(i),
             #         marker='.', linestyle='None')
             popt, pcov = curve_fit(hf.exp_decay, times, np.abs(results[state]),
-                                   p0=[1, env.T1_osc])
-            # ax.plot(times*1e6, hf.exp_decay(times, popt[0], popt[1]), 
-            #         label = state + ' : %.2f us' %(popt[1]*1e6),
+                                   p0=[env.T1_osc])
+            # ax.plot(times*1e6, hf.exp_decay(times, popt[0]), 
+            #         label = state + ' : %.2f us' %(popt[0]*1e6),
             #         linestyle='--', color=palette(i),)
-            lifetimes[jj,ii] = popt[1]*1e6
+            lifetimes[jj,ii] = popt[0]*1e6
         # ax.legend()
         # fig.savefig(os.path.join(savepath,'T1_feedback_%.2f_trim_%.2f.png' %(fa,ta)))
         

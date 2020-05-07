@@ -15,6 +15,7 @@ from tf_agents import specs
 from tf_agents.utils import nest_utils
 from tf_agents.utils import common
 from tf_agents.trajectories import time_step as ts
+from tf_agents.specs import tensor_spec
 
 from tensorflow_core._api.v2.math import real, imag
 
@@ -28,11 +29,9 @@ class IdlePolicy(fixed_policy.FixedPolicy):
     Do nothing policy (zero on all actuators).
     
     """ 
-    def __init__(self, time_step_spec):
-        
-        action_spec = specs.TensorSpec(shape=[5], dtype=tf.float32)   
-        acts_dim = action_spec.shape[0]
-        super(IdlePolicy, self).__init__(tf.zeros(acts_dim), 
+    def __init__(self, time_step_spec, action_spec):
+        zero_action = tensor_spec.zero_spec_nest(action_spec)
+        super(IdlePolicy, self).__init__(zero_action, 
                                          time_step_spec, action_spec)
 
 
@@ -88,6 +87,7 @@ class ScriptedPolicy(tf_policy.Base):
             if a == 'alpha': # do Markovian feedback
                 m = time_step.observation['msmt'][:,-1,:]
                 A *= tf.cast(m, dtype=tf.complex64)
+                if policy_state[0] == 0: A *= 0
             if self.dims_map[a] == 2:
                 action[a] = tf.concat([real(A), imag(A)], axis=1)
             if self.dims_map[a] == 1:
