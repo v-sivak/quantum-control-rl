@@ -32,15 +32,21 @@ class GKP(tf_environment.TFEnvironment):
     in parallel on GPU by adding batch dimension to all tensors. The speedup
     over all-qutip implementation is about x100 on NVIDIA RTX 2080Ti.
     
+    This is the base class for GKP environment which incorporates simulation-
+    independet methods. The child classes OscillatorGKP and OscillatorQubitGKP
+    inherit these methods and add their own implementations of the quantum 
+    circuits. The former is much faster but it doesn't include qubit into the 
+    Hilbert space, thus it is less representative of reality. The latter is
+    slower but allows for much more flexibility in simulation.
+    
     Actions are parametrized according to the sequence of gates applied at 
-    each time step, see <quantum_circuit_v1>, <...v2> or <...v3> 
+    each time step, see <quantum_circuit_v1>, <...v2>, <...v3> in child class.
     
     In <quantum_circuit_v1> and <...v2> each action is a 5-vector 
     [Re(alpha), Im(alpha), Re(beta), Im(beta), phi], where 'alpha' and 'beta' 
     are feedback and controlled-translation amplitudes, and 'phi' is qubit 
-    measurement angle in the phase estimation circuit. Observations are qubit 
-    sigma_z measurement outcomes from the set {-1,1}. 
-    In <quantum_circuit_v3> additional action dimensions Re(eps) and Im(eps) 
+    measurement angle. Observations are qubit sigma_z measurement outcomes from 
+    the set {-1,1}. In <...v3> additional action dimensions Re(eps) and Im(eps) 
     are added for trimming of GKP envelope, thus each action is a 7-vector.
     
     Environment step() method returns TimeStep tuple whose 'observation' 
@@ -288,9 +294,8 @@ class GKP(tf_environment.TFEnvironment):
         
         if sample:
             obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
-            mask = tf.cast(obs, dtype=c64)
-            psi = collapsed[0] * (1-mask) + collapsed[1] * mask
-            obs = 1 - 2*obs # convert to {-1,1}
+            psi = tf.where(obs==1, collapsed[1], collapsed[0])
+            obs = 1 - 2*obs  # convert to {-1,1}
             obs = tf.cast(obs, dtype=tf.float32)
             return psi, obs
         else:
@@ -327,7 +332,7 @@ class GKP(tf_environment.TFEnvironment):
             amplitude -- tensor of shape (batch_size,) or compatible
             
         Output:
-            op -- translation operator; shape=[batch_size,N,N]
+            op -- translation operator; shape=[batch_size,NH,NH]
 
         """
         a = tf.stack([self.a]*self.batch_size)
@@ -383,7 +388,7 @@ class GKP(tf_environment.TFEnvironment):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:
-            pauli = [self.code_map[self._original[i][0]] 
+            pauli = [self.code_map[self._original[i][0]]
                          for i in range(self.batch_size)]
             pauli = tf.convert_to_tensor(pauli, dtype=c64)
             phi = tf.zeros(self.batch_size)
@@ -392,6 +397,7 @@ class GKP(tf_environment.TFEnvironment):
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
         return z
+
 
     def reward_mixed(self, obs, act):
         """

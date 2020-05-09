@@ -27,7 +27,7 @@ if __name__ == '__main__':
     normalize_rewards = True
     discount_factor = 1.0
     lr = 1e-5
-    lr_schedule = lambda t: max(1/(1e3+t), 1e-5)
+    lr_schedule = None # lambda t: max(1/(1e3+t), 1e-5)
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
@@ -43,9 +43,9 @@ if __name__ == '__main__':
     max_episode_length = 24
     eval_episode_length = 24
     reward_mode = 'pauli'
-    quantum_circuit_type = 'v1'
-    action_script = 'phase_estimation_4round'
-    to_learn = {'alpha':True, 'beta':True, 'phi':True}
+    quantum_circuit_type = 'v3'
+    action_script = 'Baptiste_4round'
+    to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':True}
     # Policy and value networks
     actor_fc_layers = ()
     value_fc_layers = ()

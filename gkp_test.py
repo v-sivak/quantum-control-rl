@@ -42,9 +42,9 @@ if 1:
         action_step = policy.action(time_step, policy_state)
         policy_state = action_step.state
         time_step = env.step(action_step.action)
-        hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
-                                  title=str(env._elapsed_steps))
-    # hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
+        # hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
+        #                           title=str(env._elapsed_steps))
+    hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
 
 
 

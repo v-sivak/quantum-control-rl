@@ -7,7 +7,7 @@ Created on Tue Apr  7 17:18:12 2020
 import os
 os.environ["TF_MIN_GPU_MULTIPROCESSOR_COUNT"]="2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
@@ -30,23 +30,23 @@ class ActionScript(object):
         self.delta = delta
         self.eps = eps
 
-        self.period = 8
+        self.period = 2
 
-        self.beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
-                     -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
+        self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi)]
         
-        self.alpha = [-2*sqrt(pi)+0j, -1j*delta, -2j*sqrt(pi), delta+0j, 
-                      2*sqrt(pi)+0j, 1j*delta, 2j*sqrt(pi), -delta+0j]
+        self.alpha = [delta+0j, -1j*delta]
         
-        self.phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
+        self.epsilon = [-1j*eps, eps+0j]
+        
+        self.phi = [pi/2, pi/2]
 
 
 env = gkp_init(simulate='oscillator_qubit',
                init='Z+', H=1, batch_size=200, episode_length=200, 
-               reward_mode = 'pauli', quantum_circuit_type='v1')
+               reward_mode = 'pauli', quantum_circuit_type='v3')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\chi\phase_estimation_8round_2d_sweep'
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_qubit_sims\Baptiste_2round'
 feedback_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 trim_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
 lifetimes = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
@@ -101,11 +101,11 @@ for jj, fa in enumerate(feedback_amplitudes):
             # ax.plot(times*1e6, results[state], color=palette(i),
             #         marker='.', linestyle='None')
             popt, pcov = curve_fit(hf.exp_decay, times, np.abs(results[state]),
-                                   p0=[env.T1_osc])
+                                   p0=[1, env.T1_osc])
             # ax.plot(times*1e6, hf.exp_decay(times, popt[0]), 
             #         label = state + ' : %.2f us' %(popt[0]*1e6),
             #         linestyle='--', color=palette(i),)
-            lifetimes[jj,ii] = popt[0]*1e6
+            lifetimes[jj,ii] = popt[1]*1e6
         # ax.legend()
         # fig.savefig(os.path.join(savepath,'T1_feedback_%.2f_trim_%.2f.png' %(fa,ta)))
         

@@ -20,7 +20,10 @@ def gauss_decay(x, a, b):
     return a*np.exp(-(x/b)**2)
 
 def GKP_state(tensorstate, N, S):
+    """
+    Thanks to Alec for providing base code for this function.
     
+    """
     # Check if the matrix is simplectic
     Omega = np.array([[0,1],[-1,0]])
     if not np.allclose(S.T @ Omega @ S ,Omega):
@@ -95,11 +98,15 @@ def plot_wigner(state, tensorstate, cmap='seismic', title=None, savepath=None):
     xvec = np.linspace(-7,7,81)
     W = qt.wigner(state, xvec, xvec, g=sqrt(2))
     fig, ax = plt.subplots(figsize=(6,5))
-    p = ax.pcolormesh(xvec, xvec, W, cmap=cmap, vmin=-1, vmax=+1) #'RdBu_r'
-    
-    ax.plot([sqrt(pi), sqrt(pi)/2, 0, 0], [0, 0, sqrt(pi), sqrt(pi)/2], 
+    # p = ax.pcolormesh(xvec, xvec, W, cmap=cmap, vmin=-1, vmax=+1) #'RdBu_r'
+    # ax.plot([sqrt(pi), sqrt(pi)/2, 0, 0], [0, 0, sqrt(pi), sqrt(pi)/2], 
+    #         linestyle='none', marker='.',color='black')
+
+    p = ax.pcolormesh(xvec/sqrt(pi), xvec/sqrt(pi), W, cmap=cmap, vmin=-1, vmax=+1) #'RdBu_r'   
+    ax.plot([1, 1/2, 0, 0], [0, 0, 1, 1/2], 
             linestyle='none', marker='.',color='black')
     fig.colorbar(p, ax=ax)
+    plt.grid()
     if title: ax.set_title(title)
     if savepath: plt.savefig(savepath)
 

@@ -15,7 +15,7 @@ from time import time
 import tensorflow as tf
 
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import gkp_init
 from gkp.gkp_tf_env import policy as plc
 
 #-----------------------------------------------------------------------------
@@ -23,30 +23,31 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
-          reward_mode = 'pauli', quantum_circuit_type='v1')
-
-from gkp.action_script import phase_estimation_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':True}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-policy_dir = r'rnn_steps24_mask_v1\policy\001160000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
 # env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
-#           reward_mode = 'pauli', quantum_circuit_type='v3')
+#           reward_mode = 'pauli', quantum_circuit_type='v1')
 
-# from gkp.action_script import Baptiste_4round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+# from gkp.action_script import phase_estimation_4round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'phi':True}
 # env = wrappers.ActionWrapper(env, action_script, to_learn)
 # env = wrappers.FlattenObservationsWrapperTF(env)
 
 # root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-# policy_dir = r'rnn_steps24_mask_v3\policy\001160000'
+# policy_dir = r'rnn_steps24_mask_v1\policy\001160000'
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+env = gkp_init(simulate='oscillator', 
+               init='random', H=1, batch_size=600, episode_length=30, 
+               reward_mode = 'pauli', quantum_circuit_type='v3')
+
+from gkp.action_script import Baptiste_4round as action_script
+to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':True}
+env = wrappers.ActionWrapper(env, action_script, to_learn)
+env = wrappers.FlattenObservationsWrapperTF(env)
+
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
+policy_dir = r'rnn_maxstep24_batch100_v3\policy\000400000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # from gkp.action_script import Baptiste_4round as action_script
