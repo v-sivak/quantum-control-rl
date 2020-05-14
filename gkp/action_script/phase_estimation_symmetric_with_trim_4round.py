@@ -22,3 +22,5 @@ beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps]
 alpha = [sqrt(pi)+0j, -1j*delta, -1j*sqrt(pi), delta+0j]
 
 phi = [pi/2, pi/2, pi/2, pi/2]
+
+mask = [0, 1, 0, 1]

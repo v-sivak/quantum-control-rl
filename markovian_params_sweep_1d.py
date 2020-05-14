@@ -22,7 +22,7 @@ from tf_agents import specs
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import gkp_init
 from gkp.gkp_tf_env import policy as plc
 
 
@@ -31,23 +31,25 @@ class ActionScript(object):
     def __init__(self, delta):
         self.delta = delta
 
-        self.period = 4
+        self.period = 8
 
-        self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi), -2*sqrt(pi)+0j, -2j*sqrt(pi)]
+        self.beta = [2*sqrt(pi)+0j] * 4 + [2j*sqrt(pi)] * 4
         
-        self.alpha = [-delta+0j, 0j, 0j, 1j*delta]
+        self.alpha = [delta+0j, -1j*delta, -1j*delta, -1j*delta,
+                      -1j*delta, delta+0j, delta+0j, delta+0j]
         
-        self.phi = [0, 0, pi/2, pi/2]
+        self.phi = [pi/2] * 8
 
 
 
 
-env = GKP(init='Z+', H=1, batch_size=600, episode_length=100, 
-          reward_mode = 'mixed', quantum_circuit_type='v1')
+env = gkp_init(simulate='oscillator',
+               init='Z+', H=1, N=400, batch_size=100, episode_length=100, 
+               reward_mode = 'mixed', quantum_circuit_type='v2')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\reward_function\stabilizers_at_the_end'
-amplitudes = np.linspace(0.0, 0.8, 20, dtype=complex)
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_sims\phase_estimation_4x4_v2'
+amplitudes = np.linspace(0.0, 0.8, 17, dtype=complex)
 lifetimes = np.zeros(amplitudes.shape)
 returns = np.zeros(amplitudes.shape)
 

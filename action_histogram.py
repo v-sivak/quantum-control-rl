@@ -7,7 +7,7 @@ Created on Wed Apr  8 21:07:58 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,30 +23,18 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-# env = GKP(init='random', H=1, batch_size=600, episode_length=30, 
-#           reward_mode = 'pauli', quantum_circuit_type='v1')
-
-# from gkp.action_script import phase_estimation_4round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'phi':True}
-# env = wrappers.ActionWrapper(env, action_script, to_learn)
-# env = wrappers.FlattenObservationsWrapperTF(env)
-
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\May'
-# policy_dir = r'rnn_steps24_mask_v1\policy\001160000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
 env = gkp_init(simulate='oscillator', 
-               init='random', H=1, batch_size=600, episode_length=30, 
-               reward_mode = 'pauli', quantum_circuit_type='v3')
+                init='random', H=1, batch_size=600, episode_length=30, 
+                reward_mode = 'pauli', quantum_circuit_type='v2')
 
-from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':True}
+from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+# from gkp.action_script import phase_estimation_4round as action_script
+to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_maxstep24_batch100_v3\policy\000400000'
+policy_dir = r'rnn_steps24_mask_quadrant_lr1e-4_v2\policy\000900000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
@@ -80,7 +68,7 @@ for a in to_learn.keys() - ['phi']:
     action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()    
     all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
 
-    lim = env.scale[a]    
+    lim = env.scale[a]
     # Plot combined histogram of actions at all time steps
     H, Re_edges, Im_edges = np.histogram2d(all_actions[:,0], all_actions[:,1], 
                                         bins=51, 
@@ -125,7 +113,7 @@ ax.set_ylabel('Counts')
 ax.plot(centers, H)
 
 
-# Plot rewards during the episode
+# # Plot rewards during the episode
 # fig, ax = plt.subplots(1,1)
 # ax.set_xlabel('Time step')
 # ax.set_ylabel('Reward')

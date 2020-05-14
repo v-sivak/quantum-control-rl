@@ -103,15 +103,15 @@ def train_eval(
         actor_net = actor_distribution_rnn_network.ActorDistributionRnnNetwork(
             input_tensor_spec = observation_spec,
             output_tensor_spec = action_spec,
-            input_fc_layer_params = actor_fc_layers,
+            input_fc_layer_params = None,
             lstm_size = actor_lstm_size,
-            output_fc_layer_params = None)
+            output_fc_layer_params = actor_fc_layers)
 
         value_net = value_rnn_network.ValueRnnNetwork(
             input_tensor_spec = observation_spec,
-            input_fc_layer_params = value_fc_layers,
+            input_fc_layer_params = None,
             lstm_size = value_lstm_size,
-            output_fc_layer_params = None)
+            output_fc_layer_params = value_fc_layers)
     else:
         actor_net = actor_distribution_network.ActorDistributionNetwork(
             input_tensor_spec = observation_spec,

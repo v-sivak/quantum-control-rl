@@ -18,12 +18,12 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.gkp_tf_env import gkp_init
 
 
-env = gkp_init(simulate='oscillator',
-               init='vac', H=1, batch_size=1, episode_length=20, 
-               reward_mode = 'stabilizers', quantum_circuit_type='v3')
+env = gkp_init(simulate='oscillator', N=400,
+               init='vac', H=1, batch_size=1, episode_length=10, 
+               reward_mode = 'stabilizers', quantum_circuit_type='v2')
 
 
-from gkp.action_script import Baptiste_4round as action_script
+from gkp.action_script import phase_estimation_4x4 as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
@@ -42,9 +42,9 @@ if 1:
         action_step = policy.action(time_step, policy_state)
         policy_state = action_step.state
         time_step = env.step(action_step.action)
-        # hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
-        #                           title=str(env._elapsed_steps))
-    hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
+        hf.plot_wigner_tf_wrapper(env.info['psi_cached'], 
+                                  title=str(env._elapsed_steps))
+    # hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
 
 
 

@@ -180,16 +180,13 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         """
         Output:
             actions -- dictionary of batched actions. Dictionary keys are same
-                       as supplied in 'to_learn'
+                        as supplied in 'to_learn'
         
         """
         # step counter to follow the script of periodicity 'period'
         i = self._env._elapsed_steps % self.period
         out_shape = tf.constant(input_action.shape[0], shape=(1,))
         assert input_action.shape[1] == self.input_dim
-        
-        # use mask to learn 'beta' on some steps and use script on others
-        if self.use_mask: self.to_learn['beta'] = bool(self.mask[i])
         
         action = {}
         for a in self.action_order:
@@ -205,6 +202,18 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] = input_action[:,:self.dims_map[a]]
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
+
+        # mask 'beta' and  'alpha' with scripted values on some steps
+        if self.use_mask and self.mask[i]==0:
+            for a, amp in zip(['alpha', 'beta'], [sqrt(pi)/2, sqrt(pi)]):
+                c1 = action[a][:,0,None] >  action[a][:,1,None]
+                c2 = action[a][:,0,None] > -action[a][:,1,None]
+                v2, v1 = float(amp), float(amp) # Re
+                Re = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
+                v2, v1 = -float(amp), float(amp) # Im
+                Im = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
+                action[a] = tf.concat([Re, Im], axis=1)
+
         return action
 
     def action_spec(self):
@@ -212,5 +221,4 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
-    
     

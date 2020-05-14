@@ -84,7 +84,7 @@ class GKP(tf_environment.TFEnvironment):
         S = np.array([[1, 0],
                       [0, 1]])
         self.define_stabilizer_code(S)
-        
+
         
     def create_specs(self):
         """
@@ -170,7 +170,8 @@ class GKP(tf_environment.TFEnvironment):
         Output:
             TimeStep object (see tf-agents docs)
             
-        """        
+        """
+        # Create initial state
         if self.init in ['vac','X+','X-','Y+','Y-','Z+','Z-']:
             psi = self.states[self.init]
             psi_batch = tf.stack([psi]*self.batch_size)
@@ -182,7 +183,8 @@ class GKP(tf_environment.TFEnvironment):
             psi_batch = [self.states[init] for init in self._original]
             psi_batch = tf.convert_to_tensor(psi_batch, dtype=c64)
             self._state = psi_batch
-        
+
+        # Bookkeeping of episode progress
         if self.max_episode_length:
             self.episode_length = np.random.randint(1,self.max_episode_length)
         self._episode_ended = False
@@ -200,6 +202,9 @@ class GKP(tf_environment.TFEnvironment):
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {key : tf.concat(val[-self.H:], axis=1) 
                        for key, val in self.history.items()}
+
+        # Will keep track of code flips in symmetrized phase estimation
+        if self.quantum_circuit_type == 'v2': self.flips = {'X':0, 'Z':0}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()    
@@ -384,10 +389,28 @@ class GKP(tf_environment.TFEnvironment):
             obs -- observations at this time step; shape=(batch_size,)
             act -- actions at this time step; shape=(batch_size,act_dim)
             
-        """     
+        """
+        # Count code flips
+        if self.quantum_circuit_type == 'v2':                 
+            X = tf.math.abs(act['alpha'][:,0])
+            X = tf.math.equal(X, sqrt(pi))
+            self.flips['X'] += tf.cast(X, dtype=tf.int32)
+            Z = tf.math.abs(act['alpha'][:,1])
+            Z = tf.math.equal(Z, sqrt(pi))
+            self.flips['Z'] += tf.cast(Z, dtype=tf.int32)
+        
+        # Calculate reward
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
-        else:
+            # Count code flips            
+            if self.quantum_circuit_type == 'v2':
+                X = tf.math.abs(act['beta'][:,0])
+                X = tf.math.equal(X, 2*sqrt(pi))
+                self.flips['X'] += tf.cast(X, dtype=tf.int32)
+                Z = tf.math.abs(act['beta'][:,1])
+                Z = tf.math.equal(Z, 2*sqrt(pi))
+                self.flips['Z'] += tf.cast(Z, dtype=tf.int32)
+        else:                
             pauli = [self.code_map[self._original[i][0]]
                          for i in range(self.batch_size)]
             pauli = tf.convert_to_tensor(pauli, dtype=c64)
@@ -396,6 +419,21 @@ class GKP(tf_environment.TFEnvironment):
                                          angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
+            # Calculate how many times the code has flipped
+            if self.quantum_circuit_type == 'v2':
+                # For 'X+' init (count phase flips)
+                mask = np.where(self._original == 'X+', 1.0, 0.0)
+                flips = tf.math.floormod(self.flips['Z'], 2)
+                coeff = tf.where(flips==0, 1.0, -1.0) * mask
+                # For 'Z+' init (count bit flips)
+                mask = np.where(self._original == 'Z+', 1.0, 0.0)
+                flips = tf.math.floormod(self.flips['X'], 2)
+                coeff += tf.where(flips==0, 1.0, -1.0) * mask
+                # For 'Y+' init (count phase flips and bit flips)
+                mask = np.where(self._original == 'Y+', 1.0, 0.0)
+                flips = tf.math.floormod(self.flips['X']+self.flips['Z'], 2)
+                coeff += tf.where(flips==0, 1.0, -1.0) * mask
+                z *= coeff
         return z
 
 

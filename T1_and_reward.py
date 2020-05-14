@@ -26,27 +26,25 @@ from gkp.gkp_tf_env import gkp_init
 
 
 env = gkp_init(simulate='oscillator', 
-               init='X+', H=1, batch_size=600, episode_length=200, 
-               reward_mode = 'pauli', quantum_circuit_type='v3')
+                init='X+', H=1, batch_size=200, episode_length=100, 
+                reward_mode = 'pauli', quantum_circuit_type='v3')
+
 
 from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':True}
+to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_maxstep24_batch100_v3\policy\000400000'
+policy_dir = r'deep_all_lr1e-4_steps24_v3\policy\001400000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
+# env = gkp_init(simulate='oscillator',
+#                 init='X+', H=1, batch_size=200, episode_length=100, 
+#                 reward_mode='pauli', quantum_circuit_type='v2')
 
-# env = gkp_init(simulate='oscillator_qubit',
-#                init='X+', H=1, batch_size=200, episode_length=200, 
-#                reward_mode='pauli', quantum_circuit_type='v3')
-
-# # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# # from gkp.action_script import phase_estimation_8round as action_script
-# from gkp.action_script import Baptiste_4round as action_script
+# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 

@@ -30,25 +30,25 @@ class ActionScript(object):
         self.delta = delta
         self.eps = eps
 
-        self.period = 2
+        self.period = 8
 
-        self.beta = [2*sqrt(pi)+0j, 2j*sqrt(pi)]
+        self.beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
+                     -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
         
-        self.alpha = [delta+0j, -1j*delta]
-        
-        self.epsilon = [-1j*eps, eps+0j]
-        
-        self.phi = [pi/2, pi/2]
+        self.alpha = [-2*sqrt(pi)+0j, -1j*delta, -2j*sqrt(pi), delta+0j, 
+                      2*sqrt(pi)+0j, 1j*delta, 2j*sqrt(pi), -delta+0j]
+
+        self.phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
 
 
-env = gkp_init(simulate='oscillator_qubit',
-               init='Z+', H=1, batch_size=200, episode_length=200, 
-               reward_mode = 'pauli', quantum_circuit_type='v3')
+env = gkp_init(simulate='oscillator',
+               init='Z+', H=1, batch_size=200, episode_length=100, 
+               reward_mode = 'pauli', quantum_circuit_type='v1')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_qubit_sims\Baptiste_2round'
-feedback_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
-trim_amplitudes = np.linspace(0.0, 1.0, 20, dtype=complex)
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_sims\phase_estimation_8round'
+feedback_amplitudes = np.linspace(0.0, 0.6, 12, dtype=complex)
+trim_amplitudes = np.linspace(0.0, 0.6, 12, dtype=complex)
 lifetimes = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
 returns = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))
 
@@ -102,8 +102,8 @@ for jj, fa in enumerate(feedback_amplitudes):
             #         marker='.', linestyle='None')
             popt, pcov = curve_fit(hf.exp_decay, times, np.abs(results[state]),
                                    p0=[1, env.T1_osc])
-            # ax.plot(times*1e6, hf.exp_decay(times, popt[0]), 
-            #         label = state + ' : %.2f us' %(popt[0]*1e6),
+            # ax.plot(times*1e6, hf.exp_decay(times, popt[0], popt[1]), 
+            #         label = state + ' : %.2f us' %(popt[1]*1e6),
             #         linestyle='--', color=palette(i),)
             lifetimes[jj,ii] = popt[1]*1e6
         # ax.legend()
