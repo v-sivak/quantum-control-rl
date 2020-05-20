@@ -25,24 +25,25 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 
 
-env = gkp_init(simulate='oscillator', 
-                init='X+', H=1, batch_size=200, episode_length=100, 
-                reward_mode = 'pauli', quantum_circuit_type='v3')
+env = gkp_init(simulate='oscillator_qubit', 
+                init='X+', H=1, batch_size=300, episode_length=100, 
+                reward_mode = 'fidelity', quantum_circuit_type='v2')
 
 
-from gkp.action_script import Baptiste_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True}
+from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+# from gkp.action_script import phase_estimation_4round as action_script
+to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'deep_all_lr1e-4_steps24_v3\policy\001400000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorQubitGKP'
+policy_dir = r'rnn_steps24_mask_quadrant_lr1e-4_v2\policy\002100000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # env = gkp_init(simulate='oscillator',
-#                 init='X+', H=1, batch_size=200, episode_length=100, 
-#                 reward_mode='pauli', quantum_circuit_type='v2')
+#                 init='X+', H=1, batch_size=200, episode_length=48, 
+#                 reward_mode='fidelity', quantum_circuit_type='v2')
 
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
@@ -52,14 +53,13 @@ policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-states = ['X+'] #['X+', 'Y+', 'Z+']
+states = ['X+','Y+', 'Z+'] #['X+', 'Y+', 'Z+']
 results = {state : np.zeros(env.episode_length) for state in states}
 rewards = {state : np.zeros((env.episode_length, env.batch_size)) 
            for state in states}
 for state in states:
     pauli = env.code_map[state[0]]
     cache = [] # store intermediate states
-    reward_cache = []
     env.init = state
     
     time_step = env.reset()
@@ -67,12 +67,12 @@ for state in states:
     counter = 0
     while not time_step.is_last()[0]:
         t = time()
-        counter += 1
         action_step = policy.action(time_step, policy_state)      
         policy_state = action_step.state
         time_step = env.step(action_step.action)
         cache.append(env.info['psi_cached'])
-        reward_cache.append(time_step.reward)
+        rewards[state][counter] = time_step.reward
+        counter += 1
         print('%d: Time %.3f sec' %(counter, time()-t))
 
     # measure T1 using cached states
@@ -82,7 +82,6 @@ for state in states:
     for j, psi in enumerate(cache):   
         _, z = env.phase_estimation(psi, pauli_batch, phi_batch)
         results[state][j] = np.mean(z)
-        rewards[state][j] = reward_cache[j]
         
 # Plot T1
 fig, ax = plt.subplots(1,1)
@@ -108,10 +107,17 @@ ax.set_ylabel('Reward')
 palette = plt.get_cmap('tab10')
 steps = np.arange(env.episode_length)
 for i, state in enumerate(states):
-    mean_rewards = rewards[state].mean(axis=1) #average across episodes
+    mean_rewards = rewards[state].mean(axis=1) # average across episodes
     avg_return = np.sum(mean_rewards)
     ax.plot(steps, mean_rewards, color=palette(i),
-            label = 'state ' + state +': %.4f' %avg_return, 
+            label = state + ' return : %.2f' %avg_return, 
             linestyle='none', marker='.')
+    if env.reward_mode == 'fidelity':
+        times = steps*env.step_duration
+        popt, pcov = curve_fit(hf.exp_decay, times, mean_rewards,
+                               p0=[1, env.T1_osc])
+        ax.plot(steps, hf.exp_decay(times, popt[0], popt[1]), 
+                label = state + ' lifetime : %.2f us' %(popt[1]*1e6),
+                linestyle='--', color=palette(i))
 ax.set_title('Average return')
 ax.legend()

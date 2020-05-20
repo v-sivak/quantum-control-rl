@@ -348,7 +348,7 @@ class GKP(tf_environment.TFEnvironment):
         return op
 
 
-    ### REWARD FUNCTION
+    ### REWARD FUNCTIONS
 
 
     @tf.function
@@ -359,7 +359,7 @@ class GKP(tf_environment.TFEnvironment):
         """
         return tf.zeros(self.batch_size, dtype=tf.float32)
     
-    # TODO: remove arguments from all reward functions once this is obsolete
+
     @tf.function
     def reward_stabilizers(self, obs, act):
         """
@@ -390,53 +390,88 @@ class GKP(tf_environment.TFEnvironment):
             act -- actions at this time step; shape=(batch_size,act_dim)
             
         """
-        # Count code flips
+        # Count code flips for v2 circuit
         if self.quantum_circuit_type == 'v2':                 
-            X = tf.math.abs(act['alpha'][:,0])
-            X = tf.math.equal(X, sqrt(pi))
-            self.flips['X'] += tf.cast(X, dtype=tf.int32)
-            Z = tf.math.abs(act['alpha'][:,1])
-            Z = tf.math.equal(Z, sqrt(pi))
-            self.flips['Z'] += tf.cast(Z, dtype=tf.int32)
+            self.count_code_flips(act['alpha'], sqrt(pi))
         
         # Calculate reward
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
-            # Count code flips            
+            # Count code flips for v2 circuit
             if self.quantum_circuit_type == 'v2':
-                X = tf.math.abs(act['beta'][:,0])
-                X = tf.math.equal(X, 2*sqrt(pi))
-                self.flips['X'] += tf.cast(X, dtype=tf.int32)
-                Z = tf.math.abs(act['beta'][:,1])
-                Z = tf.math.equal(Z, 2*sqrt(pi))
-                self.flips['Z'] += tf.cast(Z, dtype=tf.int32)
-        else:                
+                self.count_code_flips(act['beta'], 2*sqrt(pi))
+        else:
             pauli = [self.code_map[self._original[i][0]]
                          for i in range(self.batch_size)]
             pauli = tf.convert_to_tensor(pauli, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
-                                         angle=phi, sample=True)
+                                         angle=phi, sample=False)
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
-            # Calculate how many times the code has flipped
+            # Correct for code flips in v2 circuit
             if self.quantum_circuit_type == 'v2':
-                # For 'X+' init (count phase flips)
-                mask = np.where(self._original == 'X+', 1.0, 0.0)
-                flips = tf.math.floormod(self.flips['Z'], 2)
-                coeff = tf.where(flips==0, 1.0, -1.0) * mask
-                # For 'Z+' init (count bit flips)
-                mask = np.where(self._original == 'Z+', 1.0, 0.0)
-                flips = tf.math.floormod(self.flips['X'], 2)
-                coeff += tf.where(flips==0, 1.0, -1.0) * mask
-                # For 'Y+' init (count phase flips and bit flips)
-                mask = np.where(self._original == 'Y+', 1.0, 0.0)
-                flips = tf.math.floormod(self.flips['X']+self.flips['Z'], 2)
-                coeff += tf.where(flips==0, 1.0, -1.0) * mask
-                z *= coeff
+                z *= self.undo_code_flips()
         return z
 
 
+    def reward_fidelity(self, obs, act):
+        """
+        Reward only on last time step with the result of measurement of logical
+        Pauli operator using cached wavefunction (after feedback translation).
+        Such reward lets the agent directly optimize T1.
+
+        Input:
+            obs -- observations at this time step; shape=(batch_size,)
+            act -- actions at this time step; shape=(batch_size,act_dim)
+            
+        """
+        # Count code flips that affect cached state
+        if self.quantum_circuit_type == 'v2':
+            self.count_code_flips(act['alpha'], sqrt(pi))
+
+        # Measure the Pauli expectation on cached state 
+        pauli = [self.code_map[self._original[i][0]]
+                     for i in range(self.batch_size)]
+        pauli = tf.convert_to_tensor(pauli, dtype=c64)
+        phi = tf.zeros(self.batch_size)
+        _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
+                                     angle=phi)
+        z = tf.cast(z, dtype=tf.float32)
+        z = tf.reshape(z, shape=(self.batch_size,))
+        
+        # Correct the Pauli expectation if the code flipped
+        if self.quantum_circuit_type == 'v2':
+                z *= self.undo_code_flips()
+        # Count code flips that happened after the state was cached
+        if self.quantum_circuit_type == 'v2':
+            self.count_code_flips(act['beta'], 2*sqrt(pi))
+        return z
+
+
+    def count_code_flips(self, action, amp):
+        flips = tf.math.equal(tf.math.abs(action), amp)
+        self.flips['X'] += tf.cast(flips[:,0], dtype=tf.int32)
+        self.flips['Z'] += tf.cast(flips[:,1], dtype=tf.int32)
+        return 
+
+
+    def undo_code_flips(self):
+        # Phase flips affect 'X+'
+        mask = np.where(self._original == 'X+', 1.0, 0.0)
+        flips = tf.math.floormod(self.flips['Z'], 2)
+        coeff = tf.where(flips==0, 1.0, -1.0) * mask
+        # Bit flips affect 'Z+'
+        mask = np.where(self._original == 'Z+', 1.0, 0.0)
+        flips = tf.math.floormod(self.flips['X'], 2)
+        coeff += tf.where(flips==0, 1.0, -1.0) * mask
+        # Both phase flips and bit flips affect 'Y+'
+        mask = np.where(self._original == 'Y+', 1.0, 0.0)
+        flips = tf.math.floormod(self.flips['X']+self.flips['Z'], 2)
+        coeff += tf.where(flips==0, 1.0, -1.0) * mask
+        return coeff
+        
+        
     def reward_mixed(self, obs, act):
         """
         Reward only on last time step with the result of measurement of 
@@ -473,7 +508,8 @@ class GKP(tf_environment.TFEnvironment):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed']
+            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed', 
+                            'fidelity']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
@@ -485,6 +521,8 @@ class GKP(tf_environment.TFEnvironment):
                 self.calculate_reward = self.reward_pauli
             if mode == 'mixed':
                 self.calculate_reward = self.reward_mixed
+            if mode == 'fidelity':
+                self.calculate_reward = self.reward_fidelity
         except: 
             raise ValueError('Reward mode not supported.') 
     

@@ -136,7 +136,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             env -- GKP environment
 
             action_script -- module or class with attributes corresponding to
-                             action components such as 'alpha', 'phi' etc
+                              action components such as 'alpha', 'phi' etc
             
             to_learn -- dictionary of bool values for action components 
             
@@ -170,7 +170,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         for a in to_learn.keys():
             if a in action_script.__dir__():
                 a_tf = tf.constant(action_script.__getattribute__(a),
-                                   shape=[self.period,1], dtype=tf.complex64)
+                                    shape=[self.period,1], dtype=tf.complex64)
                 self.script[a] = a_tf
             else:
                 raise ValueError(a + ' is not in the provided action script.')
@@ -221,4 +221,4 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
-    
+

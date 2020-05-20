@@ -66,13 +66,8 @@ if __name__ == '__main__':
         'scipy' : [],
         'tf-CPU i7-7700K' : [],
         'tf-GPU 1050Ti' : [],
-        'tf-GPU 2080Ti' : [],
-        'tf-multi-GPU' : []
+        'tf-GPU 2080Ti' : []
     }
-
-    distribution_strategy = tf.distribute.MirroredStrategy()
-    # distribution_strategy = tf.distribute.experimental.CentralStorageStrategy()
-    # distribution_strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
 
     for j, N in enumerate(Hilbert_space_size):
 
@@ -128,20 +123,6 @@ if __name__ == '__main__':
             tf_batch = tf_alpha * a_dag - tf.math.conj(tf_alpha) * a
             exp =  tf.linalg.expm(tf_batch)    
         times['tf-GPU 1050Ti'].append(time()-t)
-
-        ### TensorFlow GPU
-        t = time()
-        with distribution_strategy.scope():
-            # constract oscillator creation/destruction operators 
-            a = [[0 if j!=i+1 else sqrt(j) for j in range(N)] for i in range(N)]
-            a = tf.constant(a, dtype=tf.complex64, shape = [1,N,N])
-            a_dag = tf.linalg.adjoint(a)
-            # create batch of displacements and exponentiate
-            tf_alpha = tf.constant(displacements, dtype=tf.complex64)
-            tf_alpha = tf.reshape(tf_alpha, [tf_alpha.shape[0],1,1])
-            tf_batch = tf_alpha * a_dag - tf.math.conj(tf_alpha) * a
-            exp =  tf.linalg.expm(tf_batch)    
-        times['tf-multi-GPU'].append(time()-t)
 
         ### Tensorflow function
         # t = time()

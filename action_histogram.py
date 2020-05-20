@@ -34,7 +34,7 @@ env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_steps24_mask_quadrant_lr1e-4_v2\policy\000900000'
+policy_dir = r'rnn2_mlp_steps24_aw_lr1e-5_v2\policy\000560000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 

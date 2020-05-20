@@ -18,13 +18,13 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.gkp_tf_env import gkp_init
 
 
-env = gkp_init(simulate='oscillator', N=400,
-               init='vac', H=1, batch_size=1, episode_length=10, 
-               reward_mode = 'stabilizers', quantum_circuit_type='v2')
+# env = gkp_init(simulate='oscillator', N=400,
+#                init='vac', H=1, batch_size=1, episode_length=10, 
+#                reward_mode = 'stabilizers', quantum_circuit_type='v2')
 
 
-from gkp.action_script import phase_estimation_4x4 as action_script
-policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# from gkp.action_script import phase_estimation_4x4 as action_script
+# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
 ### Plot cardinal points
