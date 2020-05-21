@@ -25,28 +25,27 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 
 
-env = gkp_init(simulate='oscillator_qubit', 
-                init='X+', H=1, batch_size=300, episode_length=100, 
-                reward_mode = 'fidelity', quantum_circuit_type='v2')
+# env = gkp_init(simulate='oscillator_qubit', 
+#                 init='X+', H=1, batch_size=400, episode_length=24, 
+#                 reward_mode = 'fidelity', quantum_circuit_type='v2')
 
-
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# from gkp.action_script import phase_estimation_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':True}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorQubitGKP'
-policy_dir = r'rnn_steps24_mask_quadrant_lr1e-4_v2\policy\002100000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-# env = gkp_init(simulate='oscillator',
-#                 init='X+', H=1, batch_size=200, episode_length=48, 
-#                 reward_mode='fidelity', quantum_circuit_type='v2')
 
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# to_learn = {'alpha':True, 'beta':True, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# env = wrappers.FlattenObservationsWrapperTF(env)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorQubitGKP'
+# policy_dir = r'rnn_steps24_mask_quadrant_lr1e-4_v2\policy\002500000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+env = gkp_init(simulate='oscillator_qubit',
+                init='X+', H=1, batch_size=400, episode_length=24, 
+                reward_mode='fidelity', quantum_circuit_type='v2')
+
+from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
 #-----------------------------------------------------------------------------

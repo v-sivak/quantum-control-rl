@@ -16,7 +16,7 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP\rnn2_mlp_steps24_aw_lr1e-5_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP\rnn_fidelity_steps24_lr1e-5_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     normalize_observations = True
     normalize_rewards = True
     discount_factor = 1.0
-    lr = 1e-4
+    lr = 1e-5
     lr_schedule = None # lambda t: max(1/(1e3+t), 1e-5)
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -42,16 +42,16 @@ if __name__ == '__main__':
     horizon = 1
     max_episode_length = 24
     eval_episode_length = 24
-    reward_mode = 'pauli'
+    reward_mode = 'fidelity'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':True}
     # Policy and value networks
-    actor_fc_layers = (12,)
-    value_fc_layers = (12,)
+    actor_fc_layers = ()
+    value_fc_layers = ()
     use_rnn = True
-    actor_lstm_size = (12,6)
-    value_lstm_size = (12,6)
+    actor_lstm_size = (12,)
+    value_lstm_size = (12,)
     
     
     import argparse
