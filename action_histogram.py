@@ -25,11 +25,7 @@ from gkp.gkp_tf_env import policy as plc
 ### Initialize env and policy
 
 env = gkp_init(simulate='oscillator', 
-<<<<<<< HEAD
                 init='random', H=1, batch_size=400, episode_length=30, 
-=======
-                init='random', H=1, batch_size=200, episode_length=30, 
->>>>>>> 9a479aabddaa5c99ab4c483f7dbbe6ad430b33ba
                 reward_mode = 'pauli', quantum_circuit_type='v2')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
@@ -38,11 +34,7 @@ env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-<<<<<<< HEAD
 policy_dir = r'rnn_steps48_betascale1_lr1e-4_v2\policy\001200000'
-=======
-policy_dir = r'rnn_steps24_mask_quadrant_lr1e-5_b10_v2\policy\002100000'
->>>>>>> 9a479aabddaa5c99ab4c483f7dbbe6ad430b33ba
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 # root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'

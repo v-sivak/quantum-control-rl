@@ -26,12 +26,10 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.utils.rl_train_utils import compute_avg_return, save_log
 import gkp.action_script as act_scripts
 
-<<<<<<< HEAD
+
 # TODO: this either doesn't work or I just haven't found the right hyperparams
 # The suspicious part is how the replay buffer is sampled. 
 
-=======
->>>>>>> 9a479aabddaa5c99ab4c483f7dbbe6ad430b33ba
 def train_eval(
         root_dir = None,
         random_seed = 0,
