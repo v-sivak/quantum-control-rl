@@ -10,6 +10,7 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import numpy as np
+from numpy import sqrt, pi
 import matplotlib.pyplot as plt
 from time import time
 import tensorflow as tf
@@ -24,7 +25,7 @@ from gkp.gkp_tf_env import policy as plc
 ### Initialize env and policy
 
 env = gkp_init(simulate='oscillator', 
-                init='random', H=1, batch_size=200, episode_length=30, 
+                init='random', H=1, batch_size=400, episode_length=30, 
                 reward_mode = 'pauli', quantum_circuit_type='v2')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
@@ -33,12 +34,8 @@ env = wrappers.ActionWrapper(env, action_script, to_learn)
 env = wrappers.FlattenObservationsWrapperTF(env)
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_steps24_mask_quadrant_lr1e-5_b10_v2\policy\002100000'
+policy_dir = r'rnn_steps48_betascale1_lr1e-4_v2\policy\001200000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-# policy_dir = r'rnn_fidelity_steps24_lr1e-5_v2\policy\000720000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # from gkp.action_script import Baptiste_4round as action_script
@@ -72,6 +69,7 @@ for a in to_learn.keys() - ['phi']:
     all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
 
     lim = env.scale[a]
+    lim = 2*sqrt(pi) if a=='beta' else lim
     # Plot combined histogram of actions at all time steps
     H, Re_edges, Im_edges = np.histogram2d(all_actions[:,0], all_actions[:,1], 
                                         bins=51, 

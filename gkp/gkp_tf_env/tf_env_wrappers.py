@@ -152,7 +152,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         self.period = action_script.period # periodicity of the protocol
         self.scale = {
             'alpha' : 1, 
-            'beta' : 2*sqrt(pi),
+            'beta' : 1, #2*sqrt(pi)
             'epsilon' : 1, 
             'phi' : pi}
         self.to_learn = to_learn
