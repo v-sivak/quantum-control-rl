@@ -144,6 +144,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         # determine the size of the input action vector 
         dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
         self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
+        self.use_mask = to_learn['beta']
+        if self.use_mask: self.input_dim += 4 # TODO: remove this
         
         super(ActionWrapper, self).__init__(env)
         self._action_spec = specs.BoundedTensorSpec(
@@ -157,7 +159,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             'phi' : pi}
         self.to_learn = to_learn
         self.dims_map = dims_map
-        self.use_mask = to_learn['beta']
         self.mask = action_script.mask
         
         # ordered list of action components
@@ -203,19 +204,31 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
 
-        # mask 'beta' and  'alpha' with scripted values on some steps
+        # mask 'beta' and  'alpha' with scripted values
         if self.use_mask and self.mask[i]==0:
-            for a, amp in zip(['alpha', 'beta'], [sqrt(pi)/2, sqrt(pi)]):
-                c1 = action[a][:,0,None] >  action[a][:,1,None]
-                c2 = action[a][:,0,None] > -action[a][:,1,None]
-                v2, v1 = float(amp), float(amp) # Re
-                Re = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
-                v2, v1 = -float(amp), float(amp) # Im
-                Im = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
-                action[a] = tf.concat([Re, Im], axis=1)
+            action['alpha'] = self.project_from_quadrant(
+                input_action[:,0:2], sqrt(pi))
+            action['beta'] = self.project_from_quadrant(
+                input_action[:,2:4], 2*sqrt(pi))
 
         return action
-
+    
+    def project_from_quadrant(self, action, amp):
+        """
+        For a batched 2D vector 'action' extract the quadrant in which this
+        vector lays and project it to amplitude 'amp' on the axis in the same
+        quadrant. 
+        For example, 0.5 + 0.1j -> amp ; 0.1 - 0.5j -> -1j*amp
+        
+        """
+        c1 = action[:,0,None] >  action[:,1,None]
+        c2 = action[:,0,None] > -action[:,1,None]
+        v2, v1 = float(amp)/2, float(amp)/2  # Re of the basis vectors
+        Re = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
+        v2, v1 = -float(amp)/2, float(amp)/2 # Im of the basis vectors
+        Im = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
+        return tf.concat([Re, Im], axis=1)
+    
     def action_spec(self):
         return self._action_spec
 
