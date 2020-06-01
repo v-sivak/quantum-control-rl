@@ -130,7 +130,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     controls which action components are to be learned.
     
     """
-    def __init__(self, env, action_script, to_learn):
+    def __init__(self, env, action_script, to_learn, use_mask=True):
         """
         Input:
             env -- GKP environment
@@ -139,13 +139,14 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                               action components such as 'alpha', 'phi' etc
             
             to_learn -- dictionary of bool values for action components 
+            use_mask -- flag to control masking of 'beta' and 'alpha'
             
         """
         # determine the size of the input action vector 
         dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
         self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
-        self.use_mask = to_learn['beta']
-        if self.use_mask: self.input_dim += 4 # TODO: remove this
+        self.use_mask = use_mask
+        if use_mask: self.input_dim += 4
         
         super(ActionWrapper, self).__init__(env)
         self._action_spec = specs.BoundedTensorSpec(
@@ -204,7 +205,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
 
-        # mask 'beta' and  'alpha' with scripted values
+        # TODO: this would work only for square code and 'v2' protocol
+        # mask 'beta' and 'alpha' with scripted values
         if self.use_mask and self.mask[i]==0:
             action['alpha'] = self.project_from_quadrant(
                 input_action[:,0:2], sqrt(pi))
@@ -234,4 +236,5 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         return self._env.step(self.wrap(action))
+
 
