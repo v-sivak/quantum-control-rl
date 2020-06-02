@@ -24,7 +24,7 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
     
     """
 
-    def __init__(self, env, observations_whitelist=None):
+    def __init__(self, env, observations_whitelist=['msmt','clock']):
     
         super(FlattenObservationsWrapperTF, self).__init__(env)
         # If observations whitelist is provided:
@@ -127,7 +127,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     'beta', 'epsilon', 'phi' as dictionary keys. Some action components are
     taken from the action script provided at initialization, and some are 
     taken from the input action produced by the agent. Parameter 'to_learn'
-    controls which action components are to be learned.
+    controls which action components are to be learned. It is also possible
+    to alternate between learned and scripted values with 'use_mask' flag.
     
     """
     def __init__(self, env, action_script, to_learn, use_mask=True):
@@ -220,6 +221,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         For a batched 2D vector 'action' extract the quadrant in which this
         vector lays and project it to amplitude 'amp' on the axis in the same
         quadrant. 
+        
         For example, 0.5 + 0.1j -> amp ; 0.1 - 0.5j -> -1j*amp
         
         """
