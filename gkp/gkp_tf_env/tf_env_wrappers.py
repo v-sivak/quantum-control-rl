@@ -122,6 +122,7 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
 class ActionWrapper(TFEnvironmentBaseWrapper):
     """
     Agent produces input action as real-valued tensor of shape [batch_size,?]
+    where '?' depends on what action dimensions are learned or scripted.
     
     Wrapper produces a dictionary with action components such as 'alpha', 
     'beta', 'epsilon', 'phi' as dictionary keys. Some action components are
@@ -147,7 +148,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
         self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
         self.use_mask = use_mask
-        if use_mask: self.input_dim += 4
+        if use_mask: self.input_dim += 2
         
         super(ActionWrapper, self).__init__(env)
         self._action_spec = specs.BoundedTensorSpec(
@@ -200,19 +201,21 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                     action[a] = tf.concat([real(A), imag(A)], axis=1)
                 if self.dims_map[a] == 1:
                     action[a] = real(A)
-            # if learning: take a slice of input tensor in order
+            # if learning: take a slice of input tensor
             else:
                 action[a] = input_action[:,:self.dims_map[a]]
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
 
-        # TODO: this would work only for square code and 'v2' protocol
-        # mask 'beta' and 'alpha' with scripted values
+        # TODO: this was tested only for square code and 'v2' protocol
+        # Mask 'beta' and 'alpha' with scripted values.
         if self.use_mask and self.mask[i]==0:
             action['alpha'] = self.project_from_quadrant(
                 input_action[:,0:2], sqrt(pi))
-            action['beta'] = self.project_from_quadrant(
-                input_action[:,2:4], 2*sqrt(pi))
+            # action['beta'] = self.project_from_quadrant(
+            #     input_action[:,2:4], 2*sqrt(pi))
+            A = common.replicate(self.script['beta'][i], out_shape)
+            action['beta'] = tf.concat([real(A), imag(A)], axis=1)
 
         return action
     
