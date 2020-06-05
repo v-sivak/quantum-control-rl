@@ -411,7 +411,7 @@ class GKP(tf_environment.TFEnvironment):
             pauli = tf.convert_to_tensor(pauli, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
-                                         angle=phi, sample=False)
+                                         angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
             # Correct for code flips in v2 circuit
