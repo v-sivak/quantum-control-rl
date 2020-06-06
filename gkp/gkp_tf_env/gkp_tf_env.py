@@ -441,7 +441,7 @@ class GKP(tf_environment.TFEnvironment):
         pauli = tf.convert_to_tensor(pauli, dtype=c64)
         phi = tf.zeros(self.batch_size)
         _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
-                                     angle=phi)
+                                     angle=phi, sample=False)
         z = tf.cast(z, dtype=tf.float32)
         z = tf.reshape(z, shape=(self.batch_size,))
         
@@ -462,6 +462,12 @@ class GKP(tf_environment.TFEnvironment):
 
 
     def undo_code_flips(self):
+        """
+        Undo the logical code flips "in software" by counting how many Pauli
+        operators were applied. Returns a mask for each trajectory with 1s
+        if the code didn't flip and -1s if it flipped.
+        
+        """
         # Phase flips affect 'X+'
         mask = np.where(self._original == 'X+', 1.0, 0.0)
         flips = tf.math.floormod(self.flips['Z'], 2)
