@@ -53,6 +53,7 @@ def train_eval(
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
+        observations_whitelist = None,
         # Policy and value networks
         actor_fc_layers = (),
         value_fc_layers = (),
@@ -74,7 +75,8 @@ def train_eval(
                     quantum_circuit_type=quantum_circuit_type)
     
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
-    train_env = wrappers.FlattenObservationsWrapperTF(train_env)
+    train_env = wrappers.FlattenObservationsWrapperTF(train_env,
+                                observations_whitelist=observations_whitelist)
 
     # Create evaluation env    
     eval_env = gkp_init(simulate=simulate,
@@ -84,7 +86,8 @@ def train_eval(
                     quantum_circuit_type=quantum_circuit_type)
     
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
-    eval_env = wrappers.FlattenObservationsWrapperTF(eval_env)
+    eval_env = wrappers.FlattenObservationsWrapperTF(eval_env,
+                                observations_whitelist=observations_whitelist)
 
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------

@@ -47,6 +47,7 @@ PPO.train_eval(
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_4round',
         to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True},
+        observations_whitelist = None,
         # Policy and value networks
         actor_fc_layers = (),
         value_fc_layers = (),

@@ -23,9 +23,8 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
     minor chages. See docs from that original class.
     
     """
-
-    def __init__(self, env, observations_whitelist=['msmt','clock']):
-    
+    def __init__(self, env, observations_whitelist=None):
+        
         super(FlattenObservationsWrapperTF, self).__init__(env)
         # If observations whitelist is provided:
         #  Check that the environment returns a dictionary of observations.
@@ -211,7 +210,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         # Mask 'beta' and 'alpha' with scripted values.
         if self.use_mask and self.mask[i]==0:
             action['alpha'] = self.project_from_quadrant(
-                input_action[:,0:2], sqrt(pi))
+                input_action[:,0:2], sqrt(pi))  # TODO: change this, only good for 'v2'
             # action['beta'] = self.project_from_quadrant(
             #     input_action[:,2:4], 2*sqrt(pi))
             A = common.replicate(self.script['beta'][i], out_shape)

@@ -11,22 +11,20 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
 
-#TODO: add 'to_learn' to parser
-#TODO: add 'lr_schedule' to parser
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\mlp_steps24_lr1e-5_msmt_clock_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\rnn_steps24_lr1e-4_b1000_v1'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
-    train_batch_size = 100
-    replay_buffer_capacity = 20000
+    train_batch_size = 1000
+    replay_buffer_capacity = 25000
     # Params for train
     normalize_observations = True
     normalize_rewards = True
     discount_factor = 1.0
-    lr = 1e-5
+    lr = 1e-4
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -36,20 +34,21 @@ if __name__ == '__main__':
     eval_batch_size = 200
     eval_interval = 200
     save_interval = 1000
-    log_interval = 20
+    log_interval = 200
     # Params for environment
     simulate = 'oscillator'
-    horizon = 4
+    horizon = 1
     max_episode_length = 24
     eval_episode_length = 24
     reward_mode = 'pauli'
-    quantum_circuit_type = 'v2'
-    action_script = 'phase_estimation_symmetric_with_trim_4round'
+    quantum_circuit_type = 'v1'
+    action_script = 'phase_estimation_8round'
     to_learn = {'alpha':True, 'beta':True, 'phi':True}
+    observations_whitelist = None
     # Policy and value networks
-    actor_fc_layers = (200,)
-    value_fc_layers = (200,)
-    use_rnn = False
+    actor_fc_layers = ()
+    value_fc_layers = ()
+    use_rnn = True
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     
@@ -185,6 +184,7 @@ if __name__ == '__main__':
         quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
         to_learn=to_learn,
+        observations_whitelist=observations_whitelist,
         actor_fc_layers=args.actor_fc_layers,
         value_fc_layers=args.value_fc_layers,
         use_rnn=args.use_rnn,
