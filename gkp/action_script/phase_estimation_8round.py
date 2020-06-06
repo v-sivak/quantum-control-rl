@@ -15,14 +15,19 @@ eps = 0.2
 
 period = 8
 
+b_amp = 2*sqrt(pi)
+a_amp = 2*sqrt(pi)
+
 ### Script of actions
 
-beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
-        -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
+beta = [b_amp+0j, eps+0j, 1j*b_amp, 1j*eps, 
+        -b_amp+0j, -eps+0j, -1j*b_amp, -1j*eps]
 
-alpha = [-2*sqrt(pi)+0j, -1j*delta, -2j*sqrt(pi), delta+0j, 
-         2*sqrt(pi)+0j, 1j*delta, 2j*sqrt(pi), -delta+0j]
+alpha = [-a_amp+0j, -1j*delta, -1j*a_amp, delta+0j, 
+         a_amp+0j, 1j*delta, 1j*a_amp, -delta+0j]
 
 phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
 
+# Mask 1 allows the ActionWrapper to use the learned value of the action on
+# that time step, while 0 allows to use the scripted value.
 mask = [0, 1, 0, 1, 0, 1, 0, 1]

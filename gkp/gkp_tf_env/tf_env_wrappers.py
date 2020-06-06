@@ -129,6 +129,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     taken from the input action produced by the agent. Parameter 'to_learn'
     controls which action components are to be learned. It is also possible
     to alternate between learned and scripted values with 'use_mask' flag.
+    During the masked rounds there is still a choice to either use the 
+    scripted value of 'beta' or do the projection from qudrant and only 
+    learning the quadrant (i.e. to alternate between q and p stabilizers).
     
     """
     def __init__(self, env, action_script, to_learn, use_mask=True):
@@ -146,8 +149,16 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         # determine the size of the input action vector 
         dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
         self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
+        
+        # take care of masked rounds
         self.use_mask = use_mask
-        if use_mask: self.input_dim += 2
+        self.mask = action_script.mask
+        self.learn_masked_beta = False # use scripted 'beta' on masked rounds
+        if use_mask: 
+            self.input_dim += 2 # learn quadrant of 'alpha' on masked rounds
+            if self.learn_masked_beta: self.input_dim += 2
+            self.a_amp = action_script.a_amp
+            self.b_amp = action_script.b_amp
         
         super(ActionWrapper, self).__init__(env)
         self._action_spec = specs.BoundedTensorSpec(
@@ -161,7 +172,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             'phi' : pi}
         self.to_learn = to_learn
         self.dims_map = dims_map
-        self.mask = action_script.mask
         
         # ordered list of action components
         action_order = ['alpha', 'beta', 'epsilon', 'phi']
@@ -206,22 +216,24 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
 
-        # TODO: this was tested only for square code and 'v2' protocol
-        # Mask 'beta' and 'alpha' with scripted values.
+        # TODO: this was tested only for square code and v1/v2 protocols
+        # Mask 'beta' and 'alpha' actions
         if self.use_mask and self.mask[i]==0:
             action['alpha'] = self.project_from_quadrant(
-                input_action[:,0:2], sqrt(pi))  # TODO: change this, only good for 'v2'
-            # action['beta'] = self.project_from_quadrant(
-            #     input_action[:,2:4], 2*sqrt(pi))
-            A = common.replicate(self.script['beta'][i], out_shape)
-            action['beta'] = tf.concat([real(A), imag(A)], axis=1)
+                input_action[:,0:2], self.a_amp)
+            if self.learn_masked_beta:
+                action['beta'] = self.project_from_quadrant(
+                    input_action[:,2:4], self.b_amp)
+            else:
+                A = common.replicate(self.script['beta'][i], out_shape)
+                action['beta'] = tf.concat([real(A), imag(A)], axis=1)
 
         return action
     
     def project_from_quadrant(self, action, amp):
         """
         For a batched 2D vector 'action' extract the quadrant in which this
-        vector lays and project it to amplitude 'amp' on the axis in the same
+        vector lies and project it to amplitude 'amp' on the axis in the same
         quadrant. 
         
         For example, 0.5 + 0.1j -> amp ; 0.1 - 0.5j -> -1j*amp
