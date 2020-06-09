@@ -26,6 +26,19 @@ import matplotlib.pyplot as plt
 import utils
 import displace
 
+# Import/initialize MPI if we detect running in slurm with multiple tasks
+has_mpi = False
+if os.environ.get("SLURM_NTASKS") and int(os.environ.get("SLURM_NTASKS")) > 1:
+    from mpi4py import MPI
+
+    has_mpi = True
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+
+def mpi_master():
+    return rank == 0 if has_mpi else True
+
 #TODO: add some saving function for the data to plot offline
 if __name__ == "__main__":
     """
@@ -101,54 +114,72 @@ if __name__ == "__main__":
         times[name].append(total_time)
         loop_times[name].append(loop_time)
 
-        print(
-            "Run %i %-20s\tMean err: %.2E  Max err: %.2E  Time/alpha: %.2E  Loop Time/alpha: %.2E"
-            % (N, name, mean_err, max_err, total_time, loop_time)
-        )
+        if mpi_master():
+            print(
+                "Run %i %-20s\tMean err: %.2E  Max err: %.2E  Time/alpha: %.2E  Loop Time/alpha: %.2E"
+                % (N, name, mean_err, max_err, total_time, loop_time)
+            )
 
-    # Check what goodies you have
-    from tensorflow.python.client import device_lib
+    if mpi_master():  # MPI MASTER
+        # Check what goodies you have
+        from tensorflow.python.client import device_lib
 
-    gpus = tf.config.experimental.list_physical_devices("GPU")
-    print("=" * 70)
-    print(device_lib.list_local_devices())
-    print("=" * 70)
-    print(gpus)
-    print("=" * 70)
+        gpus = tf.config.experimental.list_physical_devices("GPU")
+        print("=" * 70)
+        print(device_lib.list_local_devices())
+        print("=" * 70)
+        print(gpus)
+        print("=" * 70)
 
-    for N in hilbert_space_range:
-        # benchmark("scipy", displace.gen_displace_scipy, N)
+        for N in hilbert_space_range:
+            # benchmark("scipy", displace.gen_displace_scipy, N)
 
-        # Run TensorFlow benchmarks
-        benchmark("tf-eager", displace.gen_displace, N)
-        benchmark("tf-eager-BCH", displace.gen_displace_BCH, N)
+            # Run TensorFlow benchmarks
+            benchmark("tf-eager", displace.gen_displace, N)
+            benchmark("tf-eager-BCH", displace.gen_displace_BCH, N)
 
-    # Plot stuff
-    fig, ax = plt.subplots(1, 1)
-    ax.set_ylabel(r"Time Per $D(\alpha)$ (s)")
-    ax.set_xlabel("Hilbert space size")
-    plt.grid(True, which="both")
+            if has_mpi:
+                benchmark("tf-eager-BCH-MPI", displace.gen_displace_MPI_BCH, N)
 
-    for key, val in times.items():
-        ax.plot(hilbert_space_range, val, label=key)
+    else:  # MPI WORKER
+        for N in hilbert_space_range:
 
-    for key, val in loop_times.items():
-        ax.plot(hilbert_space_range, val, label="{}-loop".format(key))
+            # We can just run benchmark again on the workers, the gen_displace_MPI_BCH
+            # routine will automatically handle the worker logic
+            benchmark(
+                "tf-eager-BCH-MPI",
+                displace.gen_displace_MPI_BCH,
+                N,
+                check_err=False,
+            )
 
-    ax.legend()
-    plt.figtext(0.5, 0.95, vars(args), ha="center")
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.9)
-    Path("./results").mkdir(parents=True, exist_ok=True)
+    if mpi_master():
+        # Plot stuff
+        fig, ax = plt.subplots(1, 1)
+        ax.set_ylabel(r"Time Per $D(\alpha)$ (s)")
+        ax.set_xlabel("Hilbert space size")
+        plt.grid(True, which="both")
 
-    run = time.time()
-    plt.savefig("results/benchmark-%s-%i.png" % (socket.gethostname(), run))
+        for key, val in times.items():
+            ax.plot(hilbert_space_range, val, label=key)
 
-    ax.set_yscale("log")
-    ax.set_xscale("log")
-    plt.savefig("results/benchmark-%s-%i-log.png" % (socket.gethostname(), run))
-    # Save stuff
-    # dic = times
-    # dic['hilbert_space_range'] = hilbert_space_range
-    # dic['displacements'] = displacements
-    # save_log(dic, groupname='analysis_pc', filename='tf_benchmarking.hdf5')
+        for key, val in loop_times.items():
+            ax.plot(hilbert_space_range, val, label="{}-loop".format(key))
+
+        ax.legend()
+        plt.figtext(0.5, 0.95, vars(args), ha="center")
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.9)
+        Path("./results").mkdir(parents=True, exist_ok=True)
+
+        run = time.time()
+        plt.savefig("results/benchmark-%s-%i.png" % (socket.gethostname(), run))
+
+        ax.set_yscale("log")
+        ax.set_xscale("log")
+        plt.savefig("results/benchmark-%s-%i-log.png" % (socket.gethostname(), run))
+        # Save stuff
+        # dic = times
+        # dic['hilbert_space_range'] = hilbert_space_range
+        # dic['displacements'] = displacements
+        # save_log(dic, groupname='analysis_pc', filename='tf_benchmarking.hdf5')

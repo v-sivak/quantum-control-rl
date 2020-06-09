@@ -144,3 +144,73 @@ def gen_displace_BCH(N):
         )
 
     return displace
+
+
+# Define MPI-wrapped BCH if installed
+try:
+    from mpi4py import MPI
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    num_nodes = comm.Get_size()
+
+    def gen_displace_MPI_BCH(N):
+        """Returns an MPI-wrapped function to calculate displacements using tensorflow
+        with the Baker-Campbell-Hausdorff formula (BCH). This can (and should) be
+        called by all nodes when running the MPI routine.
+
+        Args:
+            N (int): Dimension of Hilbert space
+
+        Returns:
+            Callable[[int], Tensor([num, N, N], c64)]: Displacement function for dim N
+        """
+        f = gen_displace_BCH(N)
+
+        def routine(alphas):
+            """Calculates D(alpha) for a batch of alphas. This function takes into
+            account the necessary logic for MPI master/worker.
+
+            Args:
+                alphas (Tensor([num], c64)): A batch of num alphas
+
+            Returns:
+                Tensor([num, N, N], c64): A batch of D(alphas)
+            """
+            # Split alphas into {num_nodes} batches
+            if rank == 0:
+                num_alphas = alphas.shape[0]
+                my_batchsize = num_alphas // num_nodes
+                alphas = np.reshape(alphas, [num_nodes, -1])
+            else:
+                my_batchsize = None
+
+            # Broadcast size of batch
+            my_batchsize = comm.bcast(my_batchsize, root=0)
+
+            # Allocate receive buffer, scatter alphas from master
+            my_alphas = np.empty(my_batchsize, dtype=np.complex64)
+            comm.Scatter(alphas, my_alphas, root=0)
+
+            # Calculate displacements for each batch
+            my_displs = f(my_alphas)
+
+            # Gather displacements from workers
+            displacements = None
+            if rank == 0:  # Allocate receive buffer
+                displacements = np.empty(
+                    [num_nodes, my_batchsize, N, N], dtype=np.complex64
+                )
+            comm.Gather(my_displs, displacements, root=0)
+
+            # "Squeeze" batched displacements into final shape
+            if rank == 0:
+                displacements = np.reshape(displacements, [num_alphas, N, N])
+
+            return displacements
+
+        return routine
+
+
+except ImportError:
+    pass  # mpi4py not installed
