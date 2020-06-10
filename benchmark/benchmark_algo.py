@@ -1,7 +1,7 @@
 """
 Benchmark to compare various methods of displacement calculation
 
-For example, we compare scipy to TF
+For example, we compare scipy to TF, and expm vs the BCH formula
 
 The benchmark.sbatch script has some typical benchmarks of interest (fits in memory,
 larger than memory, different batch size)
@@ -117,10 +117,11 @@ if __name__ == "__main__":
     print("=" * 70)
 
     for N in hilbert_space_range:
-        benchmark("scipy", displace.gen_displace_scipy, N)
+        # benchmark("scipy", displace.gen_displace_scipy, N)
 
         # Run TensorFlow benchmarks
         benchmark("tf-eager", displace.gen_displace, N)
+        benchmark("tf-eager-BCH", displace.gen_displace_BCH, N)
 
     # Plot stuff
     fig, ax = plt.subplots(1, 1)
