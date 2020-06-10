@@ -11,6 +11,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import os
 import h5py
+import qutip as qt
+
+from gkp.gkp_tf_env import helper_functions as hf
 
 fontsize = 14 #6 #1.5
 fontsize_tick = 12 #6 #4 #15
@@ -173,8 +176,6 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
         
         
         
-        
-        
 def plot_tensorflow_benchmarking(fname, groupname):
 
     dic = {}
@@ -205,4 +206,35 @@ def plot_tensorflow_benchmarking(fname, groupname):
     fig.savefig(os.path.join(os.path.dirname(fname), 'plot.png'),
                 figsize=(3.375, 2.0))
         
-        
+
+
+def plot_wigner_all_states():
+    
+    stabilizers, paulis, states, displacements = \
+        hf.GKP_state(False,100, np.array([[1,0],[0,1]]))
+    
+    fig, axes = plt.subplots(2,3, sharex=True, sharey=True, figsize=(6,6))
+    for i, s1 in zip([0,1],['+','-']):
+        for j, s2 in zip([0,1,2],['X','Y','Z']):            
+            state = states[s2+s1]
+            xvec = np.linspace(-7,7,201)
+            W = qt.wigner(state, xvec, xvec, g=sqrt(2))            
+
+            ax = axes[i,j]
+            ax.grid(linestyle='--',zorder=2)
+            lim = 3.5
+            ax.set_xlim(-lim,lim)
+            ax.set_ylim(-lim,lim)    
+            ticks = [-2,-1,0,1,2]
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+            # ax.set_title(s2+s1)
+            ax.set_aspect('equal')            
+            p = ax.pcolormesh(xvec/sqrt(pi), xvec/sqrt(pi), W, 
+                              cmap='RdBu_r', vmin=-1/pi, vmax=+1/pi) 
+    # cbar = fig.colorbar(p, ax=ax, ticks=[-1/pi,0,1/pi])
+    # cbar.ax.set_yticklabels([r'$-\frac{1}{\pi}$','0',r'$+\frac{1}{\pi}$'])
+    # axes[1,1].set_xlabel(r'$q/\sqrt{\pi}$')
+    # axes[1,0].set_ylabel(r'$p/\sqrt{\pi}$')
+    plt.tight_layout()
+    # plt.savefig(r'E:\VladGoogleDrive\Qulab\GKP\Notes\wigners2.pdf')
