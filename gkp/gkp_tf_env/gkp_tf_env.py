@@ -107,7 +107,7 @@ class GKP(tf_environment.TFEnvironment):
             'beta'  : spec(self.H, 2), 
             'phi'   : spec(self.H, 1),
             'msmt'  : spec(self.H, 1),
-            'clock' : spec(self.H, 1)}
+            'clock' : spec(self.H, self.H)}
         if self.quantum_circuit_type == 'v3': 
             observation_spec['epsilon'] = spec(self.H, 2)
         time_step_spec = ts.time_step_spec(observation_spec)
@@ -143,8 +143,8 @@ class GKP(tf_environment.TFEnvironment):
             self.history[a].append(tf.expand_dims(action[a], axis=1))
         self.history['msmt'].append(tf.expand_dims(obs, axis=1))
         # Also add clock of periodicity 'H' to history
-        clock = (self._elapsed_steps % self.H) / self.H
-        self.history['clock'].append(tf.ones([self.batch_size,1,1])*clock)
+        C = tf.one_hot([[self._elapsed_steps%self.H]]*self.batch_size, self.H)
+        self.history['clock'].append(C)
         
         # Make observations of horizon H, shape=[batch_size,H,dim]
         observation = {key : tf.concat(val[-self.H:], axis=1) 
@@ -199,8 +199,8 @@ class GKP(tf_environment.TFEnvironment):
         # Initialize history of horizon H with actions=0 and measurements=1 
         self.history = tensor_spec.zero_spec_nest(self.action_spec(), 
                                       outer_dims=(self.batch_size,))
-        self.history['msmt'] = tf.ones(shape=[self.batch_size,1,1])
-        self.history['clock'] = tf.zeros([self.batch_size,1,1])
+        self.history['msmt'] = tf.zeros(shape=[self.batch_size,1,1])
+        self.history['clock'] = tf.zeros([self.batch_size,1,self.H])
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
         
