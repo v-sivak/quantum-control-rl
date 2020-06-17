@@ -108,7 +108,7 @@ class GKP(tf_environment.TFEnvironment):
             'beta'  : spec(self.H, 2), 
             'phi'   : spec(self.H, 1),
             'msmt'  : spec(self.H, 1),
-            'clock' : spec(self.H, self.T)}
+            'clock' : spec(1, self.T)}
         if self.quantum_circuit_type == 'v3': 
             observation_spec['epsilon'] = spec(self.H, 2)
         time_step_spec = ts.time_step_spec(observation_spec)
@@ -142,14 +142,14 @@ class GKP(tf_environment.TFEnvironment):
         # Add dummy time dimension to tensors and append them to history
         for a in action.keys():
             self.history[a].append(tf.expand_dims(action[a], axis=1))
-        self.history['msmt'].append(tf.expand_dims(obs, axis=1))
-        # Also add clock of periodicity 'H' to history
-        C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
-        self.history['clock'].append(C)
+        self.history['msmt'].append(tf.expand_dims(obs, axis=1))        
         
         # Make observations of horizon H, shape=[batch_size,H,dim]
         observation = {key : tf.concat(val[-self.H:], axis=1) 
                        for key, val in self.history.items()}
+        # Also add clock of period 'T' to observations, shape=[batch_size,1,T]
+        C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
+        observation['clock'] = C
 
         reward = self.calculate_reward(obs, action)
         self._episode_return += reward
@@ -201,13 +201,13 @@ class GKP(tf_environment.TFEnvironment):
         self.history = tensor_spec.zero_spec_nest(self.action_spec(), 
                                       outer_dims=(self.batch_size,))
         self.history['msmt'] = tf.zeros(shape=[self.batch_size,1,1])
-        self.history['clock'] = tf.zeros([self.batch_size,1,self.T])
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
         
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {key : tf.concat(val[-self.H:], axis=1) 
                        for key, val in self.history.items()}
+        observation['clock'] = tf.zeros(shape=[self.batch_size,1,self.T])
 
         # Will keep track of code flips in symmetrized phase estimation
         if self.quantum_circuit_type == 'v2': self.flips = {'X':0, 'Z':0}

@@ -47,6 +47,7 @@ def train_eval(
         # Params for environment
         simulate = 'oscillator',
         horizon = 1,
+        clock_period = 4,
         max_episode_length = 24,
         eval_episode_length = 200,
         reward_mode = 'stabilizers',
@@ -69,7 +70,8 @@ def train_eval(
         
     # Create training env
     train_env = gkp_init(simulate=simulate,                 
-                    init='random', H=horizon, batch_size=train_batch_size,
+                    init='random', H=horizon, T=clock_period,
+                    batch_size=train_batch_size,
                     max_episode_length=max_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
@@ -80,7 +82,8 @@ def train_eval(
 
     # Create evaluation env    
     eval_env = gkp_init(simulate=simulate,
-                    init='random', H=horizon, batch_size=eval_batch_size,
+                    init='random', H=horizon, T=clock_period,
+                    batch_size=eval_batch_size,
                     episode_length=eval_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
