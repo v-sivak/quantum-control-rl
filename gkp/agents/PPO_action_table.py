@@ -6,7 +6,8 @@ Created on Tue Jun 16 15:36:54 2020
 """
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
-
+from tf_agents.policies import tf_policy
+from tf_agents.trajectories import policy_step
 
 def binary_encoding(x, H):
     """
@@ -89,14 +90,46 @@ def hashfunc(key, H, T):
 
 def action_table_lookup(table, key, H, T):
     """
-    Look up the value for the key in the table.
+    Look up the value for the key (observation) in the table.
     
     """
     ind = hashfunc(key, H, T)
     actions = tf.gather_nd(table, ind[:,None])
     return actions
+
+
+class ActionTablePolicyWrapper(tf_policy.Base):
+    """
+    Wrapper for the neural net policy that allows to convert it to a table. 
     
+    """
+    def __init__(self, policy, env):
+        """
+        Policy is supposed to map input batched tensors to output batched
+        tensors. For example, this can be a neural net policy produced by 
+        saved_model.load or tf_agent.collect_policy used during training.
+        
+        Environment needs to be wrapped by ActionWrapper and 
+        FlattenObservationsWrapperTF so that it produces observations as 
+        batched tensors and admits batched tensor actions (instead of dict 
+        observations and actions as in the base GKP class).
+        
+        """
+        super(ActionTablePolicyWrapper, self).__init__(
+            env.time_step_spec(), env.action_spec())
+        self.make_table(policy, env.H, env.T)
+
+    def _action(self, time_step, policy_state, seed):
+        obs = time_step.observation
+        action = self.table_lookup(obs)
+        return policy_step.PolicyStep(action)
+
+    def make_table(self, policy, H, T):
+        action_table = convert_policy_to_action_table(policy, H, T)
+        self.table_lookup = lambda key: action_table_lookup(
+            action_table, key, H, T)        
+
 
 def action_table_collect_driver():
     pass
-    
+        
