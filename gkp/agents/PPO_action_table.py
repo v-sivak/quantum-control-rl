@@ -7,38 +7,7 @@ Created on Tue Jun 16 15:36:54 2020
 import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 
-# TODO: find a way to not use .numpy() in dictionary key
-# TODO: maybe this whole hashfunc thing is not necessary 
-# TODO: make hashfunc and table_lookup work with batches
 
-def action_table_collect_driver():
-    pass
-
-def convert_policy_to_action_table(policy, H, T):
-    """
-    Assumes that observations coming from the environment are wrapped into
-    vectors of length T + H, where H is horizon length and T is clock period.
-    These vectors are used as keys of the hash table. First T components of 
-    the key give the one-hot encoding of the clock, and the last T components
-    can take values from {-1,1}. Thus, the total number of keys is T*2^H. 
-    
-    The values in the hash table are vector-actions which need to be converted
-    to dictionary format expected by GKP environment. So this is supposed to 
-    be the top-level wrapper of the environment.
-    
-    """   
-    action_table = {}
-    for t in range(T):
-        for m in range(2**H):
-            obs = tf.concat([tf.one_hot(t,T), 2*binary_encoding(m, H)-1], 0)
-            obs = tf.reshape(obs, shape=[1,T+H])
-            time_step = ts.transition(obs, [0])
-            action_step = policy.action(time_step)
-            key = hashfunc(obs, H, T)[0].numpy()
-            action_table[key] = action_step.action
-    return action_table
-
-    
 def binary_encoding(x, H):
     """
     Convert x to reversed binary representation with H digits.
@@ -61,25 +30,73 @@ def binary_decoding(x, H):
     return tf.math.reduce_sum(x*z, axis=1)
 
 
-def hashfunc(x, H, T):
+def convert_policy_to_action_table(policy, H, T):
     """
-    Hash function to compute the index of key 'x' in the action table.
-    Expects shape=[B,T+H] with first T elements being one-hot encoding of
-    the clock, and last H elements being measurement outcomes from {-1,1}.
+    Assumes that observations coming from the environment are wrapped into
+    vectors of length T + H, where H is horizon length and T is clock period.
+    These vectors are used as keys of the hash table. First T components of 
+    the key give the one-hot encoding of the clock, and the last T components
+    can take values from {-1,1}. Thus, the total number of keys is T*2^H. 
+    Keys are converted to table indices using hashfunc(). 
+    
+    The values in the hash table are vector-actions which need to be converted
+    to dictionary format expected by GKP environment. So this is supposed to 
+    be the top-level wrapper of the environment.
+    
+    Input:
+        policy -- policy that needs to be converted to a table representation
+        H -- horizon for history of measurements
+        T -- clock period (one-hot encoding size)
+        
+    Output:
+        action_table -- tensor of shape=[T*2^H, A], where A is action dim
+        
+    """   
+    keys = []
+    for t in range(T):
+        for m in range(2**H):
+            obs = tf.concat([tf.one_hot(t,T), 2*binary_encoding(m, H)-1], 0)
+            keys.append(tf.reshape(obs, shape=[1,T+H]))
+    keys = tf.concat(keys, axis=0)  # shape=[T*2^H, T+H]
+    ind = hashfunc(keys, H, T)      # shape=[T*2^H]
+    # It's already sorted correctly due to the loop structure, but anyways
+    keys = tf.gather_nd(keys, ind[:,None])
+    
+    time_step = ts.transition(keys, tf.zeros(T*2**H))
+    action_table = policy.action(time_step).action
+    return action_table
+
+    
+def hashfunc(key, H, T):
+    """
+    Hash function to compute the index of 'key' in the action table.
+    Expects first T elements of the key to be one-hot encoding of the clock, 
+    and last H elements to be the measurement outcomes from {-1,1}.
+    
+    Input:
+        key -- batched tensor of shape [B,T+H]
+        H -- horizon for history of measurements
+        T -- clock period (one-hot encoding size)
+    
+    Output:
+        index -- tensor of shape [B]
     
     """
-    t = tf.argmax(x[:,:T], axis=1, output_type=tf.int32)
-    m = binary_decoding((x[:,T:]+1)/2, H)
+    t = tf.argmax(key[:,:T], axis=1, output_type=tf.int32)
+    m = binary_decoding((key[:,T:]+1)/2, H)
     return t*2**H + m
     
 
-def action_table_lookup(table, obs, H, T):
-
-    keys = hashfunc(obs, H, T)
-    actions = [table[x.numpy()] for x in keys]
-    actions = tf.concat(actions, axis=0)
+def action_table_lookup(table, key, H, T):
+    """
+    Look up the value for the key in the table.
+    
+    """
+    ind = hashfunc(key, H, T)
+    actions = tf.gather_nd(table, ind[:,None])
     return actions
     
-    
-    
+
+def action_table_collect_driver():
+    pass
     
