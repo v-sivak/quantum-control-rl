@@ -8,6 +8,8 @@ import tensorflow as tf
 from tf_agents.trajectories import time_step as ts
 from tf_agents.policies import tf_policy
 from tf_agents.trajectories import policy_step
+from tf_agents.drivers import dynamic_episode_driver
+from tf_agents.policies import greedy_policy
 
 def binary_encoding(x, H):
     """
@@ -42,7 +44,7 @@ def convert_policy_to_action_table(policy, H, T):
     
     The values in the hash table are vector-actions which need to be converted
     to dictionary format expected by GKP environment. So this is supposed to 
-    be the top-level wrapper of the environment.
+    go with the top-level wrapper of the environment.
     
     Input:
         policy -- policy that needs to be converted to a table representation
@@ -107,7 +109,7 @@ class ActionTablePolicyWrapper(tf_policy.Base):
         """
         Policy is supposed to map input batched tensors to output batched
         tensors. For example, this can be a neural net policy produced by 
-        saved_model.load or tf_agent.collect_policy used during training.
+        saved_model.load 
         
         Environment needs to be wrapped by ActionWrapper and 
         FlattenObservationsWrapperTF so that it produces observations as 
@@ -127,9 +129,86 @@ class ActionTablePolicyWrapper(tf_policy.Base):
     def make_table(self, policy, H, T):
         action_table = convert_policy_to_action_table(policy, H, T)
         self.table_lookup = lambda key: action_table_lookup(
-            action_table, key, H, T)        
+            action_table, key, H, T)
 
 
-def action_table_collect_driver():
-    pass
+class ActionTableEpisodeDriver(dynamic_episode_driver.DynamicEpisodeDriver):
+    """
+    This driver is the same as the standard DynamicEpisodeDriver except that
+    it wraps the policy into a table before collecting the episodes. 
+    
+    Since the PPO collection policy is stochastic, the action table will be 
+    sampled from the distribution of policies, but this will happen before 
+    any episodes are collected. This trick eliminates the PPO action sampling 
+    noise DURING the episode.
+    
+    This is motivated by the way it will have to be done in a real experiment:
+    table is constructed beforehand and off-loaded to FPGA.
+    
+    """
+    def __init__(self, env, policy, observers=None, num_episodes=1):
+        policy = ActionTableStochasticPolicyWrapper(policy, env)
+        super(ActionTableEpisodeDriver, self).__init__(
+            env, policy, observers=observers, num_episodes=num_episodes)
         
+
+
+
+class ActionTableStochasticPolicyWrapper(tf_policy.Base):
+    """
+    Samples a deterministic action table from the stochastic collect policy at 
+    the beginning of each episode, and uses this table to map observations to 
+    actions during the episode instead of sampling actions from the stochastic
+    policy. 
+
+    The implementation is based on the example of greedy_policy.GreedyPolicy.
+    This wrapper can be used during the PPO training, i.e. it returns policy
+    info needed during training. 
+    
+    """
+    def __init__(self, policy, env, name=None):
+        super(ActionTableStochasticPolicyWrapper, self).__init__(
+            policy.time_step_spec,
+            policy.action_spec,
+            policy.policy_state_spec,
+            policy.info_spec,
+            emit_log_probability=policy.emit_log_probability,
+            name=name)
+        self._wrapped_policy = policy
+        self.H = env.H
+        self.T = env.T
+    
+    @property
+    def wrapped_policy(self):
+        return self._wrapped_policy
+    
+    def _variables(self):
+        return self._wrapped_policy.variables()
+
+    def make_table(self, policy):
+        action_table = convert_policy_to_action_table(policy, self.H, self.T)
+        self.table_lookup = lambda key: action_table_lookup(
+            action_table, key, self.H, self.T)
+
+    def deterministic_action_distribution(self, time_step):
+        """
+        Produce a deterministic tfp.distribution centered on the action
+        from the current table.
+        
+        """
+        obs = time_step.observation
+        action = self.table_lookup(obs)
+        return greedy_policy.DeterministicWithLogProb(loc=action)
+    
+    def _distribution(self, time_step, policy_state):
+        """ 
+        Returns policy step in the format compaticle with PPO training.
+        
+        """
+        if tf.reduce_all(time_step.is_first()):
+            self.make_table(self.wrapped_policy)
+        distribution_step = self._wrapped_policy.distribution(
+            time_step, policy_state)
+        return policy_step.PolicyStep(
+            self.deterministic_action_distribution(time_step),
+            distribution_step.state, distribution_step.info)
