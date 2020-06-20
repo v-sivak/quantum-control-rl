@@ -32,3 +32,6 @@ python benchmark_algo.py --num 0 --dataset --batchsize 0
 # Tests a larger than memory batch with different batchsizes
 python benchmark_algo.py --num 500 --dataset --batchsize 100
 python benchmark_algo.py --num 500 --dataset --batchsize 0
+
+# Benchmark scaling with number of alphas
+python benchmark_scaling.py
