@@ -14,17 +14,17 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\mlp3_steps48_H1T4_lr1e-5_new_clock_PPO_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\test'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
-    train_batch_size = 1000
+    train_batch_size = 100
     replay_buffer_capacity = 50000
     # Params for train
     normalize_observations = True
     normalize_rewards = True
     discount_factor = 1.0
-    lr = 1e-5
+    lr = 1e-6
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -35,16 +35,17 @@ if __name__ == '__main__':
     eval_interval = 100
     save_interval = 1000
     log_interval = 100
+    summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
-    horizon = 1
+    horizon = 4
     clock_period = 4
     max_episode_length = 48
     eval_episode_length = 48
     reward_mode = 'pauli'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
-    to_learn = {'alpha':True, 'beta':True, 'phi':True}
+    to_learn = {'alpha':True, 'beta':True, 'phi':False}
     observations_whitelist = ['msmt', 'clock']
     # Policy and value networks
     actor_fc_layers = (200,100,50)
@@ -114,6 +115,9 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, 
                         default=log_interval)
 
+    parser.add_argument('--summary_interval', type=int, 
+                        default=summary_interval)
+    
     ### Params for environment
     
     parser.add_argument('--simulate', type=str, 
@@ -180,6 +184,7 @@ if __name__ == '__main__':
         eval_interval=args.eval_interval,
         save_interval=args.save_interval,
         log_interval=args.log_interval,
+        summary_interval=args.summary_interval,
         simulate=args.simulate,
         horizon=args.horizon,
         clock_period=args.clock_period,
