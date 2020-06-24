@@ -39,6 +39,7 @@ def train_eval(
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.2,
+        value_pred_loss_coef = 0.5,
         # Params for log, eval, save
         eval_batch_size = 100,
         eval_interval = 100,
@@ -96,12 +97,12 @@ def train_eval(
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------
     
+    # Setup directories
     if not os.path.isdir(root_dir): os.mkdir(root_dir)
     policy_dir = os.path.join(root_dir, 'policy')
     checkpoint_dir = os.path.join(root_dir, 'checkpoint')
     logfile = os.path.join(root_dir,'log.hdf5')
     train_dir = os.path.join(root_dir, 'train_summaries')
-
 
     # Create summary writer
     train_summary_writer = tf.compat.v2.summary.create_file_writer(train_dir)
@@ -155,6 +156,7 @@ def train_eval(
             initial_adaptive_kl_beta = initial_adaptive_kl_beta,
             kl_cutoff_factor = kl_cutoff_factor,
             importance_ratio_clipping = importance_ratio_clipping,
+            value_pred_loss_coef = value_pred_loss_coef,
             debug_summaries = True)
         
         tf_agent.initialize()

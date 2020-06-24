@@ -14,26 +14,27 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\test'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\mlp3_steps48_H4T4_lr1e-4_b1000_valueloss_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
-    train_batch_size = 100
+    train_batch_size = 1000
     replay_buffer_capacity = 50000
     # Params for train
     normalize_observations = True
-    normalize_rewards = True
+    normalize_rewards = False
     discount_factor = 1.0
-    lr = 1e-6
+    lr = 1e-4
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
     importance_ratio_clipping = 0.2
+    value_pred_loss_coef = 0.05
     # Params for log, eval, save
     eval_batch_size = 200
     eval_interval = 100
-    save_interval = 1000
+    save_interval = 2000
     log_interval = 100
     summary_interval = 100
     # Params for environment
@@ -45,7 +46,7 @@ if __name__ == '__main__':
     reward_mode = 'pauli'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
-    to_learn = {'alpha':True, 'beta':True, 'phi':False}
+    to_learn = {'alpha':True, 'beta':True, 'phi':True}
     observations_whitelist = ['msmt', 'clock']
     # Policy and value networks
     actor_fc_layers = (200,100,50)
@@ -100,6 +101,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--importance_ratio_clipping', type=float, 
                         default=importance_ratio_clipping)
+
+    parser.add_argument('--value_pred_loss_coef', type=float, 
+                        default=value_pred_loss_coef)
 
     ### Params for log, eval, save
 
@@ -180,6 +184,7 @@ if __name__ == '__main__':
         initial_adaptive_kl_beta=args.initial_adaptive_kl_beta,
         kl_cutoff_factor=args.kl_cutoff_factor,
         importance_ratio_clipping=args.importance_ratio_clipping,
+        value_pred_loss_coef=args.value_pred_loss_coef,
         eval_batch_size=args.eval_batch_size,
         eval_interval=args.eval_interval,
         save_interval=args.save_interval,

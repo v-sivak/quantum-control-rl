@@ -33,6 +33,7 @@ PPO.train_eval(
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.2,
+        value_pred_loss_coef = 0.5,
         # Params for log, eval, save
         eval_batch_size = 200,
         eval_interval = 200,
