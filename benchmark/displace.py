@@ -5,6 +5,8 @@ Created on Wed Jun 10 12:44:33 2020
 
 @author: Henry Liu
 """
+import warnings
+
 import numpy as np
 import scipy as sc
 import tensorflow as tf
@@ -214,3 +216,51 @@ try:
 
 except ImportError:
     pass  # mpi4py not installed
+
+
+def gen_displace_distribute_BCH(N, strategy=None):
+    """Returns a 'multi-GPU' function to calculate displacements using tensorflow
+    with the Baker-Campbell-Hausdorff formula (BCH).
+
+    This uses the tf.distribute training API. At the moment, support is very
+    experimental, and only the CentralStorageStrategy is appropriate/implemented for
+    our use case. Unfortunately it's also synchronous, and seems to add a significant
+    amount of overhead. The ParameterServerStrategy looks promising but custom training
+    loop support is planned post TF 2.3
+
+    Args:
+        N (int): Dimension of Hilbert space
+        strategy (tf.distribute.Strategy, optional): Optional override of default strategy.
+
+    Returns:
+        Callable[[int], Tensor([num, N, N], c64)]: Displacement function for dim N
+    """
+    if strategy is None:
+        strategy = tf.distribute.experimental.CentralStorageStrategy()
+
+    if strategy.num_replicas_in_sync == 1:
+        warnings.warn("Only one logical device configured!")
+
+    with strategy.scope():
+        f = gen_displace_BCH(N)
+
+        def routine(alphas):
+            """Calculates D(alpha) for a batch of alphas.
+
+            Args:
+                alphas (Tensor([num], c64)): A batch of num alphas
+
+            Returns:
+                Tensor([num, N, N], c64): A batch of D(alphas)
+            """
+            # We re-slice alphas into a Dataset, this is fine even if the routine is
+            # being called inside of a Dataset loop already
+            alphas = tf.data.Dataset.from_tensor_slices(alphas).batch(alphas.shape[0])
+            dist_alphas = strategy.experimental_distribute_dataset(alphas)
+
+            for batch in dist_alphas:
+                result = strategy.run(f, args=(batch,))
+
+            return tf.concat(result.values, axis=0)
+
+    return routine

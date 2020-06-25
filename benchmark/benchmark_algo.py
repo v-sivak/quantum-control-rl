@@ -141,6 +141,10 @@ if __name__ == "__main__":
             if has_mpi:
                 benchmark("tf-eager-BCH-MPI", displace.gen_displace_MPI_BCH, N)
 
+            # Multi-GPU benchmark using CentralStorageStrategy
+            # This will error if enabled without multiple compute devices available
+            # benchmark("tf-eager-distribute", displace.gen_displace_distribute_BCH, N)
+
     else:  # MPI WORKER
         for N in hilbert_space_range:
 
