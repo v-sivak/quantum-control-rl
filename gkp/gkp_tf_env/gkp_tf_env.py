@@ -65,7 +65,6 @@ class GKP(tf_environment.TFEnvironment):
         self.N = 100 # size of the oscillator Hilbert space truncation
         self.H = 1   # horizon for history returned in observations
         self.T = 4   # periodicity of the 'clock' observation
-        self.max_episode_length = None
         self.episode_length = 20
         self.batch_size = 50
         self.init = 'vac'
@@ -190,8 +189,6 @@ class GKP(tf_environment.TFEnvironment):
             self._state = psi_batch
 
         # Bookkeeping of episode progress
-        if self.max_episode_length:
-            self.episode_length = np.random.randint(1,self.max_episode_length)
         self._episode_ended = False
         self._elapsed_steps = 0
         self._episode_return = 0

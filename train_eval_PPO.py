@@ -44,7 +44,7 @@ PPO.train_eval(
         simulate = 'oscillator',
         horizon = 1,
         clock_period = 4,
-        max_episode_length = 24,
+        train_episode_length = lambda x: 24,
         eval_episode_length = 24,
         reward_mode = 'pauli',
         quantum_circuit_type = 'v3',

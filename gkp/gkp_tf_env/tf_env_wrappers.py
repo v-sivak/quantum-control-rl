@@ -251,6 +251,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         return self._action_spec
 
     def _step(self, action):
-        return self._env.step(self.wrap(action))
+        action = self.wrap(action)
+        m = self._env.current_time_step().observation['msmt'][:,-1,:]
+        action['alpha'] *= m
+        return self._env.step(action)
 
 

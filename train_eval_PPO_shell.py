@@ -14,7 +14,7 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\June\OscillatorGKP\mlp3_steps48_H4T4_lr1e-4_b1000_valueloss_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\mlp3_steps36fixed_H4T4_lr1e-4_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
@@ -30,19 +30,19 @@ if __name__ == '__main__':
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
     importance_ratio_clipping = 0.2
-    value_pred_loss_coef = 0.05
+    value_pred_loss_coef = 0.005
     # Params for log, eval, save
     eval_batch_size = 200
     eval_interval = 100
-    save_interval = 2000
+    save_interval = 1000
     log_interval = 100
     summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
     horizon = 4
     clock_period = 4
-    max_episode_length = 48
-    eval_episode_length = 48
+    train_episode_length = lambda x: 36
+    eval_episode_length = 36
     reward_mode = 'pauli'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
@@ -133,9 +133,6 @@ if __name__ == '__main__':
     parser.add_argument('--clock_period', type=int, 
                         default=clock_period)
     
-    parser.add_argument('--max_episode_length', type=int, 
-                        default=max_episode_length)
-    
     parser.add_argument('--eval_episode_length', type=int, 
                         default=eval_episode_length)
     
@@ -193,7 +190,7 @@ if __name__ == '__main__':
         simulate=args.simulate,
         horizon=args.horizon,
         clock_period=args.clock_period,
-        max_episode_length=args.max_episode_length,
+        train_episode_length=train_episode_length,
         eval_episode_length=args.eval_episode_length,
         reward_mode=args.reward_mode,
         quantum_circuit_type=args.quantum_circuit_type,

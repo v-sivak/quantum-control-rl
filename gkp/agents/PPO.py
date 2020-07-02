@@ -22,6 +22,12 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.utils.rl_train_utils import compute_avg_return, save_log
 import gkp.action_script as act_scripts
 
+# TODO: find a more elegant way to set 'episode_length' attr of a wrapped env
+
+def random_sample_episode_length(x):
+    # sample random episode duration in the range [1..x]
+    return np.random.randint(1, x)
+
 def train_eval(
         root_dir = None,
         random_seed = 0,
@@ -50,7 +56,7 @@ def train_eval(
         simulate = 'oscillator',
         horizon = 1,
         clock_period = 4,
-        max_episode_length = 24,
+        train_episode_length = lambda x: 200,
         eval_episode_length = 200,
         reward_mode = 'stabilizers',
         quantum_circuit_type = 'v3',
@@ -74,7 +80,6 @@ def train_eval(
     train_env = gkp_init(simulate=simulate,                 
                     init='random', H=horizon, T=clock_period,
                     batch_size=train_batch_size,
-                    max_episode_length=max_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
     
@@ -220,9 +225,10 @@ def train_eval(
         # Training loop
         train_timer = timer.Timer()
         experience_timer = timer.Timer()
-        for _ in range(num_iterations):
+        for epoch in range(num_iterations):
             # Collect new experience
             experience_timer.start()
+            train_env._env._env.episode_length = train_episode_length(epoch)
             collect_driver.run()
             experience_timer.stop()
             # Update the policy 
