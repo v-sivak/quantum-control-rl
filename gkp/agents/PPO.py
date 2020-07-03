@@ -38,7 +38,7 @@ def train_eval(
         # Params for train
         normalize_observations = True,
         normalize_rewards = True,
-        discount_factor = 0.95,
+        discount_factor = 1.0,
         lr = 1e-5,
         lr_schedule = None,
         num_policy_epochs = 20,
@@ -69,14 +69,80 @@ def train_eval(
         use_rnn = True,
         actor_lstm_size = (12,),
         value_lstm_size = (12,)):
-    """ A simple train and eval for PPO agent. """
-
+    """ A simple train and eval for PPO agent. 
+    
+    Args:
+        root_dir (str): directory for saving training and evalutaion data
+        random_seed (int): seed for random number generator
+        num_iterations (int): number of training epochs. At each epoch a batch
+            of data is collected according to one stochastic policy, and then
+            the policy is updated.
+        train_batch_size (int): training batch size, collected in parallel.
+        replay_buffer_capacity (int): How many transition tuples the buffer 
+            can store. The buffer is emptied and re-populated at each epoch.
+        normalize_observations (bool): flag for normalization of observations.
+            Uses StreamingTensorNormalizer which normalizes based on the whole
+            history of observations.
+        normalize_rewards (bool): flag for normalization of rewards.
+            Uses StreamingTensorNormalizer which normalizes based on the whole
+            history of rewards.
+        discount_factor (float): rewards discout factor, should be in (0,1]
+        lr (float): learning rate for Adam optimizer
+        lr_schedule (callable: int -> float, optional): function to schedule 
+            the learning rate annealing. Takes as argument the int value of 
+            the global step and returns float value of the learning rate.
+            Applied on each epoch before doing gradient updates.
+        num_policy_epochs (int): number of policy gradient steps to do on each
+            epoch of training. In PPO this is typically >1.
+        initial_adaptive_kl_beta (float): see tf-agents PPO docs 
+        kl_cutoff_factor (float): see tf-agents PPO docs 
+        importance_ratio_clipping (float): clipping value for importance ratio.
+            Should demotivate the policy from doing updates that significantly
+            change the policy. Should be in (0,1]
+        value_pred_loss_coef (float): weight coefficient for quadratic value
+            estimation loss.
+        eval_batch_size (int): batch size for evaluation of the policy.
+        eval_interval (int): interval between evaluations, counted in epochs.
+        save_interval (int): interval between savings, counted in epochs. It
+            saves the checkpointer (overwrites the previous one), updates the
+            log file, and saves the deterministic policy.
+        log_interval (int): interval between logging, counted in epochs.
+            Logging is just showing the current value of the loss in stdout, 
+            and training and experience time (useless).
+        summary_interval (int): interval between summary writing, counted in 
+            epochs. tf-agents takes care of summary writing, which can be
+            later displayed in tensorboard (very useful).
+        simulate (str): type of simulator to use in the GKP environment. Can 
+            be either 'oscillator' or 'oscillator_qubit'.
+        horizon (int): how many past observations to return. Use 1 for RNNs 
+            and >=1 for MLP policies. 
+        clock_period (int): period for the one-hot encoded clock observation.
+        train_episode_length (callable: int -> int): function that defines the 
+            schedule for training episode durations. Takes as argument the int 
+            epoch number and returns int episode duration for this epoch.
+        eval_episode_length (int): duration of evaluation episodes.
+        reward_mode (str): see GKP docs for more details.
+        quantum_circuit_type (str): see GKP docs for more details.
+        action_script (str): name of action script, should be compatible with 
+            this quantum_circuit_type. Action wrapper will select actions from
+            this script if they are not to be learned.
+        to_learn (dict, str:bool): dictionary mapping action dimensions to 
+            bool flags. Specifies if the action should be learned or scripted.
+        observations_whitelist (list, optional): specifies which observations
+            should be kept by the FlattenObservationsWrapperTF. Defaults to
+            None, meaning that all observations are preserved and flattened.
+        actor_fc_layers (tuple): sizes of fully connected layers in actor net.
+        value_fc_layers (tuple): sizes of fully connected layers in value net.
+        use_rnn (bool): whether to use LSTM units in the neural net.
+        actor_lstm_size (tuple): sizes of LSTM layers in actor net.
+        value_lstm_size (tuple): sizes of LSTM layers in value net.
+    """
     if root_dir is None:
         raise AttributeError('PPO requires a root_dir.')    
     tf.compat.v1.set_random_seed(random_seed)
     action_script = act_scripts.__getattribute__(action_script)
         
-    # Create training env
+    # Create training env and wrap it
     train_env = gkp_init(simulate=simulate,                 
                     init='random', H=horizon, T=clock_period,
                     batch_size=train_batch_size,
@@ -87,7 +153,7 @@ def train_eval(
     train_env = wrappers.FlattenObservationsWrapperTF(train_env,
                                 observations_whitelist=observations_whitelist)
 
-    # Create evaluation env    
+    # Create evaluation env and wrap it
     eval_env = gkp_init(simulate=simulate,
                     init='random', H=horizon, T=clock_period,
                     batch_size=eval_batch_size,
@@ -102,14 +168,14 @@ def train_eval(
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------
     
-    # Setup directories
+    # Setup directories within 'root_dir'
     if not os.path.isdir(root_dir): os.mkdir(root_dir)
     policy_dir = os.path.join(root_dir, 'policy')
     checkpoint_dir = os.path.join(root_dir, 'checkpoint')
     logfile = os.path.join(root_dir,'log.hdf5')
     train_dir = os.path.join(root_dir, 'train_summaries')
 
-    # Create summary writer
+    # Create tf summary writer
     train_summary_writer = tf.compat.v2.summary.create_file_writer(train_dir)
     train_summary_writer.set_as_default()
     summary_interval *= num_policy_epochs
@@ -145,7 +211,7 @@ def train_eval(
                 input_tensor_spec = observation_spec,
                 fc_layer_params = value_fc_layers)
     
-        # Create a PPO agent
+        # Create PPO agent
         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr)
         tf_agent = ppo_agent.PPOAgent(
             time_step_spec = train_env.time_step_spec(),
@@ -203,7 +269,7 @@ def train_eval(
         train_checkpointer.initialize_or_restore()
         global_step = tf.compat.v1.train.get_global_step()
     
-        # Saver for the policy
+        # Saver for the deterministic policy
         saved_model = policy_saver.PolicySaver(
             eval_policy, train_step=global_step)
     
@@ -252,7 +318,7 @@ def train_eval(
                 avg_return = compute_avg_return(eval_env, tf_agent.policy)
                 print('  Policy steps: ' %global_step_val)
                 print('  Average return: %.2f' %avg_return)
-                # Cache all metrics
+                # Log all metrics
                 log['epochs'].append(global_step_val/num_policy_epochs)
                 log['policy_steps'].append(global_step_val)
                 log['returns'].append(avg_return)
@@ -260,12 +326,12 @@ def train_eval(
                 log['train_time'].append(train_timer.value())
                 
             if global_step_val % (save_interval * num_policy_epochs) == 0:
-                # Save training
+                # Save training checkpoint
                 train_checkpointer.save(global_step)
-                # Save policy
+                # Save deterministic policy
                 path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
                 saved_model.save(path)
-                # Save all metrics
+                # Save all logged metrics 
                 save_log(log, logfile, ('%d' % global_step_val).zfill(9))
 
     
