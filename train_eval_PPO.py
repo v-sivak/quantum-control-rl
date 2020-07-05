@@ -38,7 +38,7 @@ PPO.train_eval(
         eval_batch_size = 200,
         eval_interval = 200,
         save_interval = 200,
-        log_interval = 20,
+        checkpoint_interval = None,
         summary_interval = 100,
         # Params for environment
         simulate = 'oscillator',

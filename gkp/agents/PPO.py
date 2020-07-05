@@ -6,6 +6,7 @@ Created on Wed Mar  4 12:24:37 2020
 """
 import os
 import tensorflow as tf
+import numpy as np
 
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.policies import policy_saver
@@ -50,7 +51,7 @@ def train_eval(
         eval_batch_size = 100,
         eval_interval = 100,
         save_interval = 1000,
-        log_interval = 20,
+        checkpoint_interval = None,
         summary_interval = 100,
         # Params for environment
         simulate = 'oscillator',
@@ -89,9 +90,8 @@ def train_eval(
         discount_factor (float): rewards discout factor, should be in (0,1]
         lr (float): learning rate for Adam optimizer
         lr_schedule (callable: int -> float, optional): function to schedule 
-            the learning rate annealing. Takes as argument the int value of 
-            the global step and returns float value of the learning rate.
-            Applied on each epoch before doing gradient updates.
+            the learning rate annealing. Takes as argument the int epoch
+            number and returns float value of the learning rate. 
         num_policy_epochs (int): number of policy gradient steps to do on each
             epoch of training. In PPO this is typically >1.
         initial_adaptive_kl_beta (float): see tf-agents PPO docs 
@@ -104,14 +104,13 @@ def train_eval(
         eval_batch_size (int): batch size for evaluation of the policy.
         eval_interval (int): interval between evaluations, counted in epochs.
         save_interval (int): interval between savings, counted in epochs. It
-            saves the checkpointer (overwrites the previous one), updates the
-            log file, and saves the deterministic policy.
-        log_interval (int): interval between logging, counted in epochs.
-            Logging is just showing the current value of the loss in stdout, 
-            and training and experience time (useless).
+            updates the log file and saves the deterministic policy.
+        checkpoint_interval (int): interval between saving checkpoints, counted 
+            in epochs. Overwrites the previous saved one. Defaults to None, 
+            in which case checkpoints are not saved.
         summary_interval (int): interval between summary writing, counted in 
-            epochs. tf-agents takes care of summary writing, which can be
-            later displayed in tensorboard (very useful).
+            epochs. tf-agents takes care of summary writing; results can be
+            later displayed in tensorboard.
         simulate (str): type of simulator to use in the GKP environment. Can 
             be either 'oscillator' or 'oscillator_qubit'.
         horizon (int): how many past observations to return. Use 1 for RNNs 
@@ -243,7 +242,6 @@ def train_eval(
             max_length=replay_buffer_capacity)
     
         def train_step():
-            if lr_schedule: optimizer._lr = lr_schedule(global_step.numpy())
             experience = replay_buffer.gather_all()
             return tf_agent.train(experience)
     
@@ -299,6 +297,7 @@ def train_eval(
             experience_timer.stop()
             # Update the policy 
             train_timer.start()
+            if lr_schedule: optimizer._lr = lr_schedule(epoch)
             train_loss = train_step()
             replay_buffer.clear()
             train_timer.stop()
@@ -306,33 +305,31 @@ def train_eval(
             # Log and evaluate everything
             global_step_val = global_step.numpy()
             
-            if global_step_val % (log_interval * num_policy_epochs) == 0:
-                print('-------------------')
-                print('Epoch %d' %(global_step_val/num_policy_epochs))
-                print('  Loss: %.2f' %train_loss.loss)
-                print('  Experience time: %.2f mins' %(experience_timer.value()/60))
-                print('  Policy train time: %.2f mins' %(train_timer.value()/60))    
-                
-            if global_step_val % (eval_interval * num_policy_epochs) == 0:
+            if global_step_val % (eval_interval*num_policy_epochs) == 0:
                 # Evaluate the policy
                 avg_return = compute_avg_return(eval_env, tf_agent.policy)
-                print('  Policy steps: ' %global_step_val)
+                # Print out and log all metrics
+                print('-------------------')
+                print('Epoch %d' %(global_step_val/num_policy_epochs))
+                print('  Policy steps: %d' %global_step_val)
+                print('  Experience time: %.2f mins' %(experience_timer.value()/60))
+                print('  Policy train time: %.2f mins' %(train_timer.value()/60))
                 print('  Average return: %.2f' %avg_return)
-                # Log all metrics
                 log['epochs'].append(global_step_val/num_policy_epochs)
                 log['policy_steps'].append(global_step_val)
                 log['returns'].append(avg_return)
                 log['experience_time'].append(experience_timer.value())
                 log['train_time'].append(train_timer.value())
                 
-            if global_step_val % (save_interval * num_policy_epochs) == 0:
-                # Save training checkpoint
-                train_checkpointer.save(global_step)
+            if global_step_val % (save_interval*num_policy_epochs) == 0:
                 # Save deterministic policy
                 path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
                 saved_model.save(path)
-                # Save all logged metrics 
+                # Save updated log
                 save_log(log, logfile, ('%d' % global_step_val).zfill(9))
-
-    
-    
+            
+            if checkpoint_interval is not None and \
+                global_step_val % (checkpoint_interval*num_policy_epochs) == 0:
+                    # Save training checkpoint
+                    train_checkpointer.save(global_step)
+                    

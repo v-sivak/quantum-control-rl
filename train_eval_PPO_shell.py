@@ -14,7 +14,7 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\mlp3_steps36fixed_H4T4_lr1e-4_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\rnn_steps48fixed_lr1e-3_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     normalize_observations = True
     normalize_rewards = False
     discount_factor = 1.0
-    lr = 1e-4
+    lr = 1e-3
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -34,24 +34,24 @@ if __name__ == '__main__':
     # Params for log, eval, save
     eval_batch_size = 200
     eval_interval = 100
-    save_interval = 1000
-    log_interval = 100
+    save_interval = 500
+    checkpoint_interval = None
     summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
-    horizon = 4
+    horizon = 1
     clock_period = 4
-    train_episode_length = lambda x: 36
-    eval_episode_length = 36
+    train_episode_length = lambda x: 48
+    eval_episode_length = 48
     reward_mode = 'pauli'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':True}
     observations_whitelist = ['msmt', 'clock']
     # Policy and value networks
-    actor_fc_layers = (200,100,50)
-    value_fc_layers = (200,100,50)
-    use_rnn = False
+    actor_fc_layers = ()
+    value_fc_layers = ()
+    use_rnn = True
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     
@@ -116,8 +116,8 @@ if __name__ == '__main__':
     parser.add_argument('--save_interval', type=int, 
                         default=save_interval)
     
-    parser.add_argument('--log_interval', type=int, 
-                        default=log_interval)
+    parser.add_argument('--checkpoint_interval', type=int, 
+                        default=checkpoint_interval)
 
     parser.add_argument('--summary_interval', type=int, 
                         default=summary_interval)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         eval_batch_size=args.eval_batch_size,
         eval_interval=args.eval_interval,
         save_interval=args.save_interval,
-        log_interval=args.log_interval,
+        checkpoint_interval=args.checkpoint_interval,
         summary_interval=args.summary_interval,
         simulate=args.simulate,
         horizon=args.horizon,
