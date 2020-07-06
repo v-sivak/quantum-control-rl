@@ -210,7 +210,8 @@ class GKP(tf_environment.TFEnvironment):
         observation['clock'] = tf.zeros(shape=[self.batch_size,1,self.T])
 
         # Will keep track of code flips in symmetrized phase estimation
-        if self.quantum_circuit_type == 'v2': self.flips = {'X':0, 'Z':0}
+        if self.quantum_circuit_type == 'v2': 
+            self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()    
@@ -398,14 +399,14 @@ class GKP(tf_environment.TFEnvironment):
         """
         # Count code flips for v2 circuit
         if self.quantum_circuit_type == 'v2':                 
-            self.count_code_flips(act['alpha'], sqrt(pi))
+            self.count_code_flips(act, 'alpha')
         
         # Calculate reward
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
             # Count code flips for v2 circuit
             if self.quantum_circuit_type == 'v2':
-                self.count_code_flips(act['beta'], 2*sqrt(pi))
+                self.count_code_flips(act, 'beta')
         else:
             pauli = [self.code_map[self._original[i][0]]
                          for i in range(self.batch_size)]
@@ -434,7 +435,7 @@ class GKP(tf_environment.TFEnvironment):
         """
         # Count code flips that affect cached state
         if self.quantum_circuit_type == 'v2':
-            self.count_code_flips(act['alpha'], sqrt(pi))
+            self.count_code_flips(act, 'alpha')
 
         # Measure the Pauli expectation on cached state 
         pauli = [self.code_map[self._original[i][0]]
@@ -451,14 +452,21 @@ class GKP(tf_environment.TFEnvironment):
                 z *= self.undo_code_flips()
         # Count code flips that happened after the state was cached
         if self.quantum_circuit_type == 'v2':
-            self.count_code_flips(act['beta'], 2*sqrt(pi))
+            self.count_code_flips(act, 'beta')
         return z
 
 
-    def count_code_flips(self, action, amp):
-        flips = tf.math.equal(tf.math.abs(action), amp)
-        self.flips['X'] += tf.cast(flips[:,0], dtype=tf.int32)
-        self.flips['Z'] += tf.cast(flips[:,1], dtype=tf.int32)
+    def count_code_flips(self, action, key):
+        """
+        Compare the 'action[key]' amplitude to one of the amplitudes that flip
+        the code and increment the corresponding counter of X, Y, or Z flips.
+        
+        """
+        amp = self.vec_to_complex(action[key])                
+        ref_amps = {'alpha' : ['X','Y','Z'], 'beta' : ['S_x','S_y','S_z']}
+        for a, b in zip(['X','Y','Z'], ref_amps[key]):
+            ref = self.code_map[b]
+            self.flips[a] += tf.where(amp==ref,1,0) + tf.where(amp==-ref,1,0)
         return 
 
 
@@ -469,15 +477,15 @@ class GKP(tf_environment.TFEnvironment):
         if the code didn't flip and -1s if it flipped.
         
         """
-        # Phase flips affect 'X+'
+        # For 'X+', undo Z and Y flips
         mask = np.where(self._original == 'X+', 1.0, 0.0)
-        flips = tf.math.floormod(self.flips['Z'], 2)
+        flips = tf.math.floormod(self.flips['Z']+self.flips['Y'], 2)
         coeff = tf.where(flips==0, 1.0, -1.0) * mask
-        # Bit flips affect 'Z+'
+        # For 'Z+', undo X and Y flips
         mask = np.where(self._original == 'Z+', 1.0, 0.0)
-        flips = tf.math.floormod(self.flips['X'], 2)
+        flips = tf.math.floormod(self.flips['X']+self.flips['Y'], 2)
         coeff += tf.where(flips==0, 1.0, -1.0) * mask
-        # Both phase flips and bit flips affect 'Y+'
+        # For 'Y+', undo X and Z flips
         mask = np.where(self._original == 'Y+', 1.0, 0.0)
         flips = tf.math.floormod(self.flips['X']+self.flips['Z'], 2)
         coeff += tf.where(flips==0, 1.0, -1.0) * mask
