@@ -13,7 +13,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
-from math import sqrt, pi
+from numpy import sqrt, pi, exp
 from tf_agents.specs import tensor_spec
 from tf_agents import specs
 from scipy.optimize import curve_fit
@@ -30,23 +30,30 @@ class ActionScript(object):
         self.delta = delta
         self.eps = eps
 
-        self.period = 8
+        self.period = 6
 
-        self.beta = [2*sqrt(pi)+0j, eps+0j, 2j*sqrt(pi), 1j*eps, 
-                     -2*sqrt(pi)+0j, -eps+0j, -2j*sqrt(pi), -1j*eps]
+        b_amp = sqrt(8*pi/sqrt(3))
+        a_amp = sqrt(2*pi/sqrt(3))
+
+        self.beta = [1j*b_amp*exp(-2j*pi/3), -eps*exp(-2j*pi/3), 
+                     1j*b_amp*exp(-1j*pi/3), -eps*exp(-1j*pi/3), 
+                     1j*b_amp*exp(-0j*pi/3), -eps*exp(-0j*pi/3)]
         
-        self.alpha = [-2*sqrt(pi)+0j, -1j*delta, -2j*sqrt(pi), delta+0j, 
-                      2*sqrt(pi)+0j, 1j*delta, 2j*sqrt(pi), -delta+0j]
+        self.alpha = [1j*a_amp*exp(-0j*pi/3), delta*exp(-2j*pi/3),
+                      1j*a_amp*exp(-2j*pi/3), delta*exp(-1j*pi/3),
+                      1j*a_amp*exp(-1j*pi/3), delta*exp(-0j*pi/3)]
 
-        self.phi = [pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2, pi/2]
+        self.phi = [pi/2, pi/2, pi/2, 
+                    pi/2, pi/2, pi/2]
 
 
 env = gkp_init(simulate='oscillator',
                init='Z+', H=1, batch_size=200, episode_length=100, 
-               reward_mode = 'pauli', quantum_circuit_type='v1')
+               reward_mode = 'pauli', quantum_circuit_type='v2',
+               encoding = 'hexagonal')
 
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_sims\phase_estimation_8round'
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_sims\hexagonal_6round'
 feedback_amplitudes = np.linspace(0.0, 0.6, 12, dtype=complex)
 trim_amplitudes = np.linspace(0.0, 0.6, 12, dtype=complex)
 lifetimes = np.zeros((len(feedback_amplitudes), len(trim_amplitudes)))

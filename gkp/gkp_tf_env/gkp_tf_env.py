@@ -70,6 +70,7 @@ class GKP(tf_environment.TFEnvironment):
         self.init = 'vac'
         self.reward_mode = 'stabilizers'
         self.quantum_circuit_type = 'v1'
+        self.encoding = 'square'
 
         # Overwrite defaults if any, e.g. init, reward_mode, etc
         for key, val in kwargs.items():
@@ -81,8 +82,10 @@ class GKP(tf_environment.TFEnvironment):
 
         # create all tensors
         self.setup_simulator()
-        S = np.array([[1, 0],
-                      [0, 1]])
+        if self.encoding == 'square':
+            S = np.array([[1, 0], [0, 1]])
+        elif self.encoding == 'hexagonal':
+            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))        
         self.define_stabilizer_code(S)
 
         
