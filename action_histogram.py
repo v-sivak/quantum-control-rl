@@ -25,24 +25,21 @@ from gkp.gkp_tf_env import policy as plc
 ### Initialize env and policy
 
 env = gkp_init(simulate='oscillator', 
-                init='random', H=1, batch_size=400, episode_length=30, 
+                init='random', H=1, T=4, batch_size=400, episode_length=30, 
                 reward_mode = 'pauli', quantum_circuit_type='v2')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
+env = wrappers.FlattenObservationsWrapperTF(env,
+                        observations_whitelist=['msmt','clock'])
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_steps48_betascale1_lr1e-4_v2\policy\001200000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
+policy_dir = r'rnn_steps36fixed_lr1e-4_v2\policy\000200000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-# policy_dir = r'rnn_fidelity_steps24_lr1e-5_v2\policy\000720000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
-
-# from gkp.action_script import Baptiste_4round as action_script
+# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
@@ -72,9 +69,10 @@ for a in to_learn.keys() - ['phi']:
     action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()    
     all_actions = action_cache.reshape([env.episode_length*env.batch_size,2])
 
-    lim = env.scale[a]
-    lim = 2*sqrt(pi) if a=='beta' else lim
-    # Plot combined histogram of actions at all time steps
+    lim = 1 #env.scale[a]
+    # lim = 2*sqrt(pi) if a=='beta' else lim
+    # lim = sqrt(pi) if a=='alpha' else lim
+    # Plot combinezd histogram of actions at all time steps
     H, Re_edges, Im_edges = np.histogram2d(all_actions[:,0], all_actions[:,1], 
                                         bins=51, 
                                         range=[[-lim-0.2, lim+0.2],

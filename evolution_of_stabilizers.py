@@ -30,13 +30,13 @@ env = gkp_init(simulate='oscillator',
 
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# from gkp.action_script import phase_estimation_4round as action_script
 to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env)
+env = wrappers.FlattenObservationsWrapperTF(env,
+                        observations_whitelist=['msmt','clock'])
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\OscillatorGKP'
-policy_dir = r'rnn_steps24_mask_quadrant__mixed_lr1e-4_v2\policy\001700000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
+policy_dir = r'rnn_steps36fixed_lr1e-4_v2\policy\000200000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
@@ -45,20 +45,16 @@ policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 #                 init='random', H=1, batch_size=100, episode_length=100, 
 #                 reward_mode = 'stabilizers', quantum_circuit_type='v2')
 
-
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# # from gkp.action_script import phase_estimation_8round as action_script
-# # from gkp.action_script import Baptiste_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
-
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-names = ['Re(S_p)', 'Im(S_p)', 'Re(S_q)', 'Im(S_q)']
-stabilizers = [env.code_map['S_p'], env.code_map['S_p'], 
-               env.code_map['S_q'], env.code_map['S_q']]
+names = ['Re(S_x)', 'Im(S_x)', 'Re(S_z)', 'Im(S_z)']
+stabilizers = [env.code_map['S_x'], env.code_map['S_x'], 
+               env.code_map['S_z'], env.code_map['S_z']]
 angles = [0, -pi/2, 0, -pi/2]
 results = {name : np.zeros(env.episode_length) for name in names}
 cache = [] # store intermediate states

@@ -500,7 +500,7 @@ class GKP(tf_environment.TFEnvironment):
         else:        
             mask = tfp.distributions.Bernoulli(probs=[0.5]*self.batch_size, 
                                                dtype=tf.float32).sample()
-            beta = self.code_map['S_q']*mask + self.code_map['S_p']*(1-mask)
+            beta = self.code_map['S_z']*mask + self.code_map['S_x']*(1-mask)
             beta = tf.cast(beta, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], beta, 

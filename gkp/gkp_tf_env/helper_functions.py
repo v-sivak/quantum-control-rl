@@ -34,10 +34,10 @@ def GKP_state(tensorstate, N, S):
     p_op = 1j*(a.dag() - a)/sqrt(2.0)
     
     # Deafine stabilizers
-    Sq = (2j*sqrt(pi)*(S[0,0]*q_op + S[1,0]*p_op)).expm()
-    Sp = (-2j*sqrt(pi)*(S[0,1]*q_op + S[1,1]*p_op)).expm()
-    Sc = (2j*sqrt(pi)*((S[0][0]-S[0][1])*q_op + (S[1][0]-S[1][1])*p_op)).expm()
-    stabilizers = {'S_p' : Sp, 'S_q' : Sq, 'S_c' : Sc}    
+    Sz = (2j*sqrt(pi)*(S[0,0]*q_op + S[1,0]*p_op)).expm()
+    Sx = (-2j*sqrt(pi)*(S[0,1]*q_op + S[1,1]*p_op)).expm()
+    Sy = (2j*sqrt(pi)*((S[0][0]-S[0][1])*q_op + (S[1][0]-S[1][1])*p_op)).expm()
+    stabilizers = {'S_x' : Sx, 'S_z' : Sz, 'S_y' : Sy}    
     
     # Deafine Pauli operators
     z =  (1j*sqrt(pi)*(S[0,0]*q_op + S[1,0]*p_op)).expm()
@@ -45,23 +45,23 @@ def GKP_state(tensorstate, N, S):
     y = (1j*sqrt(pi)*((S[0][0]-S[0][1])*q_op + (S[1][0]-S[1][1])*p_op)).expm()
     paulis = {'X' : x, 'Y' : y, 'Z' : z}
 
-    displacements = {'S_q': 2*sqrt(pi)*(-S[1,0]+1j*S[0,0]),
+    displacements = {'S_z': 2*sqrt(pi)*(-S[1,0]+1j*S[0,0]),
                      'Z'  : sqrt(pi)*(-S[1,0]+1j*S[0,0]),
-                     'S_p': 2*sqrt(pi)*(S[1,1]-1j*S[0,1]),
+                     'S_x': 2*sqrt(pi)*(S[1,1]-1j*S[0,1]),
                      'X'  : sqrt(pi)*(S[1,1]-1j*S[0,1]),
-                     'S_c': 2*sqrt(pi)*((S[1,1]-S[1,0])+1j*(S[0,0]-S[0,1])),
+                     'S_y': 2*sqrt(pi)*((S[1,1]-S[1,0])+1j*(S[0,0]-S[0,1])),
                      'Y'  : sqrt(pi)*((S[1,1]-S[1,0])+1j*(S[0,0]-S[0,1]))}
     
     # Define Hermitian Paulis and stablizers
-    ops = [Sq, Sp, Sc, x, y, z]
+    ops = [Sz, Sx, Sy, x, y, z]
     ops = [(op + op.dag())/2.0 for op in ops]
     # pass them through the channel 
     chan = epsilon_normalizer(N)
     ops = [chan(op) for op in ops]
-    Sq, Sp, Sc, x, y, z = ops
+    Sz, Sx, Sy, x, y, z = ops
     
     # find 'Z+' as groundstate of this Hamiltonian
-    d = (- Sq - Sp - Sc - z).groundstate()
+    d = (- Sz - Sx - Sy - z).groundstate()
     zero = (d[1]).unit()
     one  = (x*d[1]).unit()
 
