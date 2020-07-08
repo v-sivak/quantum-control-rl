@@ -191,6 +191,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def wrap(self, input_action):
         """
+        Input:
+            input_action -- batched action tensor produced by the neural net
+            
         Output:
             actions -- dictionary of batched actions. Dictionary keys are same
                         as supplied in 'to_learn'
@@ -216,41 +219,27 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] *= self.scale[a]
                 input_action = input_action[:,self.dims_map[a]:]
 
-        # TODO: this was tested only for square code and v1/v2 protocols
         # Mask 'beta' and 'alpha' actions
         if self.use_mask and self.mask[i]==0:
-            action['alpha'] = self.project_from_quadrant(
-                input_action[:,0:2], self.a_amp)
-            if self.learn_masked_beta:
-                action['beta'] = self.project_from_quadrant(
-                    input_action[:,2:4], self.b_amp)
-            else:
-                A = common.replicate(self.script['beta'][i], out_shape)
-                action['beta'] = tf.concat([real(A), imag(A)], axis=1)
-
+            for a in ['alpha', 'beta']:
+                A = common.replicate(self.script[a][i], out_shape)
+                action[a] = tf.concat([real(A), imag(A)], axis=1)
         return action
-    
-    def project_from_quadrant(self, action, amp):
-        """
-        For a batched 2D vector 'action' extract the quadrant in which this
-        vector lies and project it to amplitude 'amp' on the axis in the same
-        quadrant. 
-        
-        For example, 0.5 + 0.1j -> amp ; 0.1 - 0.5j -> -1j*amp
-        
-        """
-        c1 = action[:,0,None] >  action[:,1,None]
-        c2 = action[:,0,None] > -action[:,1,None]
-        v2, v1 = float(amp)/2, float(amp)/2  # Re of the basis vectors
-        Re = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
-        v2, v1 = -float(amp)/2, float(amp)/2 # Im of the basis vectors
-        Im = tf.where(c1,v2,-v2) + tf.where(c2,v1,-v1)
-        return tf.concat([Re, Im], axis=1)
     
     def action_spec(self):
         return self._action_spec
 
     def _step(self, action):
+        """
+        Take the 'action' tensor produced by the neural net and wrap it into
+        dictionary format expected by the environment.
+        
+        Multiply the neural net prediction by the measurement outcome of the 
+        last time step. This ensures that the Markovian part of the feedback
+        is present, and the agent can focus its efforts on learning residual
+        part.
+        
+        """
         action = self.wrap(action)
         m = self._env.current_time_step().observation['msmt'][:,-1,:]
         action['alpha'] *= m
