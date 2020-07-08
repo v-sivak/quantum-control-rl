@@ -68,7 +68,7 @@ class GKP(tf_environment.TFEnvironment):
         self.episode_length = 20
         self.batch_size = 50
         self.init = 'vac'
-        self.reward_mode = 'stabilizers'
+        self.reward_mode = 'zero'
         self.quantum_circuit_type = 'v1'
         self.encoding = 'square'
 
@@ -144,7 +144,7 @@ class GKP(tf_environment.TFEnvironment):
         # Add dummy time dimension to tensors and append them to history
         for a in action.keys():
             self.history[a].append(tf.expand_dims(action[a], axis=1))
-        self.history['msmt'].append(tf.expand_dims(obs, axis=1))        
+        self.history['msmt'].append(tf.expand_dims(obs, axis=1))
         
         # Make observations of horizon H, shape=[batch_size,H,dim]
         observation = {key : tf.concat(val[-self.H:], axis=1) 
@@ -153,7 +153,7 @@ class GKP(tf_environment.TFEnvironment):
         C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
         observation['clock'] = C
 
-        reward = self.calculate_reward(obs, action)
+        reward = self.calculate_reward(action)
         self._episode_return += reward
         
         if self._episode_ended:
@@ -359,41 +359,21 @@ class GKP(tf_environment.TFEnvironment):
 
 
     @tf.function
-    def reward_zero(self, obs, act):
+    def reward_zero(self, act):
         """
         Reward is always zero (use when not training).
         
         """
         return tf.zeros(self.batch_size, dtype=tf.float32)
-    
-
-    @tf.function
-    def reward_stabilizers(self, obs, act):
-        """
-        Reward for stabilizing GKP subspace, i.e. having both stabilizers
-        equal 1. Use this reward only if each time step is doing phase 
-        estimation on one of the stabilizers and with phi=0 which correponds 
-        to measuring real part of the stabilizer eigenvalue.
-
-        Input:
-            obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,act_dim)
-            
-        """        
-        mask = tf.math.equal(act['phi'][:,0], 0.0)
-        mask = tf.cast(mask, tf.float32)
-        z = tf.reshape(obs, shape=(self.batch_size,))*mask
-        return z
 
 
-    def reward_pauli(self, obs, act):
+    def reward_pauli(self, act):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
         Such reward lets the agent directly optimize T1.
 
         Input:
-            obs -- observations at this time step; shape=(batch_size,)
             act -- actions at this time step; shape=(batch_size,act_dim)
             
         """
@@ -422,14 +402,13 @@ class GKP(tf_environment.TFEnvironment):
         return z
 
 
-    def reward_fidelity(self, obs, act):
+    def reward_fidelity(self, act):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
         Such reward lets the agent directly optimize T1.
 
         Input:
-            obs -- observations at this time step; shape=(batch_size,)
             act -- actions at this time step; shape=(batch_size,act_dim)
             
         """
@@ -490,32 +469,6 @@ class GKP(tf_environment.TFEnvironment):
         flips = tf.math.floormod(self.flips['X']+self.flips['Z'], 2)
         coeff += tf.where(flips==0, 1.0, -1.0) * mask
         return coeff
-        
-        
-    def reward_mixed(self, obs, act):
-        """
-        Reward only on last time step with the result of measurement of 
-        randomly selected stabilizer. This reinforces high degree of 
-        squeezing in the GKP subspace.
-
-        Input:
-            obs -- observations at this time step; shape=(batch_size,)
-            act -- actions at this time step; shape=(batch_size,act_dim)
-            
-        """
-        if self._elapsed_steps < self.episode_length:
-            z = tf.zeros(self.batch_size, dtype=tf.float32)
-        else:        
-            mask = tfp.distributions.Bernoulli(probs=[0.5]*self.batch_size, 
-                                               dtype=tf.float32).sample()
-            beta = self.code_map['S_z']*mask + self.code_map['S_x']*(1-mask)
-            beta = tf.cast(beta, dtype=c64)
-            phi = tf.zeros(self.batch_size)
-            _, z = self.phase_estimation(self.info['psi_cached'], beta, 
-                                         angle=phi, sample=True)
-            z = tf.cast(z, dtype=tf.float32)
-            z = tf.reshape(z, shape=(self.batch_size,))
-        return z
 
 
     ### PROPERTIES
@@ -528,19 +481,14 @@ class GKP(tf_environment.TFEnvironment):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'stabilizers', 'mixed', 
-                            'fidelity']
+            assert mode in ['zero', 'pauli', 'fidelity']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
-            if mode == 'stabilizers':
-                self.calculate_reward = self.reward_stabilizers
             if mode == 'pauli':
                 if self.init == 'vac':
                     raise Exception('Pauli reward not supported for vac')
                 self.calculate_reward = self.reward_pauli
-            if mode == 'mixed':
-                self.calculate_reward = self.reward_mixed
             if mode == 'fidelity':
                 self.calculate_reward = self.reward_fidelity
         except: 
