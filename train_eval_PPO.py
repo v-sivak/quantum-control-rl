@@ -47,6 +47,7 @@ PPO.train_eval(
         train_episode_length = lambda x: 24,
         eval_episode_length = 24,
         reward_mode = 'pauli',
+        encoding = 'square',
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_4round',
         to_learn = {'alpha':True, 'beta':True, 'epsilon':True, 'phi':True},

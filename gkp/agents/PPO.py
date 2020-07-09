@@ -59,7 +59,8 @@ def train_eval(
         clock_period = 4,
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
-        reward_mode = 'stabilizers',
+        reward_mode = 'pauli',
+        encoding = 'square',
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
@@ -121,6 +122,7 @@ def train_eval(
             epoch number and returns int episode duration for this epoch.
         eval_episode_length (int): duration of evaluation episodes.
         reward_mode (str): see GKP docs for more details.
+        encoding (str): GKP encoding, either 'square' or 'hexagonal'
         quantum_circuit_type (str): see GKP docs for more details.
         action_script (str): name of action script, should be compatible with 
             this quantum_circuit_type. Action wrapper will select actions from
@@ -144,7 +146,7 @@ def train_eval(
     # Create training env and wrap it
     train_env = gkp_init(simulate=simulate,                 
                     init='random', H=horizon, T=clock_period,
-                    batch_size=train_batch_size,
+                    batch_size=train_batch_size, encoding=encoding,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
     
@@ -155,7 +157,7 @@ def train_eval(
     # Create evaluation env and wrap it
     eval_env = gkp_init(simulate=simulate,
                     init='random', H=horizon, T=clock_period,
-                    batch_size=eval_batch_size,
+                    batch_size=eval_batch_size, encoding=encoding,
                     episode_length=eval_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)

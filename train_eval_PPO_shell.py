@@ -14,39 +14,40 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\rnn_steps48fixed_lr1e-3_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\rnn_steps36_64_lr1e-4_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
     train_batch_size = 1000
-    replay_buffer_capacity = 50000
+    replay_buffer_capacity = 80000
     # Params for train
     normalize_observations = True
     normalize_rewards = False
     discount_factor = 1.0
-    lr = 1e-3
+    lr = 1e-4
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
     kl_cutoff_factor = 0
-    importance_ratio_clipping = 0.2
+    importance_ratio_clipping = 0.1
     value_pred_loss_coef = 0.005
     # Params for log, eval, save
     eval_batch_size = 200
     eval_interval = 100
     save_interval = 500
-    checkpoint_interval = None
+    checkpoint_interval = 500
     summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
     horizon = 1
     clock_period = 4
-    train_episode_length = lambda x: 48
-    eval_episode_length = 48
+    train_episode_length = lambda x: 36 if x<1000 else 64
+    eval_episode_length = 64
     reward_mode = 'pauli'
+    encoding = 'square'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
-    to_learn = {'alpha':True, 'beta':True, 'phi':True}
+    to_learn = {'alpha':True, 'beta':True, 'phi':False}
     observations_whitelist = ['msmt', 'clock']
     # Policy and value networks
     actor_fc_layers = ()
@@ -138,6 +139,9 @@ if __name__ == '__main__':
     
     parser.add_argument('--reward_mode', type=str,
                         default=reward_mode)
+
+    parser.add_argument('--encoding', type=str,
+                        default=encoding)
     
     parser.add_argument('--quantum_circuit_type', type=str,
                         default=quantum_circuit_type)
@@ -193,6 +197,7 @@ if __name__ == '__main__':
         train_episode_length=train_episode_length,
         eval_episode_length=args.eval_episode_length,
         reward_mode=args.reward_mode,
+        encoding=args.encoding,
         quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
         to_learn=to_learn,

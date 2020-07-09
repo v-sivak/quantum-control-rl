@@ -8,8 +8,8 @@ Created on Sun Jul  5 20:59:13 2020
 import tensorflow as tf
 from numpy import sqrt, pi, exp
 
-delta = 0.22
-eps = 0.22
+delta = 0.19
+eps = 0.19
 
 period = 6
 

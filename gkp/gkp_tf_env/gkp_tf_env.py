@@ -200,7 +200,7 @@ class GKP(tf_environment.TFEnvironment):
         # Initialize history of horizon H with actions=0 and measurements=1 
         self.history = tensor_spec.zero_spec_nest(self.action_spec(), 
                                       outer_dims=(self.batch_size,))
-        self.history['msmt'] = tf.zeros(shape=[self.batch_size,1,1])
+        self.history['msmt'] = tf.ones(shape=[self.batch_size,1,1])
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
         
