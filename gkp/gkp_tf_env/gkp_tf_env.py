@@ -101,8 +101,10 @@ class GKP(tf_environment.TFEnvironment):
             'alpha' : spec(1,2), 
             'beta'  : spec(1,2), 
             'phi'   : spec(1,1)}
-        if self.quantum_circuit_type == 'v3': 
+        if self.quantum_circuit_type in ['v3','v4']: 
             action_spec['epsilon'] = spec(1,2)
+        if self.quantum_circuit_type == 'v4':
+            del(action_spec['phi'])
 
         # Create time step spec
         observation_spec = {
@@ -111,8 +113,10 @@ class GKP(tf_environment.TFEnvironment):
             'phi'   : spec(self.H, 1),
             'msmt'  : spec(self.H, 1),
             'clock' : spec(1, self.T)}
-        if self.quantum_circuit_type == 'v3': 
+        if self.quantum_circuit_type in ['v3','v4']:
             observation_spec['epsilon'] = spec(self.H, 2)
+        if self.quantum_circuit_type == 'v4':
+            del(observation_spec['phi'])
         time_step_spec = ts.time_step_spec(observation_spec)
 
         self.quantum_circuit = self.__getattribute__(

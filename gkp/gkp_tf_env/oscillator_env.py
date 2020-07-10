@@ -205,6 +205,54 @@ class OscillatorGKP(GKP):
 
 
     @tf.function
+    def quantum_circuit_v4(self, psi, action):
+        """
+        Apply Kraus map version 4. This is a protocol proposed by Baptiste.
+        It essentially combines trimming and sharpening in a single round. 
+        Trimming is controlled by 'epsilon'. This is similar to 'v3', but
+        the last conditional displacement gate is replaced with classicaly
+        conditioned feedback.
+        
+        Input:
+            action -- dictionary of batched actions. Dictionary keys are
+                      'alpha', 'beta', 'epsilon'
+            
+        Output:
+            psi_final -- batch of final states; shape=[batch_size,N]
+            psi_cached -- batch of cached states; shape=[batch_size,N]
+            obs -- measurement outcomes; shape=[batch_size,1]
+            
+        """
+        # extract parameters
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        epsilon = self.vec_to_complex(action['epsilon'])
+        
+        Kraus = {}
+        T = {}
+        T['a'] = self.translate(alpha)
+        T['+b'] = self.translate(beta/2.0)
+        T['-b'] = tf.linalg.adjoint(T['+b'])
+        T['+e'] = self.translate(epsilon/2.0)
+        T['-e'] = tf.linalg.adjoint(T['+e'])
+
+        
+        chunk1 = batch_dot(T['-e'], T['-b']) - 1j*batch_dot(T['-e'], T['+b'])
+        chunk2 = batch_dot(T['+e'], T['-b']) + 1j*batch_dot(T['+e'], T['+b'])
+        
+        Kraus[0] = 1/2/sqrt(2)*(chunk1 + chunk2)
+        Kraus[1] = 1/2/sqrt(2)*(chunk1 - chunk2)
+
+        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        psi_cached = batch_dot(T['a'], psi)
+        psi = self.mcsim.run(psi_cached, self.mcsteps_round)
+        psi = self.normalize(psi)
+        psi_final, obs = self.measurement(psi, Kraus, sample=True)
+        
+        return psi_final, psi_cached, obs
+
+
+    @tf.function
     def phase_estimation(self, psi, beta, angle, sample=False):
         """
         One round of phase estimation. 

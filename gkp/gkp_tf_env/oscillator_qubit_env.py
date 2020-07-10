@@ -221,7 +221,7 @@ class OscillatorQubitGKP(GKP):
         
         Input:
             action -- dictionary of batched actions. Dictionary keys are
-                      'alpha', 'beta', 'phi'
+                      'alpha', 'beta', 'epsilon', 'phi'
             
         Output:
             psi_final -- batch of final states; shape=[batch_size,N]
@@ -270,6 +270,70 @@ class OscillatorQubitGKP(GKP):
         # Qubit gates
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
+        # Readout of finite duration
+        psi = self.mcsim.run(psi, self.mcsteps_read)
+        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi = self.mcsim.run(psi, self.mcsteps_read)
+        # Feedback delay
+        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        # Flip qubit conditioned on the measurement
+        psi_final = psi * tf.cast((obs==1), c64) \
+            + batch_dot(sx, psi) * tf.cast((obs==-1), c64)
+
+        return psi_final, psi_cached, obs
+
+
+    @tf.function
+    def quantum_circuit_v4(self, psi, action):
+        """
+        Apply sequence of quantum gates version 4. This is a protocol proposed 
+        by Baptiste. It essentially combines trimming and sharpening in a 
+        single round. Trimming is controlled by 'epsilon'. This is similar to 
+        'v3', but the last conditional displacement gate is replaced with 
+        classicaly conditioned feedback.
+        
+        Input:
+            action -- dictionary of batched actions. Dictionary keys are
+                      'alpha', 'beta', 'epsilon'
+            
+        Output:
+            psi_final -- batch of final states; shape=[batch_size,N]
+            psi_cached -- batch of cached states; shape=[batch_size,N]
+            obs -- measurement outcomes; shape=(batch_size,)
+            
+        """
+        # extract parameters
+        alpha = self.vec_to_complex(action['alpha'])
+        beta = self.vec_to_complex(action['beta'])
+        epsilon = self.vec_to_complex(action['epsilon'])
+
+        # Construct gates
+        Hadamard = tf.stack([self.hadamard]*self.batch_size)
+        sx = tf.stack([self.sx]*self.batch_size)
+        I = tf.stack([self.I]*self.batch_size)
+        Rxp = tf.stack([self.rxp]*self.batch_size)
+        Rxm = tf.stack([self.rxm]*self.batch_size)
+        T, CT = {}, {}
+        T['a'] = self.translate(alpha)
+        T['b'] = self.translate(beta/4.0)
+        T['e'] = self.translate(epsilon/2.0)
+        CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
+        CT['e'] = self.ctrl(tf.linalg.adjoint(T['e']), T['e'])
+
+        # Feedback translation
+        psi_cached = batch_dot(T['a'], psi)
+        # Qubit gates
+        psi = batch_dot(Hadamard, psi_cached)
+        # Conditional translation
+        psi = batch_dot(CT['b'], psi)
+        psi = self.mcsim.run(psi, self.mcsteps_gate)
+        psi = batch_dot(CT['b'], psi)
+        # Qubit rotation
+        psi = batch_dot(Rxp, psi)
+        # Conditional translation
+        psi = batch_dot(CT['e'], psi)
+        # Qubit rotation
+        psi = batch_dot(Rxm, psi)
         # Readout of finite duration
         psi = self.mcsim.run(psi, self.mcsteps_read)
         psi, obs = self.measurement(psi, self.P, sample=True)
