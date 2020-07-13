@@ -10,8 +10,8 @@ from numpy import sqrt, pi
 
 
 
-delta = 0.2
-eps = 0.2
+delta = 0.18
+eps = 0.18
 
 period = 8
 

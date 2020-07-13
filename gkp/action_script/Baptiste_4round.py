@@ -23,7 +23,7 @@ alpha = [delta+0j, 0+0j, 0+0j, -1j*delta]
 
 epsilon = [-1j*eps, eps+0j, -1j*eps, eps+0j]
 
-phi = [0, 0, pi/2, pi/2]
+phi = [pi/2, pi/2, pi/2, pi/2]
 
 
 mask = [1, 1, 0, 0]
