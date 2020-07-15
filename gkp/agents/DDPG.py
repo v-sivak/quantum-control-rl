@@ -11,7 +11,7 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.policies import policy_saver
 from tf_agents.agents.ddpg import actor_network, critic_network
 from tf_agents.utils import common
-from tf_agents.drivers import dynamic_episode_driver
+from tf_agents.drivers import dynamic_step_driver
 from tf_agents.eval import metric_utils
 from tf_agents.agents.ddpg import ddpg_agent
 from tf_agents.utils import timer
@@ -30,9 +30,11 @@ def train_eval(
         root_dir = None,
         random_seed = 0,
         # Params for collect
-        num_iterations = 1000000,
-        train_batch_size = 100,
+        num_iterations = 10000000,
+        train_batch_size = 1000,
         replay_buffer_capacity = 100000,
+        initial_collect_steps = 1000,
+        collect_steps_per_iteration = 100,
         ou_stddev = 0.2,
         ou_damping = 0.15,
         # Params for target update
@@ -43,14 +45,14 @@ def train_eval(
         gradient_clipping = None,
         dqda_clipping=None,
         discount_factor = 1.0,
-        critic_learning_rate = 1e-4,
-        actor_learning_rate = 1e-4,
+        critic_learning_rate = 1e-5,
+        actor_learning_rate = 1e-5,
         train_steps_per_iteration = 1,
         # Params for log, eval, save
         eval_batch_size = 200,
-        eval_interval = 100,
-        save_interval = 1000,
-        log_interval = 100,
+        eval_interval = 1000,
+        save_interval = 10000,
+        log_interval = 1000,
         # Params for environment
         simulate = 'oscillator',
         horizon = 4,
@@ -88,7 +90,7 @@ def train_eval(
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
     train_env = wrappers.FlattenObservationsWrapperTF(train_env,
                                 observations_whitelist=observations_whitelist)
-
+    train_env.reset()
     # Create evaluation env    
     eval_env = gkp_init(simulate=simulate,
                     init='random', H=horizon, batch_size=eval_batch_size,
@@ -161,7 +163,7 @@ def train_eval(
         gamma = discount_factor,
         reward_scale_factor = reward_scale_factor,
         gradient_clipping = gradient_clipping,
-        train_step_counter=global_step)
+        train_step_counter = global_step)
     
     tf_agent.initialize()
     eval_policy = tf_agent.policy
@@ -177,14 +179,18 @@ def train_eval(
 
     tf_agent.train = common.function(tf_agent.train)
 
-    # TODO: change this to dynamic step driver as in DDPG example???
-
     # Create the collection driver
-    collect_driver = dynamic_episode_driver.DynamicEpisodeDriver( 
+    initial_collect_driver = dynamic_step_driver.DynamicStepDriver(
         train_env,
         collect_policy,
         observers = [replay_buffer.add_batch] + train_metrics,
-        num_episodes = train_batch_size)
+        num_steps = initial_collect_steps)
+
+    collect_driver = dynamic_step_driver.DynamicStepDriver(
+        train_env,
+        collect_policy,
+        observers = [replay_buffer.add_batch] + train_metrics,
+        num_steps = collect_steps_per_iteration)
 
     # Create a checkpointer and load the saved agent 
     train_checkpointer = common.Checkpointer(
@@ -205,7 +211,7 @@ def train_eval(
 
     # Collect initial replay data
     if global_step.numpy() == 0 or replay_buffer.num_frames() == 0:
-        collect_driver.run()
+        initial_collect_driver.run()
         
     # Dataset generates trajectories with shape [Bx2x...]
     dataset = replay_buffer.as_dataset(
@@ -233,6 +239,8 @@ def train_eval(
     path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
     saved_model.save(path)
 
+    time_step = None
+    policy_state = collect_policy.get_initial_state(train_batch_size)
 
     # Training loop
     train_timer = timer.Timer()
@@ -240,11 +248,13 @@ def train_eval(
     for _ in range(num_iterations):
         # Collect new experience
         experience_timer.start()
-        collect_driver.run()
+        time_step, policy_state = collect_driver.run(
+            time_step=time_step,
+            policy_state=policy_state)
         experience_timer.stop()
         # Update the policy 
         train_timer.start()
-        for __ in range(train_steps_per_iteration):
+        for _ in range(train_steps_per_iteration):
             train_loss = train_step()
         train_timer.stop()
         

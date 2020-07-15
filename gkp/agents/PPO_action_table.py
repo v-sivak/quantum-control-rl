@@ -146,11 +146,18 @@ class ActionTableEpisodeDriver(dynamic_episode_driver.DynamicEpisodeDriver):
     table is constructed beforehand and off-loaded to FPGA.
     
     """
-    def __init__(self, env, policy, observers=None, num_episodes=1):
+    def __init__(self, env, policy, observers=None, num_episodes=1,
+                 minibatch_size=100):
+        self.I = round(num_episodes/minibatch_size)
         policy = ActionTableStochasticPolicyWrapper(policy, env)
         super(ActionTableEpisodeDriver, self).__init__(
-            env, policy, observers=observers, num_episodes=num_episodes)
+            env, policy, observers=observers, num_episodes=minibatch_size)
         
+    def run(self):
+        self.policy.make_table()
+        # Loop to randomize episode durations
+        for i in range(self.I):
+            super(ActionTableEpisodeDriver, self).run()
 
 
 
@@ -185,7 +192,8 @@ class ActionTableStochasticPolicyWrapper(tf_policy.Base):
     def _variables(self):
         return self._wrapped_policy.variables()
 
-    def make_table(self, policy):
+    def make_table(self, policy=None):
+        policy = self.wrapped_policy if policy==None else policy
         action_table = convert_policy_to_action_table(policy, self.H, self.T)
         self.table_lookup = lambda key: action_table_lookup(
             action_table, key, self.H, self.T)
@@ -203,10 +211,11 @@ class ActionTableStochasticPolicyWrapper(tf_policy.Base):
     def _distribution(self, time_step, policy_state):
         """ 
         Returns policy step in the format compaticle with PPO training.
+        Action is taken from the current table, and distribution_step.info
+        is taken from the wrapped policy (it is a dictionary with keys 'loc' 
+        and 'scale' which PPOAgent uses to reconstruct the distribution).
         
         """
-        if tf.reduce_all(time_step.is_first()):
-            self.make_table(self.wrapped_policy)
         distribution_step = self._wrapped_policy.distribution(
             time_step, policy_state)
         return policy_step.PolicyStep(
