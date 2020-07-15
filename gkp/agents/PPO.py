@@ -64,7 +64,6 @@ def train_eval(
         quantum_circuit_type = 'v3',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
-        observations_whitelist = None,
         # Policy and value networks
         actor_fc_layers = (),
         value_fc_layers = (),
@@ -129,9 +128,6 @@ def train_eval(
             this script if they are not to be learned.
         to_learn (dict, str:bool): dictionary mapping action dimensions to 
             bool flags. Specifies if the action should be learned or scripted.
-        observations_whitelist (list, optional): specifies which observations
-            should be kept by the FlattenObservationsWrapperTF. Defaults to
-            None, meaning that all observations are preserved and flattened.
         actor_fc_layers (tuple): sizes of fully connected layers in actor net.
         value_fc_layers (tuple): sizes of fully connected layers in value net.
         use_rnn (bool): whether to use LSTM units in the neural net.
@@ -151,8 +147,7 @@ def train_eval(
                     quantum_circuit_type=quantum_circuit_type)
     
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
-    train_env = wrappers.FlattenObservationsWrapperTF(train_env,
-                                observations_whitelist=observations_whitelist)
+    train_env = wrappers.FlattenObservationsWrapperTF(train_env)
 
     # Create evaluation env and wrap it
     eval_env = gkp_init(simulate=simulate,
@@ -163,8 +158,7 @@ def train_eval(
                     quantum_circuit_type=quantum_circuit_type)
     
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
-    eval_env = wrappers.FlattenObservationsWrapperTF(eval_env,
-                                observations_whitelist=observations_whitelist)
+    eval_env = wrappers.FlattenObservationsWrapperTF(eval_env)
 
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------

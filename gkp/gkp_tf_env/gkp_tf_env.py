@@ -92,7 +92,7 @@ class GKP(tf_environment.TFEnvironment):
     def create_specs(self):
         """
         Depending on the 'quantum_circuit_type', create action and time_step
-        specs required by parent class. 
+        specs required by parent class.
         
         """
         # Create action spec
@@ -108,15 +108,8 @@ class GKP(tf_environment.TFEnvironment):
 
         # Create time step spec
         observation_spec = {
-            'alpha' : spec(self.H, 2), 
-            'beta'  : spec(self.H, 2), 
-            'phi'   : spec(self.H, 1),
             'msmt'  : spec(self.H, 1),
             'clock' : spec(1, self.T)}
-        if self.quantum_circuit_type in ['v3','v4']:
-            observation_spec['epsilon'] = spec(self.H, 2)
-        if self.quantum_circuit_type == 'v4':
-            del(observation_spec['phi'])
         time_step_spec = ts.time_step_spec(observation_spec)
 
         self.quantum_circuit = self.__getattribute__(
@@ -150,10 +143,10 @@ class GKP(tf_environment.TFEnvironment):
             self.history[a].append(tf.expand_dims(action[a], axis=1))
         self.history['msmt'].append(tf.expand_dims(obs, axis=1))
         
-        # Make observations of horizon H, shape=[batch_size,H,dim]
-        observation = {key : tf.concat(val[-self.H:], axis=1) 
-                       for key, val in self.history.items()}
+        # Make observations of 'msmt' of horizon H, shape=[batch_size,H,1]
         # Also add clock of period 'T' to observations, shape=[batch_size,1,T]
+        observation = {}
+        observation['msmt'] = tf.concat(self.history['msmt'][-self.H:], axis=1)
         C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
         observation['clock'] = C
 
@@ -202,16 +195,16 @@ class GKP(tf_environment.TFEnvironment):
         self.info = {} # use to cache some intermediate results
 
         # Initialize history of horizon H with actions=0 and measurements=1 
-        self.history = tensor_spec.zero_spec_nest(self.action_spec(), 
-                                      outer_dims=(self.batch_size,))
+        self.history = tensor_spec.zero_spec_nest(
+            self.action_spec(), outer_dims=(self.batch_size,))
         self.history['msmt'] = tf.ones(shape=[self.batch_size,1,1])
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
         
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
-        observation = {key : tf.concat(val[-self.H:], axis=1) 
-                       for key, val in self.history.items()}
-        observation['clock'] = tf.zeros(shape=[self.batch_size,1,self.T])
+        observation = {
+            'msmt'  : tf.concat(self.history['msmt'][-self.H:], axis=1), 
+            'clock' : tf.zeros(shape=[self.batch_size,1,self.T])}
 
         # Will keep track of code flips in symmetrized phase estimation
         if self.quantum_circuit_type == 'v2': 

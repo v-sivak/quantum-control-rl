@@ -14,12 +14,12 @@ from gkp.agents import PPO
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\rnn_steps36_64_lr1e-4_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\mlp3_steps36_64_Kerr20_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
     train_batch_size = 1000
-    replay_buffer_capacity = 80000
+    replay_buffer_capacity = 70000
     # Params for train
     normalize_observations = True
     normalize_rewards = False
@@ -39,20 +39,19 @@ if __name__ == '__main__':
     summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
-    horizon = 1
+    horizon = 4
     clock_period = 4
-    train_episode_length = lambda x: 36 if x<1000 else 64
+    train_episode_length = lambda x: 64
     eval_episode_length = 64
     reward_mode = 'pauli'
     encoding = 'square'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':False}
-    observations_whitelist = ['msmt', 'clock']
     # Policy and value networks
-    actor_fc_layers = ()
-    value_fc_layers = ()
-    use_rnn = True
+    actor_fc_layers = (200,100,50)
+    value_fc_layers = (200,100,50)
+    use_rnn = False
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     
@@ -201,7 +200,6 @@ if __name__ == '__main__':
         quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
         to_learn=to_learn,
-        observations_whitelist=observations_whitelist,
         actor_fc_layers=args.actor_fc_layers,
         value_fc_layers=args.value_fc_layers,
         use_rnn=args.use_rnn,
