@@ -9,7 +9,7 @@ import tensorflow as tf
 from tf_agents.environments.tf_wrappers import TFEnvironmentBaseWrapper
 from tf_agents import specs
 from numpy import pi, sqrt
-from tf_agents.utils import common
+from tf_agents.utils import common, nest_utils
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import time_step as ts
 
@@ -119,64 +119,37 @@ class FlattenObservationsWrapperTF(TFEnvironmentBaseWrapper):
 
 
 class ActionWrapper(TFEnvironmentBaseWrapper):
-    """
-    Agent produces input action as real-valued tensor of shape [batch_size,?]
-    where '?' depends on what action dimensions are learned or scripted.
-    
+    """    
     Wrapper produces a dictionary with action components such as 'alpha', 
     'beta', 'epsilon', 'phi' as dictionary keys. Some action components are
     taken from the action script provided at initialization, and some are 
     taken from the input action produced by the agent. Parameter 'to_learn'
     controls which action components are to be learned. It is also possible
     to alternate between learned and scripted values with 'use_mask' flag.
-    During the masked rounds there is still a choice to either use the 
-    scripted value of 'beta' or do the projection from qudrant and only 
-    learning the quadrant (i.e. to alternate between q and p stabilizers).
     
     """
     def __init__(self, env, action_script, to_learn, use_mask=True):
         """
-        Input:
-            env -- GKP environment
+        Args:
+            env: GKP environmen
+            action_script: module or class with attributes corresponding to
+                           action components such as 'alpha', 'phi' etc
+            to_learn: dictionary of bool values for action components 
+            use_mask: flag to control masking of action components
+            
+        """    
+        super(ActionWrapper, self).__init__(env)
 
-            action_script -- module or class with attributes corresponding to
-                              action components such as 'alpha', 'phi' etc
-            
-            to_learn -- dictionary of bool values for action components 
-            use_mask -- flag to control masking of 'beta' and 'alpha'
-            
-        """
-        # determine the size of the input action vector 
-        dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
-        self.input_dim = sum([dims_map[a] for a, C in to_learn.items() if C])
-        
-        # take care of masked rounds
+        self.scale = {'alpha' : 1, 'beta' : 1, 'epsilon' : 1, 'phi' : pi}
+        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
+        self.period = action_script.period # periodicity of the protocol
+        self.to_learn = to_learn
         self.use_mask = use_mask
         self.mask = action_script.mask
-        self.learn_masked_beta = False # use scripted 'beta' on masked rounds
-        if use_mask: 
-            self.input_dim += 2 # learn quadrant of 'alpha' on masked rounds
-            if self.learn_masked_beta: self.input_dim += 2
-            self.a_amp = action_script.a_amp
-            self.b_amp = action_script.b_amp
         
-        super(ActionWrapper, self).__init__(env)
-        self._action_spec = specs.BoundedTensorSpec(
-            shape=[self.input_dim], dtype=tf.float32, minimum=-1, maximum=1)
-
-        self.period = action_script.period # periodicity of the protocol
-        self.scale = {
-            'alpha' : 1, 
-            'beta' : 1, #2*sqrt(pi)
-            'epsilon' : 1, 
-            'phi' : pi}
-        self.to_learn = to_learn
-        self.dims_map = dims_map
-        
-        # ordered list of action components
-        action_order = ['alpha', 'beta', 'epsilon', 'phi']
-        action_order = [a for a in action_order if a in to_learn.keys()]
-        self.action_order = action_order
+        self._action_spec = {a : specs.BoundedTensorSpec(
+            shape=[self.dims_map[a]], dtype=tf.float32, minimum=-1, maximum=1)
+            for a, C in to_learn.items() if C}
         
         # load the script of actions
         self.script = {}
@@ -191,39 +164,33 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def wrap(self, input_action):
         """
-        Input:
-            input_action -- batched action tensor produced by the neural net
+        Args:
+            input_action (dict): nested tensor action produced by the neural
+                                 net. Dictionary keys are those marked True 
+                                 in 'to_learn'.
             
-        Output:
-            actions -- dictionary of batched actions. Dictionary keys are same
-                        as supplied in 'to_learn'
-        
+        Returns:
+            actions (dict): nested tensor action which includes all action 
+                            components expected by the GKP class. 
+            
         """
         # step counter to follow the script of periodicity 'period'
         i = self._env._elapsed_steps % self.period
-        out_shape = tf.constant(input_action.shape[0], shape=(1,))
-        assert input_action.shape[1] == self.input_dim
+        out_shape = nest_utils.get_outer_shape(input_action, self._action_spec)
         
         action = {}
-        for a in self.action_order:
-            # if not learning: replicate scripted action
-            if not self.to_learn[a]:
+        for a in self.to_learn.keys():
+            C1 = self.use_mask and self.mask[i]==0 and a in ['alpha','beta']
+            C2 = not self.to_learn[a]
+            if C1 or C2: # if not learning: replicate scripted action
                 A = common.replicate(self.script[a][i], out_shape)
                 if self.dims_map[a] == 2:
                     action[a] = tf.concat([real(A), imag(A)], axis=1)
                 if self.dims_map[a] == 1:
                     action[a] = real(A)
-            # if learning: take a slice of input tensor
-            else:
-                action[a] = input_action[:,:self.dims_map[a]]
-                action[a] *= self.scale[a]
-                input_action = input_action[:,self.dims_map[a]:]
-
-        # Mask 'beta' and 'alpha' actions
-        if self.use_mask and self.mask[i]==0:
-            for a in ['alpha', 'beta']:
-                A = common.replicate(self.script[a][i], out_shape)
-                action[a] = tf.concat([real(A), imag(A)], axis=1)
+            else: # if learning: rescale input tensor
+                action[a] = input_action[a]*self.scale[a]
+        
         return action
     
     def action_spec(self):
@@ -231,13 +198,13 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
     def _step(self, action):
         """
-        Take the 'action' tensor produced by the neural net and wrap it into
-        dictionary format expected by the environment.
+        Take the nested tensor 'action' produced by the neural net and wrap it 
+        into dictionary format expected by the environment.
         
-        Multiply the neural net prediction by the measurement outcome of the 
-        last time step. This ensures that the Markovian part of the feedback
-        is present, and the agent can focus its efforts on learning residual
-        part.
+        Residual feedback learning trick: multiply the neural net prediction 
+        of 'alpha' by the measurement outcome of the last time step. This 
+        ensures that the Markovian part of the feedback is present, and the 
+        agent can focus its efforts on learning residual part.
         
         """
         action = self.wrap(action)
