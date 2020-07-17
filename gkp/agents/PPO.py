@@ -23,8 +23,6 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.utils.rl_train_utils import compute_avg_return, save_log
 import gkp.action_script as act_scripts
 
-# TODO: find a more elegant way to set 'episode_length' attr of a wrapped env
-
 def random_sample_episode_length(x):
     # sample random episode duration in the range [1..x]
     return np.random.randint(1, x)
@@ -145,9 +143,7 @@ def train_eval(
                     batch_size=train_batch_size, encoding=encoding,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
-    
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
-    train_env = wrappers.FlattenObservationsWrapperTF(train_env)
 
     # Create evaluation env and wrap it
     eval_env = gkp_init(simulate=simulate,
@@ -156,9 +152,7 @@ def train_eval(
                     episode_length=eval_episode_length,
                     reward_mode=reward_mode, 
                     quantum_circuit_type=quantum_circuit_type)
-    
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
-    eval_env = wrappers.FlattenObservationsWrapperTF(eval_env)
 
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------
@@ -182,17 +176,26 @@ def train_eval(
         observation_spec = train_env.observation_spec()
         action_spec = train_env.action_spec()
         
+        # Preprocessing: flatten and concatenate observation components
+        preprocessing_layers = {
+            obs : tf.keras.layers.Flatten() for obs in observation_spec.keys()}
+        preprocessing_combiner = tf.keras.layers.Concatenate(axis=-1)
+        
         # Define actor network and value network
         if use_rnn:
             actor_net = actor_distribution_rnn_network.ActorDistributionRnnNetwork(
                 input_tensor_spec = observation_spec,
                 output_tensor_spec = action_spec,
+                preprocessing_layers = preprocessing_layers,
+                preprocessing_combiner = preprocessing_combiner,
                 input_fc_layer_params = None,
                 lstm_size = actor_lstm_size,
                 output_fc_layer_params = actor_fc_layers)
     
             value_net = value_rnn_network.ValueRnnNetwork(
                 input_tensor_spec = observation_spec,
+                preprocessing_layers = preprocessing_layers,
+                preprocessing_combiner = preprocessing_combiner,
                 input_fc_layer_params = None,
                 lstm_size = value_lstm_size,
                 output_fc_layer_params = value_fc_layers)
@@ -200,10 +203,14 @@ def train_eval(
             actor_net = actor_distribution_network.ActorDistributionNetwork(
                 input_tensor_spec = observation_spec,
                 output_tensor_spec = action_spec,
+                preprocessing_layers = preprocessing_layers,
+                preprocessing_combiner = preprocessing_combiner,
                 fc_layer_params = actor_fc_layers)
         
             value_net = value_network.ValueNetwork(
                 input_tensor_spec = observation_spec,
+                preprocessing_layers = preprocessing_layers,
+                preprocessing_combiner = preprocessing_combiner,
                 fc_layer_params = value_fc_layers)
     
         # Create PPO agent
@@ -288,7 +295,7 @@ def train_eval(
         for epoch in range(num_iterations):
             # Collect new experience
             experience_timer.start()
-            train_env._env._env.episode_length = train_episode_length(epoch)
+            train_env._env.episode_length = train_episode_length(epoch)
             collect_driver.run()
             experience_timer.stop()
             # Update the policy 

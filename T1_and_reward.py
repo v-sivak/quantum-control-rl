@@ -28,27 +28,25 @@ env = gkp_init(simulate='oscillator',
                reward_mode='fidelity', quantum_circuit_type='v2',
                encoding='square')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':False}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env,
-                        observations_whitelist=['msmt','clock'])
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-exp_name = 'mlp3_steps36_64_Kerr10_v2'
-policy_dir = r'policy\000110000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
-
-
-# # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'phi':False}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
+
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
+# exp_name = 'test'
+# policy_dir = r'policy\000040000'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
+
+
+# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-reps = 4 # serialize episode collection in a loop if can't fit into GPU memory
+reps = 1 # serialize episode collection in a loop if can't fit into GPU memory
 B = env.batch_size
 states = ['X+', 'Y+', 'Z+']
 results = {state : np.zeros(env.episode_length) for state in states}
@@ -60,7 +58,7 @@ assert env.reward_mode == 'fidelity'
 
 for state in states:
     if '_env' in env.__dir__(): 
-        env._env._env.init = state
+        env._env.init = state
     else:
         env.init = state
 
