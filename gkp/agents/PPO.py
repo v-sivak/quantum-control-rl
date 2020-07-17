@@ -63,6 +63,7 @@ def train_eval(
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
         # Policy and value networks
+        ActorNet = actor_distribution_network.ActorDistributionNetwork,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = True,
@@ -126,6 +127,9 @@ def train_eval(
             this script if they are not to be learned.
         to_learn (dict, str:bool): dictionary mapping action dimensions to 
             bool flags. Specifies if the action should be learned or scripted.
+        ActorNet (network.DistributionNetwork): a distribution actor network 
+            to use for training. The default is ActorDistributionNetwork from
+            tf-agents, but this can also be customized.
         actor_fc_layers (tuple): sizes of fully connected layers in actor net.
         value_fc_layers (tuple): sizes of fully connected layers in value net.
         use_rnn (bool): whether to use LSTM units in the neural net.
@@ -200,7 +204,7 @@ def train_eval(
                 lstm_size = value_lstm_size,
                 output_fc_layer_params = value_fc_layers)
         else:
-            actor_net = actor_distribution_network.ActorDistributionNetwork(
+            actor_net = ActorNet(
                 input_tensor_spec = observation_spec,
                 output_tensor_spec = action_spec,
                 preprocessing_layers = preprocessing_layers,

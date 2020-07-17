@@ -10,11 +10,13 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
+from tf_agents.networks import actor_distribution_network
+from gkp.agents import actor_distribution_network_gkp
 
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\mlp3_steps36_64_Kerr20_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\test'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
@@ -41,14 +43,15 @@ if __name__ == '__main__':
     simulate = 'oscillator'
     horizon = 4
     clock_period = 4
-    train_episode_length = lambda x: 64
-    eval_episode_length = 64
+    train_episode_length = lambda x: 36 if x<1000 else 48
+    eval_episode_length = 48
     reward_mode = 'pauli'
     encoding = 'square'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':False}
     # Policy and value networks
+    ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
     actor_fc_layers = (200,100,50)
     value_fc_layers = (200,100,50)
     use_rnn = False
@@ -200,6 +203,7 @@ if __name__ == '__main__':
         quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
         to_learn=to_learn,
+        ActorNet=ActorNet,
         actor_fc_layers=args.actor_fc_layers,
         value_fc_layers=args.value_fc_layers,
         use_rnn=args.use_rnn,

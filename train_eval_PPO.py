@@ -10,10 +10,11 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from gkp.agents import PPO
-
+from tf_agents.networks import actor_distribution_network
+from gkp.agents import actor_distribution_network_gkp
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-root_dir = os.path.join(root_dir,'test')
+root_dir = os.path.join(root_dir,'test2')
 
 
 PPO.train_eval(
@@ -52,6 +53,7 @@ PPO.train_eval(
         action_script = 'phase_estimation_symmetric_with_trim_4round',
         to_learn = {'alpha':True, 'beta':True, 'phi':False},
         # Policy and value networks
+        ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (200,100,50),
         value_fc_layers = (200,100,50),
         use_rnn = False,
