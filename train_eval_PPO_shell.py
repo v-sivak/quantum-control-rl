@@ -43,6 +43,7 @@ if __name__ == '__main__':
     simulate = 'oscillator'
     horizon = 4
     clock_period = 4
+    attention_step = 1,
     train_episode_length = lambda x: 36 if x<1000 else 48
     eval_episode_length = 48
     reward_mode = 'pauli'
@@ -51,7 +52,7 @@ if __name__ == '__main__':
     action_script = 'phase_estimation_symmetric_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':False}
     # Policy and value networks
-    ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
+    ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP
     actor_fc_layers = (200,100,50)
     value_fc_layers = (200,100,50)
     use_rnn = False
@@ -135,6 +136,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--clock_period', type=int, 
                         default=clock_period)
+
+    parser.add_argument('--attention_step', type=int, 
+                        default=attention_step)
     
     parser.add_argument('--eval_episode_length', type=int, 
                         default=eval_episode_length)
@@ -196,6 +200,7 @@ if __name__ == '__main__':
         simulate=args.simulate,
         horizon=args.horizon,
         clock_period=args.clock_period,
+        attention_step=args.attention_step,
         train_episode_length=train_episode_length,
         eval_episode_length=args.eval_episode_length,
         reward_mode=args.reward_mode,

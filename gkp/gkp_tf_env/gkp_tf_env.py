@@ -65,6 +65,7 @@ class GKP(tf_environment.TFEnvironment):
         self.N = 100 # size of the oscillator Hilbert space truncation
         self.H = 1   # horizon for history returned in observations
         self.T = 4   # periodicity of the 'clock' observation
+        self.attn_step = 1 # step for attention to measurement outcomes
         self.episode_length = 20
         self.batch_size = 50
         self.init = 'vac'
@@ -144,9 +145,12 @@ class GKP(tf_environment.TFEnvironment):
         self.history['msmt'].append(tf.expand_dims(obs, axis=1))
         
         # Make observations of 'msmt' of horizon H, shape=[batch_size,H,1]
+        # measurements are selected with hard-coded attention step.
         # Also add clock of period 'T' to observations, shape=[batch_size,1,T]
         observation = {}
-        observation['msmt'] = tf.concat(self.history['msmt'][-self.H:], axis=1)
+        H = [self.history['msmt'][-self.attn_step*i-1] for i in range(self.H)]
+        H.reverse() # to keep chronological order of measurements
+        observation['msmt'] = tf.concat(H, axis=1)
         C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
         observation['clock'] = C
 
@@ -197,9 +201,12 @@ class GKP(tf_environment.TFEnvironment):
         # Initialize history of horizon H with actions=0 and measurements=1 
         self.history = tensor_spec.zero_spec_nest(
             self.action_spec(), outer_dims=(self.batch_size,))
-        self.history['msmt'] = tf.ones(shape=[self.batch_size,1,1])
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
+        # Initialize history of horizon H*attn_step with measurements=1 
+        m = tf.ones(shape=[self.batch_size,1,1])
+        self.history['msmt'] = [m]*self.H*self.attn_step
+        
         
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {

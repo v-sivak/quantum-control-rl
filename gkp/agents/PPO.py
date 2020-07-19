@@ -55,6 +55,7 @@ def train_eval(
         simulate = 'oscillator',
         horizon = 1,
         clock_period = 4,
+        attention_step = 1,
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
         reward_mode = 'pauli',
@@ -115,6 +116,10 @@ def train_eval(
         horizon (int): how many past observations to return. Use 1 for RNNs 
             and >=1 for MLP policies. 
         clock_period (int): period for the one-hot encoded clock observation.
+        attention_step (int): step size for hard-coded attention mechanism.
+            For example, set to 4 to return history of measurement oucomes 
+            separated by 4 steps -- when the same stabilizer is measured in
+            the square code. In hexagonal code this can be 2. 
         train_episode_length (callable: int -> int): function that defines the 
             schedule for training episode durations. Takes as argument the int 
             epoch number and returns int episode duration for this epoch.
@@ -145,7 +150,7 @@ def train_eval(
     train_env = gkp_init(simulate=simulate,                 
                     init='random', H=horizon, T=clock_period,
                     batch_size=train_batch_size, encoding=encoding,
-                    reward_mode=reward_mode, 
+                    reward_mode=reward_mode, attn_step=attention_step,
                     quantum_circuit_type=quantum_circuit_type)
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
 
@@ -154,7 +159,7 @@ def train_eval(
                     init='random', H=horizon, T=clock_period,
                     batch_size=eval_batch_size, encoding=encoding,
                     episode_length=eval_episode_length,
-                    reward_mode=reward_mode, 
+                    reward_mode=reward_mode, attn_step=attention_step,
                     quantum_circuit_type=quantum_circuit_type)
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
 

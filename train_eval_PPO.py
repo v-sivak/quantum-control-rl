@@ -14,7 +14,7 @@ from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-root_dir = os.path.join(root_dir,'test2')
+root_dir = os.path.join(root_dir,'test')
 
 
 PPO.train_eval(
@@ -45,6 +45,7 @@ PPO.train_eval(
         simulate = 'oscillator',
         horizon = 4,
         clock_period = 4,
+        attention_step = 4,
         train_episode_length = lambda x: 12,
         eval_episode_length = 12,
         reward_mode = 'pauli',
