@@ -24,32 +24,32 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 
 env = gkp_init(simulate='oscillator', 
-               init='X+', H=4, T=4, batch_size=2500, episode_length=400, 
+               init='X+', H=3, T=4, attn_step=4, batch_size=2500, episode_length=400, 
                reward_mode='fidelity', quantum_circuit_type='v2',
                encoding='square')
 
-# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'phi':False}
-# env = wrappers.ActionWrapper(env, action_script, to_learn)
-
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-# exp_name = 'test'
-# policy_dir = r'policy\000040000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
-
-
-# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+to_learn = {'alpha':True, 'beta':True, 'phi':False}
+env = wrappers.ActionWrapper(env, action_script, to_learn)
+
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
+exp_name = 'mlp3_2head_H3T4Att4_steps36_64_v2'
+policy_dir = r'policy\000240000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
+
+
+
+# # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-reps = 1 # serialize episode collection in a loop if can't fit into GPU memory
+reps = 4 # serialize episode collection in a loop if can't fit into GPU memory
 B = env.batch_size
 states = ['X+', 'Y+', 'Z+']
-results = {state : np.zeros(env.episode_length) for state in states}
 rewards = {state : np.zeros((env.episode_length, B*reps))
            for state in states}
 
@@ -61,8 +61,6 @@ for state in states:
         env._env.init = state
     else:
         env.init = state
-
-    pauli = env.code_map[state[0]] # which Pauli to measure
     
     # Collect batch of episodes, loop if can't fit in GPU memory
     for i in range(reps):
@@ -82,7 +80,7 @@ for state in states:
 # Plot average reward from every time step and fit T1
 fig, ax = plt.subplots(1,1)
 ax.set_xlabel('Step')
-ax.set_ylabel('Reward')
+ax.set_ylabel(r'$\langle X\rangle$, $\langle Y\rangle$, $\langle Z\rangle$')
 palette = plt.get_cmap('tab10')
 steps = np.arange(env.episode_length)
 for i, state in enumerate(states):
@@ -97,3 +95,4 @@ for i, state in enumerate(states):
             linestyle='--', color=palette(i))
 ax.set_title('Logical lifetime')
 ax.legend()
+    
