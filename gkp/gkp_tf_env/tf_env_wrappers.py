@@ -151,15 +151,11 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             shape=[self.dims_map[a]], dtype=tf.float32, minimum=-1, maximum=1)
             for a, C in to_learn.items() if C}
         
-        # load the script of actions
-        self.script = {}
-        for a in to_learn.keys():
-            if a in action_script.__dir__():
-                a_tf = tf.constant(action_script.__getattribute__(a),
-                                    shape=[self.period,1], dtype=tf.complex64)
-                self.script[a] = a_tf
-            else:
-                raise ValueError(a + ' is not in the provided action script.')
+        # load the script of actions and convert to tensors
+        self.script = action_script.script
+        for a, val in self.script.items():
+            self.script[a] = tf.constant(val, shape=[self.period,1], 
+                                         dtype=tf.complex64)
 
 
     def wrap(self, input_action):
@@ -180,7 +176,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         
         action = {}
         for a in self.to_learn.keys():
-            C1 = self.use_mask and self.mask[i]==0 and a in ['alpha','beta']
+            C1 = self.use_mask and self.mask[a][i]==0
             C2 = not self.to_learn[a]
             if C1 or C2: # if not learning: replicate scripted action
                 A = common.replicate(self.script[a][i], out_shape)

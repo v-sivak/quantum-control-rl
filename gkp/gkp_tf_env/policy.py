@@ -57,13 +57,10 @@ class ScriptedPolicy(tf_policy.Base):
         """        
         self.period = action_script.period # periodicity of the protocol
         # load the script of actions
-        action_components = ['alpha', 'beta', 'epsilon', 'phi']
-        self.script = {}
-        for a in action_components:
-            if a in action_script.__dir__():
-                a_tf = tf.constant(action_script.__getattribute__(a),
-                                   shape=[self.period,1], dtype=tf.complex64)
-                self.script[a] = a_tf
+        self.script = action_script.script
+        for a, val in self.script.items():
+            self.script[a] = tf.constant(val, shape=[self.period,1], 
+                                         dtype=tf.complex64)
 
         # Calculate specs and call init of parent class
         self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
