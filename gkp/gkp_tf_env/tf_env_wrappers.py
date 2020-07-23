@@ -154,8 +154,11 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         # load the script of actions and convert to tensors
         self.script = action_script.script
         for a, val in self.script.items():
-            self.script[a] = tf.constant(val, shape=[self.period,1], 
-                                         dtype=tf.complex64)
+            if self.dims_map[a] == 2: 
+                A = tf.stack([real(val), imag(val)], axis=-1)
+            elif self.dims_map[a] == 1:
+                A = tf.constant(val, shape=[self.period,1])
+            self.script[a] = tf.cast(A, tf.float32)
 
 
     def wrap(self, input_action):
@@ -179,14 +182,10 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             C1 = self.use_mask and self.mask[a][i]==0
             C2 = not self.to_learn[a]
             if C1 or C2: # if not learning: replicate scripted action
-                A = common.replicate(self.script[a][i], out_shape)
-                if self.dims_map[a] == 2:
-                    action[a] = tf.concat([real(A), imag(A)], axis=1)
-                if self.dims_map[a] == 1:
-                    action[a] = real(A)
+                action[a] = common.replicate(self.script[a][i], out_shape)
             else: # if learning: rescale input tensor
                 action[a] = input_action[a]*self.scale[a]
-        
+
         return action
     
     def action_spec(self):

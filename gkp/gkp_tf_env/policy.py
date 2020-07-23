@@ -56,19 +56,21 @@ class ScriptedPolicy(tf_policy.Base):
                              'epsilon', 'phi' and 'period'.
         """        
         self.period = action_script.period # periodicity of the protocol
-        # load the script of actions
-        self.script = action_script.script
-        for a, val in self.script.items():
-            self.script[a] = tf.constant(val, shape=[self.period,1], 
-                                         dtype=tf.complex64)
+        self.script = action_script.script # load the script of actions
 
         # Calculate specs and call init of parent class
         self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
         spec = lambda x: specs.TensorSpec(shape=[x], dtype=tf.float32)
         action_spec = {a : spec(self.dims_map[a]) for a in self.script.keys()}        
-        policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32, 
-                                             name='clock')
-        
+        policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32)
+
+        for a, val in self.script.items():
+            if self.dims_map[a] == 2: 
+                A = tf.stack([real(val), imag(val)], axis=-1)
+            elif self.dims_map[a] == 1:
+                A = tf.constant(val, shape=[self.period,1])
+            self.script[a] = tf.cast(A, tf.float32)
+                
         super(ScriptedPolicy, self).__init__(time_step_spec, action_spec,
                                               policy_state_spec,
                                               automatic_state_reset=True)
@@ -82,15 +84,12 @@ class ScriptedPolicy(tf_policy.Base):
         for a in self.script:
             A = common.replicate(self.script[a][i], out_shape)
             if a == 'alpha': # do Markovian feedback
-                m = time_step.observation['msmt'][:,-1,:]
-                A *= tf.cast(m, dtype=tf.complex64)
+                A *= time_step.observation['msmt'][:,-1,:]
                 if policy_state[0] == 0: A *= 0
-            if self.dims_map[a] == 2:
-                action[a] = tf.concat([real(A), imag(A)], axis=1)
-            if self.dims_map[a] == 1:
-                action[a] = real(A)                
+            action[a] = A         
 
         return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
+
 
 
 class SupervisedNeuralNet(tf_policy.Base):
