@@ -7,10 +7,11 @@ Created on Mon May  4 14:30:36 2020
 import qutip as qt
 import tensorflow as tf
 from numpy import sqrt, pi
-from gkp.gkp_tf_env.gkp_tf_env import GKP
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from gkp.gkp_tf_env.tf_quantum_trajectory import QuantumTrajectorySim
+
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 
 
 class OscillatorQubitGKP(GKP):
@@ -392,5 +393,3 @@ class OscillatorQubitGKP(GKP):
                   
         """
         return batch_dot(self.P[0], U0) + batch_dot(self.P[1], U1)
-    
-

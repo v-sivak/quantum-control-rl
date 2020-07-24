@@ -10,11 +10,12 @@ from tensorflow.keras.backend import batch_dot
 import tensorflow_probability as tfp
 
 
-class QuantumTrajectorySim(object):
+class QuantumTrajectorySim:
     """
     Tensorflow implementation of the Monte Carlo quantum trajectory simulator.
     
     """
+
     def __init__(self, Kraus):
         """
         Input:
@@ -25,35 +26,32 @@ class QuantumTrajectorySim(object):
         """
         self.Kraus = Kraus
 
-
     def _step(self, j, psi, steps):
         """
         One step in the Markov chain.
         
         """
         traj, p, norm = {}, {}, {}
-        cumulant = tf.zeros([psi.shape[0],1])
-        prob = tf.random.uniform([psi.shape[0],1])
+        cumulant = tf.zeros([psi.shape[0], 1])
+        prob = tf.random.uniform([psi.shape[0], 1])
         state = psi
         for i in self.Kraus.keys():
             # Compute a trajectory for this Kraus operator
-            traj[i] = batch_dot(self.Kraus[i], psi)            # shape = [b,N]
-            p[i] = batch_dot(tf.math.conj(traj[i]), traj[i])   # shape = [b,1]
+            traj[i] = batch_dot(self.Kraus[i], psi)  # shape = [b,N]
+            p[i] = batch_dot(tf.math.conj(traj[i]), traj[i])  # shape = [b,1]
             p[i] = tf.math.real(p[i])
-            norm[i] = tf.math.sqrt(p[i]) + 1e-15               # shape = [b,1]
+            norm[i] = tf.math.sqrt(p[i]) + 1e-15  # shape = [b,1]
             norm[i] = tf.cast(norm[i], tf.complex64)
             traj[i] = traj[i] / norm[i]
             # Select this trajectory depending on sampled 'prob'
-            mask = tf.math.logical_and(prob > cumulant, prob < cumulant+p[i])
+            mask = tf.math.logical_and(prob > cumulant, prob < cumulant + p[i])
             state = tf.where(mask, traj[i], state)
             # Update cumulant
             cumulant += p[i]
-        return [j+1, state, steps]
-
+        return [j + 1, state, steps]
 
     def _cond(self, j, psi, steps):
         return tf.less(j, steps)
-
 
     def normalize(self, state):
         """
@@ -63,11 +61,10 @@ class QuantumTrajectorySim(object):
             state -- batch of state vectors; shape=[batch_size,NH]
             
         """
-        norm = tf.math.real(batch_dot(tf.math.conj(state),state))
+        norm = tf.math.real(batch_dot(tf.math.conj(state), state))
         norm = tf.cast(tf.math.sqrt(norm), tf.complex64)
         state = state / norm
         return state
-
 
     @tf.function
     def run(self, psi, steps):
@@ -81,12 +78,11 @@ class QuantumTrajectorySim(object):
         """
         psi = self.normalize(psi)
         j = tf.constant(0)
-        _, psi_new, steps = tf.while_loop(self._cond, self._step, 
-                                          loop_vars=[j, psi, steps])
-        
+        _, psi_new, steps = tf.while_loop(
+            self._cond, self._step, loop_vars=[j, psi, steps]
+        )
+
         # Check for NaN
         mask = tf.math.is_nan(tf.math.real(psi_new))
         psi_new = tf.where(mask, psi, psi_new)
         return psi_new
-    
-    
