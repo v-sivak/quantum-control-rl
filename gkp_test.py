@@ -11,6 +11,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
 import tensorflow as tf
+import matplotlib.pyplot as plt
 from gkp.gkp_tf_env import policy as plc
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
@@ -19,7 +20,7 @@ from gkp.gkp_tf_env import gkp_init
 
 env = gkp_init(simulate='oscillator',
                 init='vac', H=1, batch_size=1, episode_length=100, 
-                reward_mode = 'stabilizers', quantum_circuit_type='v2')
+                reward_mode = 'zero', quantum_circuit_type='v2')
 
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
@@ -31,7 +32,6 @@ if 0:
     for state_name in env.states.keys():
         state = tf.reshape(env.states[state_name], [1,env.N])
         hf.plot_wigner_tf_wrapper(state, title=state_name)
-
 
 ### Simulate one episode
 if 1:
@@ -45,6 +45,4 @@ if 1:
         #                           title=str(env._elapsed_steps))
     hf.plot_wigner_tf_wrapper(env.info['psi_cached'])
 
-
-
-
+plt.show()
