@@ -63,3 +63,34 @@ def num(N, dtype=tf.complex64):
         Tensor([N, N], dtype): NxN number operator
     """
     return tf.cast(diag(tf.range(0, N)), dtype=dtype)
+
+
+def position(N, dtype=tf.complex64):
+    """Returns the position operator in the Fock basis.
+
+    Args:
+        N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
+
+    Returns:
+        Tensor([N, N], dtype): NxN position operator
+    """
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
+    return tf.cast((a_dag + a) / sqrt2, dtype=dtype)
+
+
+def momentum(N, dtype=tf.complex64):
+    """Returns the momentum operator in the Fock basis.
+
+    Args:
+        N (int): Dimension of Hilbert space
+    
+    Returns:
+        Tensor([N, N], c64): NxN momentum operator
+    """
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
+    return tf.cast(1j * (a_dag - a) / sqrt2, dtype=dtype)

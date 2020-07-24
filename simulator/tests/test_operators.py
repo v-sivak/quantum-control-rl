@@ -27,3 +27,15 @@ class TestOperators(unittest.TestCase):
         npt.assert_array_equal(
             create(self.N), tf.cast(qt.create(self.N).full(), dtype=tf.complex64)
         )
+
+    def test_position(self):
+        a = qt.destroy(self.N)
+        a_dag = qt.create(self.N)
+        q = (a_dag + a) / np.sqrt(2)
+        npt.assert_array_equal(position(self.N), tf.cast(q.full(), dtype=tf.complex64))
+
+    def test_momentum(self):
+        a = qt.destroy(self.N)
+        a_dag = qt.create(self.N)
+        p = 1j * (a_dag - a) / np.sqrt(2)
+        npt.assert_array_equal(momentum(self.N), tf.cast(p.full(), dtype=tf.complex64))
