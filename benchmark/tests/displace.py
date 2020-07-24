@@ -5,8 +5,8 @@ Created on Thu Jun 25 11:42:08 2020
 
 @author: Henry Liu
 """
-import sys, os
 import unittest
+from distutils.version import LooseVersion
 
 import tensorflow as tf
 
@@ -21,9 +21,7 @@ tf.config.set_logical_device_configuration(
     ],
 )
 
-# Prepend parent directory to search path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-import displace, utils, err_checks
+from benchmark import displace, utils, err_checks
 
 
 class TestDisplace(unittest.TestCase):
@@ -37,7 +35,7 @@ class TestDisplace(unittest.TestCase):
 
     def test_gen_displace_scipy(self):
         f = displace.gen_displace_scipy(self.N)
-        self.assertDCoeffErrorBound(f)       
+        self.assertDCoeffErrorBound(f)
 
     def test_gen_displace(self):
         f = displace.gen_displace(self.N)
@@ -47,6 +45,10 @@ class TestDisplace(unittest.TestCase):
         f = displace.gen_displace_BCH(self.N)
         self.assertDCoeffErrorBound(f)
 
+    @unittest.skipIf(
+        LooseVersion(tf.__version__) < "2.2",
+        "CentralStorageStrategy not supported before TF 2.2.0",
+    )
     def test_gen_displace_distribute_BCH(self):
         strategy = tf.distribute.experimental.CentralStorageStrategy(
             compute_devices=["CPU:0", "CPU:1", "CPU:2"], parameter_device="CPU:0"

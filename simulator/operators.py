@@ -22,7 +22,7 @@ def identity(N, dtype=tf.complex64):
     Returns:
         Tensor([N, N], dtype): NxN identity operator
     """
-    return tf.cast(diag(tf.repeat(1, N)), dtype=dtype)
+    return tf.eye(N, dtype=dtype)
 
 
 def destroy(N, dtype=tf.complex64):
