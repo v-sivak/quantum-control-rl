@@ -14,12 +14,20 @@ eps = 0.33
 
 period = 2
 
-### Script of actions
+b_amp = 2*sqrt(pi)
+a_amp = sqrt(pi)
 
-beta = [2*sqrt(pi)+0j, 2j*sqrt(pi)]
+# Script of actions
+script = {
+    'alpha' : [-1j*a_amp, -a_amp+0j],
+    'beta'  : [b_amp+0j, 1j*b_amp],
+    'epsilon' : [-1j*eps, eps+0j]
+    }
 
-alpha = [-1j*sqrt(pi), -sqrt(pi)+0j]
-
-epsilon = [-1j*eps, eps+0j]
-
-mask = [1, 1]
+# Mask 1 allows the ActionWrapper to use the learned value of the action on
+# that time step, while 0 allows to use the scripted value.
+mask = {
+    'alpha' : [0, 0],
+    'beta'  : [0,0],
+    'epsilon' : [1, 1]
+    }

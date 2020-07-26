@@ -5,3 +5,4 @@ from gkp.action_script import phase_estimation_symmetric_with_trim_4round
 from gkp.action_script import hexagonal_phase_estimation_symmetric_6round
 from gkp.action_script import Baptiste_feedback_2round
 from gkp.action_script import square_sharpen_3x_trim
+from gkp.action_script import hexagonal_sharpen_3x_trim
