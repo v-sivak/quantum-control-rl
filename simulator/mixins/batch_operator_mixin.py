@@ -1,3 +1,10 @@
+"""
+Mixin for batched operators (phase, translate, displace) on Oscillator Hilbert space
+
+Created on Sun Jul 26 20:55:36 2020
+
+@author: Henry Liu
+"""
 import tensorflow as tf
 
 from simulator.utils import matrix_flatten
@@ -82,13 +89,13 @@ class BatchOperatorMixin:
 
     @tf.function
     def displace(self, amplitude):
-        """Calculates D(amplitude) = D(amplitude * sqrt(2)) for a batch of amplitudes
+        """Calculates D(amplitude) = T(amplitude * sqrt(2)) for a batch of amplitudes
 
         Args:
             amplitude (Tensor([batch_size], c64)): A batch of batch_size amplitudes
 
         Returns:
-            Tensor([batch_size, N, N], c64): A batch of T(amplitude)
+            Tensor([batch_size, N, N], c64): A batch of D(amplitude)
         """
         sqrt2 = tf.math.sqrt(tf.constant(2, dtype=tf.complex64))
         return self.translate(tf.cast(amplitude, dtype=tf.complex64) * sqrt2)

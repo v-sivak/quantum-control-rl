@@ -1,3 +1,10 @@
+"""
+Tests for simulator.operators
+
+Created on Sun Jul 26 20:55:36 2020
+
+@author: Henry Liu
+"""
 import unittest
 
 import tensorflow as tf

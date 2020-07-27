@@ -1,3 +1,10 @@
+"""
+Common operators for Quantum Harmonic Oscillator. Function names follow QuTIP.
+
+Created on Sun Jul 26 20:55:36 2020
+
+@author: Henry Liu
+"""
 from distutils.version import LooseVersion
 
 import tensorflow as tf

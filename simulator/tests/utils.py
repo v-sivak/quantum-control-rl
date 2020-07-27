@@ -1,3 +1,10 @@
+"""
+Test helper functions
+
+Created on Sun Jul 26 20:55:36 2020
+
+@author: Henry Liu
+"""
 import time
 from distutils.version import LooseVersion
 
