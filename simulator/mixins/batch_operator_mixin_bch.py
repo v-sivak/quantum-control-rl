@@ -27,8 +27,8 @@ class BatchOperatorMixinBCH:
         """
         # Pre-diagonalize for displace/translate
         # We assume self.p and self.q are already created
-        p = tf.cast(self.p, dtype=tf.complex128)
-        q = tf.cast(self.q, dtype=tf.complex128)
+        p = tf.cast(self.p, dtype=tf.complex64)
+        q = tf.cast(self.q, dtype=tf.complex64)
 
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
@@ -65,12 +65,12 @@ class BatchOperatorMixinBCH:
         """
         # Reshape amplitude for broadcast against diagonals
         amplitude = tf.cast(
-            tf.reshape(amplitude, [amplitude.shape[0], 1]), dtype=tf.complex128
+            tf.reshape(amplitude, [amplitude.shape[0], 1]), dtype=tf.complex64
         )
 
         # Take real/imag of amplitude for the commutator part of the expansion
-        re_a = tf.cast(tf.math.real(amplitude), dtype=tf.complex128)
-        im_a = tf.cast(tf.math.imag(amplitude), dtype=tf.complex128)
+        re_a = tf.cast(tf.math.real(amplitude), dtype=tf.complex64)
+        im_a = tf.cast(tf.math.imag(amplitude), dtype=tf.complex64)
 
         # Exponentiate diagonal matrices
         expm_q = tf.linalg.diag(tf.math.exp(1j * im_a * self._eig_q))

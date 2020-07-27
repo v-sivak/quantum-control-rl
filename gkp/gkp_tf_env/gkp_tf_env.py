@@ -19,10 +19,10 @@ from tf_agents.specs import tensor_spec
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import config
-from simulator.mixins import BatchOperatorMixin
+from simulator.mixins import BatchOperatorMixinBCH
 
 
-class GKP(BatchOperatorMixin, tf_environment.TFEnvironment):
+class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
     """
     Custom environment that follows TensorFlow Agents interface and allows to 
     train a reinforcement learning agent to find optimal measurement-based 
