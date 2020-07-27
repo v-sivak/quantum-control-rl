@@ -9,19 +9,19 @@ import unittest
 
 import tensorflow as tf
 
-from simulator.operators import destroy, create
-from simulator.mixins import BatchOperatorMixin
+from simulator.operators import momentum, position
+from simulator.mixins import BatchOperatorMixinBCH
 from simulator.tests.utils import coeff_err, random_alphas
 
 
-class TestHarnessClass(BatchOperatorMixin):
+class TestHarnessClass(BatchOperatorMixinBCH):
     """Wrapper harness for mixin"""
     def __init__(self):
-        self.a = destroy(100)
-        self.a_dag = create(100)
+        self.p = momentum(100)
+        self.q = position(100)
         super().__init__()
 
-class TestBatchOperatorMixin(unittest.TestCase):
+class TestBatchOperatorMixinBCH(unittest.TestCase):
     def setUp(self):
         self.sim = TestHarnessClass()
         self.alphas = random_alphas(100, maxval=1)
