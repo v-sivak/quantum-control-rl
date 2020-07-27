@@ -10,8 +10,9 @@ from numpy import pi, sqrt
 import tensorflow as tf
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
+
 from gkp.gkp_tf_env.gkp_tf_env import GKP
-from gkp.gkp_tf_env.tf_quantum_trajectory import QuantumTrajectorySim
+from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 
 class OscillatorGKP(GKP):
     """
@@ -278,4 +279,3 @@ class OscillatorGKP(GKP):
         
         psi = self.normalize(psi)
         return self.measurement(psi, Kraus, sample=sample)
-

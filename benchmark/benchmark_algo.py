@@ -23,8 +23,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 # from gkp.utils.rl_train_utils import save_log
-import utils
-import displace
+from . import utils, displace
 
 # Import/initialize MPI if we detect running in slurm with multiple tasks
 has_mpi = False
@@ -39,7 +38,8 @@ if os.environ.get("SLURM_NTASKS") and int(os.environ.get("SLURM_NTASKS")) > 1:
 def mpi_master():
     return rank == 0 if has_mpi else True
 
-#TODO: add some saving function for the data to plot offline
+
+# TODO: add some saving function for the data to plot offline
 if __name__ == "__main__":
     """
     This script is for benchmarking of tensorflow against scipy on a simple
@@ -151,10 +151,7 @@ if __name__ == "__main__":
             # We can just run benchmark again on the workers, the gen_displace_MPI_BCH
             # routine will automatically handle the worker logic
             benchmark(
-                "tf-eager-BCH-MPI",
-                displace.gen_displace_MPI_BCH,
-                N,
-                check_err=False,
+                "tf-eager-BCH-MPI", displace.gen_displace_MPI_BCH, N, check_err=False,
             )
 
     if mpi_master():
@@ -174,14 +171,19 @@ if __name__ == "__main__":
         plt.figtext(0.5, 0.95, vars(args), ha="center")
         plt.tight_layout()
         plt.subplots_adjust(top=0.9)
-        Path("./results").mkdir(parents=True, exist_ok=True)
+        output_dir = Path(__file__).parent.absolute().joinpath("results")
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         run = time.time()
-        plt.savefig("results/benchmark-%s-%i.png" % (socket.gethostname(), run))
+        plt.savefig(
+            output_dir.joinpath("benchmark-%s-%i.png" % (socket.gethostname(), run))
+        )
 
         ax.set_yscale("log")
         ax.set_xscale("log")
-        plt.savefig("results/benchmark-%s-%i-log.png" % (socket.gethostname(), run))
+        plt.savefig(
+            output_dir.joinpath("benchmark-%s-%i-log.png" % (socket.gethostname(), run))
+        )
         # Save stuff
         # dic = times
         # dic['hilbert_space_range'] = hilbert_space_range

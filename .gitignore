@@ -105,3 +105,10 @@ ENV/
 
 # Visual Studio Code
 .vscode
+
+##################
+# Project Specific
+##################
+
+# Don't commit benchmark output plots
+benchmark/results/

@@ -20,8 +20,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-import utils
-import displace
+from . import utils, displace
 
 # gpu = tf.config.experimental.list_physical_devices('GPU')[0]
 # tf.config.experimental.set_memory_growth(gpu, True)
@@ -60,5 +59,6 @@ for idx, N in enumerate(sizes):
     ax.plot(num_alphas, loop_t[idx], label="N={} (Loop)".format(N))
 ax.legend()
 plt.tight_layout()
-Path("./results").mkdir(parents=True, exist_ok=True)
-plt.savefig("results/benchmarkN-%s-%i.png" % (socket.gethostname(), time.time()))
+output_dir = Path(__file__).parent.absolute().joinpath("results")
+output_dir.mkdir(parents=True, exist_ok=True)
+plt.savefig(output_dir.joinpath(benchmarkN-%s-%i.png" % (socket.gethostname(), time.time())))

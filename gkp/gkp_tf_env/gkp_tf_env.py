@@ -19,10 +19,10 @@ from tf_agents.specs import tensor_spec
 
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import config
+from simulator.mixins import BatchOperatorMixin
 
 
-
-class GKP(tf_environment.TFEnvironment):
+class GKP(BatchOperatorMixin, tf_environment.TFEnvironment):
     """
     Custom environment that follows TensorFlow Agents interface and allows to 
     train a reinforcement learning agent to find optimal measurement-based 
@@ -76,10 +76,6 @@ class GKP(tf_environment.TFEnvironment):
         # Overwrite defaults if any, e.g. init, reward_mode, etc
         for key, val in kwargs.items():
             setattr(self, key, val)
-        
-        # Define action and observation specs
-        action_spec, time_step_spec = self.create_specs()
-        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
 
         # create all tensors
         self.setup_simulator()
@@ -88,6 +84,10 @@ class GKP(tf_environment.TFEnvironment):
         elif self.encoding == 'hexagonal':
             S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))        
         self.define_stabilizer_code(S)
+
+        # Define action and observation specs
+        action_spec, time_step_spec = self.create_specs()
+        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
 
         
     def create_specs(self):
@@ -318,47 +318,6 @@ class GKP(tf_environment.TFEnvironment):
             return psi, p[0]-p[1]
 
 
-    ### GATES
-
-
-    @tf.function
-    def phase(self, phi):
-        """
-        Batch phase factor.
-        
-        Input:
-            phi -- tensor of shape (batch_size,) or compatible
-
-        Output:
-            op -- phase factor; shape=[batch_size,1,1]
-            
-        """
-        phi = tf.cast(phi, dtype=c64)
-        phi = tf.reshape(phi, shape=[self.batch_size,1,1])        
-        op = tf.linalg.expm(1j*phi)
-        return op
-
-
-    @tf.function
-    def translate(self, amplitude):
-        """
-        Batch oscillator translation operator. 
-        
-        Input:
-            amplitude -- tensor of shape (batch_size,) or compatible
-            
-        Output:
-            op -- translation operator; shape=[batch_size,NH,NH]
-
-        """
-        a = tf.stack([self.a]*self.batch_size)
-        a_dag = tf.stack([self.a_dag]*self.batch_size)
-        amplitude = tf.reshape(amplitude, shape=[self.batch_size,1,1])
-        batch = amplitude/sqrt(2)*a_dag - tf.math.conj(amplitude)/sqrt(2)*a
-        op = tf.linalg.expm(batch)
-        return op
-
-
     ### REWARD FUNCTIONS
 
 
@@ -534,7 +493,3 @@ class GKP(tf_environment.TFEnvironment):
             raise ValueError('Cannot change N after initialization.')
         else:
             self._N = n
-    
-    
-    
-    

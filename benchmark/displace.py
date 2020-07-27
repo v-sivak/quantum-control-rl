@@ -11,7 +11,7 @@ import numpy as np
 import scipy as sc
 import tensorflow as tf
 
-import utils
+from . import utils
 
 
 def gen_displace_scipy(N):
