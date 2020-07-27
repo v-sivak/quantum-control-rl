@@ -76,10 +76,6 @@ class GKP(BatchOperatorMixin, tf_environment.TFEnvironment):
         # Overwrite defaults if any, e.g. init, reward_mode, etc
         for key, val in kwargs.items():
             setattr(self, key, val)
-        
-        # Define action and observation specs
-        action_spec, time_step_spec = self.create_specs()
-        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
 
         # create all tensors
         self.setup_simulator()
@@ -88,6 +84,10 @@ class GKP(BatchOperatorMixin, tf_environment.TFEnvironment):
         elif self.encoding == 'hexagonal':
             S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))        
         self.define_stabilizer_code(S)
+
+        # Define action and observation specs
+        action_spec, time_step_spec = self.create_specs()
+        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
 
         
     def create_specs(self):
