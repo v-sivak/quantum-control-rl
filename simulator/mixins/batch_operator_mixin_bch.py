@@ -26,12 +26,13 @@ class BatchOperatorMixinBCH:
         and translate. We pass the arguments up the init chain.
         """
         # Pre-diagonalize for displace/translate
-        # We assume self.p and self.q are already created
         p = tf.cast(self.p, dtype=tf.complex64)
         q = tf.cast(self.q, dtype=tf.complex64)
 
+        # We assume self.p and self.q are already created
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
+        (self._eig_n, self._U_n) = tf.linalg.eigh(self.n)
 
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
 
@@ -101,3 +102,25 @@ class BatchOperatorMixinBCH:
         """
         sqrt2 = tf.math.sqrt(tf.constant(2, dtype=tf.complex64))
         return self.translate(tf.cast(amplitude, dtype=tf.complex64) * sqrt2)
+
+    @tf.function
+    def rotate(self, angle):
+        """Calculates oscillator rotation matrix for a batch of angles.
+
+        Args:
+            angle (Tensor([batch_size], c64)): A batch of rotation angles
+
+        Returns:
+            Tensor([batch_size, N, N], c64): A batch of R(angle)
+        """
+        angle = tf.cast(
+            tf.reshape(angle, [angle.shape[0], 1]), dtype=tf.complex64)
+        
+        expm_n = tf.linalg.diag(tf.math.exp(-1j * angle * self._eig_n))
+        
+        return tf.cast(
+            self._U_n
+            @ expm_n
+            @ tf.linalg.adjoint(self._U_n),
+            dtype=tf.complex64,
+        )

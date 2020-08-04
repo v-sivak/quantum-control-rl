@@ -27,7 +27,8 @@ script = {
     'beta'  : [1j*b_amp*exp(-2j*pi/3), -eps*exp(-2j*pi/3), 
                1j*b_amp*exp(-1j*pi/3), -eps*exp(-1j*pi/3), 
                1j*b_amp*exp(-0j*pi/3), -eps*exp(-0j*pi/3)],
-    'phi' : [pi/2]*6
+    'phi' : [pi/2]*6,
+    'theta' : [0.0]*6
     }
     
 
@@ -36,5 +37,6 @@ script = {
 mask = {
     'alpha' : [0, 1]*3,
     'beta'  : [0, 1]*3,
-    'phi'   : [0]*6
+    'phi'   : [0]*6,
+    'theta' : [1]*6
     }

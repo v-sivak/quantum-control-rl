@@ -101,7 +101,8 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
         action_spec = {
             'alpha' : spec(1,2), 
             'beta'  : spec(1,2), 
-            'phi'   : spec(1,1)}
+            'phi'   : spec(1,1),
+            'theta' : spec(1,1)}
         if self.quantum_circuit_type in ['v3','v4']: 
             action_spec['epsilon'] = spec(1,2)
         if self.quantum_circuit_type == 'v4':

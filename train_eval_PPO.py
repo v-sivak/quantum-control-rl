@@ -7,7 +7,7 @@ Created on Tue Apr 14 11:13:33 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
@@ -42,7 +42,7 @@ PPO.train_eval(
         checkpoint_interval = 500,
         summary_interval = 100,
         # Params for environment
-        simulate = 'oscillator',
+        simulate = 'oscillator_qubit',
         horizon = 4,
         clock_period = 4,
         attention_step = 4,
@@ -52,7 +52,7 @@ PPO.train_eval(
         encoding = 'square',
         quantum_circuit_type = 'v2',
         action_script = 'phase_estimation_symmetric_with_trim_4round',
-        to_learn = {'alpha':True, 'beta':True, 'phi':False},
+        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': True},
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (200,100,50),

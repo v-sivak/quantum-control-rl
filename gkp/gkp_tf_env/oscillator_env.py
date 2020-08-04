@@ -135,6 +135,7 @@ class OscillatorGKP(GKP):
         alpha = self.vec_to_complex(action['alpha'])
         beta = self.vec_to_complex(action['beta'])
         phi = action['phi']
+        Rotation = self.rotate(action['theta'])
         
         Kraus = {}
         T = {'a' : self.translate(alpha),
@@ -143,7 +144,8 @@ class OscillatorGKP(GKP):
         Kraus[1] = 1/2*(tf.linalg.adjoint(T['b']) - self.phase(phi)*T['b'])
 
         psi = self.mcsim.run(psi, self.mcsteps_delay)
-        psi_cached = batch_dot(T['a'], psi)
+        psi = batch_dot(T['a'], psi)
+        psi_cached = batch_dot(Rotation, psi)
         psi = self.mcsim.run(psi_cached, self.mcsteps_round)
         psi = self.normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)

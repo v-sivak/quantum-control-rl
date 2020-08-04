@@ -43,14 +43,14 @@ if __name__ == '__main__':
     simulate = 'oscillator'
     horizon = 4
     clock_period = 4
-    attention_step = 1,
+    attention_step = 1
     train_episode_length = lambda x: 36 if x<1000 else 48
     eval_episode_length = 48
     reward_mode = 'pauli'
     encoding = 'square'
     quantum_circuit_type = 'v2'
     action_script = 'phase_estimation_symmetric_with_trim_4round'
-    to_learn = {'alpha':True, 'beta':True, 'phi':False}
+    to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
     # Policy and value networks
     ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP
     actor_fc_layers = (200,100,50)

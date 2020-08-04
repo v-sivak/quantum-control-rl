@@ -70,6 +70,7 @@ class OscillatorQubitGKP(GKP):
         self.a_dag = tf.constant(a_dag.full(), dtype=c64)
         self.q = tf.constant(q.full(), dtype=c64)
         self.p = tf.constant(p.full(), dtype=c64)
+        self.n = tf.constant(n.full(), dtype=c64)
         self.sz = tf.constant(sz.full(), dtype=c64)
         self.sx = tf.constant(sx.full(), dtype=c64)
         self.sm = tf.constant(sm.full(), dtype=c64)
@@ -184,13 +185,15 @@ class OscillatorQubitGKP(GKP):
         sx = tf.stack([self.sx]*self.batch_size)
         I = tf.stack([self.I]*self.batch_size)
         Phase = self.ctrl(I, self.phase(phi)*I)
+        Rotation = self.rotate(action['theta'])
         T, CT = {}, {}
         T['a'] = self.translate(alpha)
         T['b'] = self.translate(beta/4.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
 
         # Feedback translation
-        psi_cached = batch_dot(T['a'], psi)
+        psi = batch_dot(T['a'], psi)
+        psi_cached = batch_dot(Rotation, psi)
         # Qubit gates
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation

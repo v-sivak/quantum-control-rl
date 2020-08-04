@@ -60,7 +60,8 @@ class ScriptedPolicy(tf_policy.Base):
         self.script = action_script.script # load the script of actions
 
         # Calculate specs and call init of parent class
-        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 'phi' : 1}
+        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2, 
+                         'phi' : 1, 'theta' : 1}
         spec = lambda x: specs.TensorSpec(shape=[x], dtype=tf.float32)
         action_spec = {a : spec(self.dims_map[a]) for a in self.script.keys()}        
         policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32)
