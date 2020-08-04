@@ -56,7 +56,8 @@ def create(N, dtype=tf.complex64):
     Returns:
         Tensor([N, N], dtype): NxN creation operator
     """
-    return tf.cast(tf.linalg.adjoint(destroy(N, dtype=tf.complex64)), dtype=dtype)
+    # Preserve max precision in intermediate calculations until final cast
+    return tf.cast(tf.linalg.adjoint(destroy(N, dtype=tf.complex128)), dtype=dtype)
 
 
 def num(N, dtype=tf.complex64):
@@ -82,9 +83,10 @@ def position(N, dtype=tf.complex64):
     Returns:
         Tensor([N, N], dtype): NxN position operator
     """
-    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex64))
-    a_dag = create(N, dtype=tf.complex64)
-    a = destroy(N, dtype=tf.complex64)
+    # Preserve max precision in intermediate calculations until final cast
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
     return tf.cast((a_dag + a) / sqrt2, dtype=dtype)
 
 
@@ -97,7 +99,8 @@ def momentum(N, dtype=tf.complex64):
     Returns:
         Tensor([N, N], c64): NxN momentum operator
     """
-    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex64))
-    a_dag = create(N, dtype=tf.complex64)
-    a = destroy(N, dtype=tf.complex64)
+    # Preserve max precision in intermediate calculations until final cast
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
     return tf.cast(1j * (a_dag - a) / sqrt2, dtype=dtype)

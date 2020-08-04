@@ -25,14 +25,15 @@ class BatchOperatorMixinBCH:
         Our mixin's __init__ is just to set-up the diagonalized matrices for displace
         and translate. We pass the arguments up the init chain.
         """
-        # Pre-diagonalize for displace/translate
+        # Ensure correct dtype for inherited operators
         p = tf.cast(self.p, dtype=tf.complex64)
         q = tf.cast(self.q, dtype=tf.complex64)
+        n = tf.cast(self.n, dtype=tf.complex64)
 
-        # We assume self.p and self.q are already created
+        # Pre-diagonalize
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
-        (self._eig_n, self._U_n) = tf.linalg.eigh(self.n)
+        (self._eig_n, self._U_n) = tf.linalg.eigh(n)
 
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
 
