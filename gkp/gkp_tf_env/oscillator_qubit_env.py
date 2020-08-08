@@ -92,12 +92,8 @@ class OscillatorQubitGKP(GKP):
             Kraus[i+1] = sqrt(dt) * c
             Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
         
-        Kraus_tf = {}
-        for i, op in Kraus.items():
-            Kraus_tf[i] = tf.stack([op]*self.batch_size)
-
         # Initialize quantum trajectories simulator 
-        self.mcsim = QuantumTrajectorySim(Kraus_tf)
+        self.mcsim = QuantumTrajectorySim(Kraus)
 
         self.mcsteps_read = tf.constant(int(self.t_read / 2 / dt))
         self.mcsteps_gate = tf.constant(int((self.t_gate) / dt))

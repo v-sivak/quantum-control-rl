@@ -37,7 +37,7 @@ class QuantumTrajectorySim:
         state = psi
         for i in self.Kraus.keys():
             # Compute a trajectory for this Kraus operator
-            traj[i] = batch_dot(self.Kraus[i], psi)  # shape = [b,N]
+            traj[i] = tf.linalg.matvec(self.Kraus[i], psi)  # shape = [b,N]
             p[i] = batch_dot(tf.math.conj(traj[i]), traj[i])  # shape = [b,1]
             p[i] = tf.math.real(p[i])
             norm[i] = tf.math.sqrt(p[i]) + 1e-15  # shape = [b,1]
