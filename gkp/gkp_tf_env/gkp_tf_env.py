@@ -18,7 +18,6 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 
 from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import config
 from simulator.mixins import BatchOperatorMixinBCH
 
 
@@ -56,11 +55,6 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
     
     """
     def __init__(self, **kwargs):
-        # Load parameters of oscillator-qubit system
-        params = [p for p in config.__dict__ if '__' not in p]
-        for param in params:
-            setattr(self, param, config.__getattribute__(param))
-
         # Default simulation parameters
         self.N = 100 # size of the oscillator Hilbert space truncation
         self.H = 1   # horizon for history returned in observations
