@@ -6,8 +6,10 @@ Created on Thu Feb 20 14:58:30 2020
 """
 
 import tensorflow as tf
-from tensorflow.keras.backend import batch_dot
 import tensorflow_probability as tfp
+from tensorflow.keras.backend import batch_dot
+
+from simulator.utils import normalize
 
 
 class QuantumTrajectorySim:
@@ -53,19 +55,6 @@ class QuantumTrajectorySim:
     def _cond(self, j, psi, steps):
         return tf.less(j, steps)
 
-    def normalize(self, state):
-        """
-        Batch normalization of the wave function.
-        
-        Input:
-            state -- batch of state vectors; shape=[batch_size,NH]
-            
-        """
-        norm = tf.math.real(batch_dot(tf.math.conj(state), state))
-        norm = tf.cast(tf.math.sqrt(norm), tf.complex64)
-        state = state / norm
-        return state
-
     @tf.function
     def run(self, psi, steps):
         """
@@ -76,7 +65,7 @@ class QuantumTrajectorySim:
             steps -- number of steps to run the trajectory
             
         """
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         j = tf.constant(0)
         _, psi_new, steps = tf.while_loop(
             self._cond, self._step, loop_vars=[j, psi, steps]

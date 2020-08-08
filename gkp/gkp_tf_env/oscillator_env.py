@@ -12,7 +12,10 @@ from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 
 from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import helper_functions as hf
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
+from simulator.utils import normalize
+
 
 class OscillatorGKP(GKP):
     """
@@ -93,8 +96,8 @@ class OscillatorGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
         phi = action['phi']
         
         Kraus = {}
@@ -107,7 +110,7 @@ class OscillatorGKP(GKP):
         psi = self.mcsim.run(psi, self.mcsteps_delay)
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mcsim.run(psi_cached, self.mcsteps_round)
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
@@ -128,8 +131,8 @@ class OscillatorGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
         phi = action['phi']
         Rotation = self.rotate(action['theta'])
         
@@ -143,7 +146,7 @@ class OscillatorGKP(GKP):
         psi = batch_dot(T['a'], psi)
         psi_cached = batch_dot(Rotation, psi)
         psi = self.mcsim.run(psi_cached, self.mcsteps_round)
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
@@ -167,9 +170,9 @@ class OscillatorGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        epsilon = self.vec_to_complex(action['epsilon'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
+        epsilon = hf.vec_to_complex(action['epsilon'])
         phi = action['phi']
         
         Kraus = {}
@@ -197,7 +200,7 @@ class OscillatorGKP(GKP):
         psi = self.mcsim.run(psi, self.mcsteps_delay)
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mcsim.run(psi_cached, self.mcsteps_round)
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
@@ -223,9 +226,9 @@ class OscillatorGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        epsilon = self.vec_to_complex(action['epsilon'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
+        epsilon = hf.vec_to_complex(action['epsilon'])
         
         Kraus = {}
         T = {}
@@ -245,7 +248,7 @@ class OscillatorGKP(GKP):
         psi = self.mcsim.run(psi, self.mcsteps_delay)
         psi_cached = batch_dot(T['a'], psi)
         psi = self.mcsim.run(psi_cached, self.mcsteps_round)
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
         return psi_final, psi_cached, obs
@@ -275,5 +278,5 @@ class OscillatorGKP(GKP):
         Kraus[0] = 1/2*(I + self.phase(angle)*T_b)
         Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
         
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         return self.measurement(psi, Kraus, sample=sample)

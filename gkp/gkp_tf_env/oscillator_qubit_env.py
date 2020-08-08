@@ -11,7 +11,9 @@ from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 
 from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import helper_functions as hf
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
+from simulator.utils import normalize
 
 
 class OscillatorQubitGKP(GKP):
@@ -117,8 +119,8 @@ class OscillatorQubitGKP(GKP):
             
         """
         # Extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
         phi = action['phi']
         
         # Construct gates
@@ -172,8 +174,8 @@ class OscillatorQubitGKP(GKP):
             
         """
         # Extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
         phi = action['phi']
 
         # Construct gates
@@ -230,9 +232,9 @@ class OscillatorQubitGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        epsilon = self.vec_to_complex(action['epsilon'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
+        epsilon = hf.vec_to_complex(action['epsilon'])
         phi = action['phi']
 
         # Construct gates
@@ -303,9 +305,9 @@ class OscillatorQubitGKP(GKP):
             
         """
         # extract parameters
-        alpha = self.vec_to_complex(action['alpha'])
-        beta = self.vec_to_complex(action['beta'])
-        epsilon = self.vec_to_complex(action['epsilon'])
+        alpha = hf.vec_to_complex(action['alpha'])
+        beta = hf.vec_to_complex(action['beta'])
+        epsilon = hf.vec_to_complex(action['epsilon'])
 
         # Construct gates
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
@@ -374,7 +376,7 @@ class OscillatorQubitGKP(GKP):
         psi = batch_dot(CT, psi)
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
-        psi = self.normalize(psi)
+        psi = normalize(psi)
         return self.measurement(psi, self.P, sample=sample)
 
     

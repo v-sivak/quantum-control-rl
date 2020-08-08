@@ -256,31 +256,6 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
 
 
     @tf.function
-    def normalize(self, state):
-        """
-        Batch normalization of the wave function.
-        
-        Input:
-            state -- batch of state vectors; shape=[batch_size,NH]
-            
-        """
-        norm = tf.math.real(batch_dot(tf.math.conj(state),state))
-        norm = tf.cast(tf.math.sqrt(norm), dtype=c64)
-        state = state / norm
-        return state     
-
-
-    @tf.function
-    def vec_to_complex(self, a):
-        """
-        Convert vectorized action of shape [batch_sized,2] to complex-valued
-        action of shape (batch_sized,)
-        
-        """
-        return tf.cast(a[:,0], c64) + 1j*tf.cast(a[:,1], c64)
-
-
-    @tf.function
     def measurement(self, psi, Kraus, sample=True):
         """
         Batch measurement projection.
@@ -399,7 +374,7 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
         the code and increment the corresponding counter of X, Y, or Z flips.
         
         """
-        amp = self.vec_to_complex(action[key])                
+        amp = hf.vec_to_complex(action[key])                
         ref_amps = {'alpha' : ['X','Y','Z'], 'beta' : ['S_x','S_y','S_z']}
         for a, b in zip(['X','Y','Z'], ref_amps[key]):
             ref = self.code_map[b]
