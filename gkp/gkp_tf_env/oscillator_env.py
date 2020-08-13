@@ -45,6 +45,7 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         self._N = N
         self.t_round = tf.constant(t_gate + t_read)
         self.t_delay = tf.constant(t_delay)
+        self.step_duration = tf.constant(t_gate + t_read + t_delay)
         super().__init__(*args, N=N, **kwargs)
 
     @property

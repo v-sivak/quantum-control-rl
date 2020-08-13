@@ -43,6 +43,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         self.t_read = tf.constant(t_read / 2)  # Split read time before/after meas.
         self.t_gate = tf.constant(t_gate)
         self.t_delay = tf.constant(t_delay)
+        self.step_duration = tf.constant(t_gate + t_read + t_delay)
         super().__init__(*args, N=N, **kwargs)
 
     @property
