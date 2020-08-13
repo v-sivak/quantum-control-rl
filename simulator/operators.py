@@ -16,12 +16,10 @@ else:
 
     diag = np.diag  # k=1 option is broken in tf.linalg.diag in TF 2.1 (#35761)
 
-from simulator.utils import matrix_flatten
-
 
 def identity(N, dtype=tf.complex64):
     """Returns an identity operator in the Fock basis.
-    
+
     Args:
         N (int): Dimension of Hilbert space
         dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
@@ -34,7 +32,7 @@ def identity(N, dtype=tf.complex64):
 
 def destroy(N, dtype=tf.complex64):
     """Returns a destruction (lowering) operator in the Fock basis.
-    
+
     Args:
         N (int): Dimension of Hilbert space
         dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
@@ -48,11 +46,11 @@ def destroy(N, dtype=tf.complex64):
 
 def create(N, dtype=tf.complex64):
     """Returns a creation (raising) operator in the Fock basis.
-    
+
     Args:
         N (int): Dimension of Hilbert space
         dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
-   
+
     Returns:
         Tensor([N, N], dtype): NxN creation operator
     """
@@ -95,7 +93,7 @@ def momentum(N, dtype=tf.complex64):
 
     Args:
         N (int): Dimension of Hilbert space
-    
+
     Returns:
         Tensor([N, N], c64): NxN momentum operator
     """

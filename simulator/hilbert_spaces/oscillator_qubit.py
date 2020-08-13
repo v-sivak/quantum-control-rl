@@ -17,7 +17,7 @@ class OscillatorQubit(SimulatorHilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.
-    Methods need to take care of batch dimension explicitly. 
+    Methods need to take care of batch dimension explicitly.
 
     Initialize tensorflow quantum trajectory simulator. This is used to
     simulate decoherence, dephasing, Kerr etc using quantum jumps.

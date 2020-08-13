@@ -126,9 +126,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             'clock' : spec(1, self.T)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
-        self.quantum_circuit = self.__getattribute__(
-            'quantum_circuit_' + self.quantum_circuit_type)
-        
+        self.quantum_circuit = getattr(
+            self, "quantum_circuit_" + self.quantum_circuit_type
+        )
+
         return action_spec, time_step_spec
         
 

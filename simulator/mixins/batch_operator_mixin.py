@@ -14,7 +14,7 @@ from simulator.utils import matrix_flatten
 class BatchOperatorMixin:
     """
     Mixin which defines batched operators on a given Hilbert space.
-    
+
     All of these functions are defined so as to be compatible with @tf.function. The
     batch_size is implicit in the shape of the input argument.
     """
@@ -23,12 +23,12 @@ class BatchOperatorMixin:
     def phase(self, phi):
         """
         Batch phase factor.
-        
+
         Input:
             phi -- tensor of shape (batch_size,) or compatible
         Output:
             op -- phase factor; shape=[batch_size,1,1]
-            
+
         """
         phi = matrix_flatten(tf.cast(phi, dtype=tf.complex64))
         return tf.linalg.expm(1j * phi)
