@@ -4,6 +4,8 @@ Created on Thu Feb 20 14:50:22 2020
 
 @author: Vladimir Sivak
 """
+from abc import ABCMeta, abstractmethod
+from math import sqrt
 
 import numpy as np
 import qutip as qt
@@ -11,71 +13,87 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from math import pi, sqrt
 from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 
 from gkp.gkp_tf_env import helper_functions as hf
-from simulator.mixins import BatchOperatorMixinBCH
 
 
-class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
+class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     """
-    Custom environment that follows TensorFlow Agents interface and allows to 
-    train a reinforcement learning agent to find optimal measurement-based 
+    Custom environment that follows TensorFlow Agents interface and allows to
+    train a reinforcement learning agent to find optimal measurement-based
     feedback protocol for GKP-state stabilization.
-    
-    This implementation heavily relies on tensorflow to do fast computations 
+
+    This implementation heavily relies on tensorflow to do fast computations
     in parallel on GPU by adding batch dimension to all tensors. The speedup
     over all-qutip implementation is about x100 on NVIDIA RTX 2080Ti.
-    
+
     This is the base class for GKP environment which incorporates simulation-
     independet methods. The child classes OscillatorGKP and OscillatorQubitGKP
-    inherit these methods and add their own implementations of the quantum 
-    circuits. The former is much faster but it doesn't include qubit into the 
+    inherit these methods and add their own implementations of the quantum
+    circuits. The former is much faster but it doesn't include qubit into the
     Hilbert space, thus it is less representative of reality. The latter is
     slower but allows for much more flexibility in simulation.
-    
-    Actions are parametrized according to the sequence of gates applied at 
+
+    Actions are parametrized according to the sequence of gates applied at
     each time step, see <quantum_circuit_v1>, <...v2>, <...v3> in child class.
-    
-    In <quantum_circuit_v1> and <...v2> each action is a 5-vector 
-    [Re(alpha), Im(alpha), Re(beta), Im(beta), phi], where 'alpha' and 'beta' 
-    are feedback and controlled-translation amplitudes, and 'phi' is qubit 
-    measurement angle. Observations are qubit sigma_z measurement outcomes from 
-    the set {-1,1}. In <...v3> additional action dimensions Re(eps) and Im(eps) 
+
+    In <quantum_circuit_v1> and <...v2> each action is a 5-vector
+    [Re(alpha), Im(alpha), Re(beta), Im(beta), phi], where 'alpha' and 'beta'
+    are feedback and controlled-translation amplitudes, and 'phi' is qubit
+    measurement angle. Observations are qubit sigma_z measurement outcomes from
+    the set {-1,1}. In <...v3> additional action dimensions Re(eps) and Im(eps)
     are added for trimming of GKP envelope, thus each action is a 7-vector.
-    
-    Environment step() method returns TimeStep tuple whose 'observation' 
-    attribute stores the finite-horizon history of applied actions, measurement 
-    outcomes and state wavefunctions. User needs to define a wrapper for the 
+
+    Environment step() method returns TimeStep tuple whose 'observation'
+    attribute stores the finite-horizon history of applied actions, measurement
+    outcomes and state wavefunctions. User needs to define a wrapper for the
     environment if some components of this observation are to be discarded.
-    
     """
-    def __init__(self, **kwargs):
+    def __init__(
+        self,
+        *args,
+        # Optional kwargs
+        H=1,
+        T=4,
+        attn_step=1,
+        episode_length=20,
+        batch_size=50,
+        init="vac",
+        reward_mode="zero",
+        quantum_circuit_type="v1",
+        encoding="square",
+        **kwargs
+    ):
+        """
+        Args:
+            H (int, optional): Horizon for history returned in observations. Defaults to 1.
+            T (int, optional): Periodicity of the 'clock' observation. Defaults to 4.
+            attn_step (int, optional): Step for attention to measurement outcomes. Defaults to 1.
+            episode_length (int, optional): Number of iterations in training episode. Defaults to 20.
+            batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
+            init (str, optional): Initial quantum state of system. Defaults to "vac".
+            reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
+            quantum_circuit_type (str, optional): Circuit protocol version. Defaults to "v1".
+            encoding (str, optional): Type of GKP lattice. Defaults to "square".
+
+        """
         # Default simulation parameters
-        self.N = 100 # size of the oscillator Hilbert space truncation
-        self.H = 1   # horizon for history returned in observations
-        self.T = 4   # periodicity of the 'clock' observation
-        self.attn_step = 1 # step for attention to measurement outcomes
-        self.episode_length = 20
-        self.batch_size = 50
-        self.init = 'vac'
-        self.reward_mode = 'zero'
-        self.quantum_circuit_type = 'v1'
-        self.encoding = 'square'
+        self.H = H
+        self.T = T
+        self.attn_step = attn_step
+        self.episode_length = episode_length
+        self.batch_size = batch_size
+        self.init = init
+        self.reward_mode = reward_mode
+        self.quantum_circuit_type = quantum_circuit_type
 
-        # Overwrite defaults if any, e.g. init, reward_mode, etc
-        for key, val in kwargs.items():
-            setattr(self, key, val)
-
-        # create all tensors
-        self.setup_simulator()
-        if self.encoding == 'square':
+        if encoding == 'square':
             S = np.array([[1, 0], [0, 1]])
-        elif self.encoding == 'hexagonal':
+        elif encoding == 'hexagonal':
             S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))        
         self.define_stabilizer_code(S)
 
@@ -274,7 +292,7 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
         """    
         collapsed, p = {}, {}
         for i in Kraus.keys():
-            collapsed[i] = batch_dot(Kraus[i], psi)
+            collapsed[i] = tf.linalg.matvec(Kraus[i], psi)
             p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
             p[i] = tf.math.real(p[i])
         
@@ -452,14 +470,19 @@ class GKP(BatchOperatorMixinBCH, tf_environment.TFEnvironment):
             self._batch_size = size
         except:
             raise ValueError('Batch size should be positive integer.')
-    
-    @property 
+
+    @property
+    @abstractmethod
     def N(self):
-        return self._N
-    
-    @N.setter
-    def N(self, n):
-        if 'code_map' in self.__dir__():
-            raise ValueError('Cannot change N after initialization.')
-        else:
-            self._N = n
+        """
+        Size of the oscillator Hilbert space truncation (not including the qubit)
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def tensorstate(self):
+        """
+        Boolean to indicate if the oscillator space is doubled by the qubit or not.
+        """
+        pass

@@ -6,7 +6,6 @@ Created on Thu Feb 20 14:58:30 2020
 """
 
 import tensorflow as tf
-import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
 
 from simulator.utils import normalize
@@ -15,23 +14,20 @@ from simulator.utils import normalize
 class QuantumTrajectorySim:
     """
     Tensorflow implementation of the Monte Carlo quantum trajectory simulator.
-    
     """
 
     def __init__(self, Kraus):
         """
         Input:
-            Kraus -- dictionary of Kraus operators. Dict keys are integers. 
+            Kraus -- dictionary of Kraus operators. Dict keys are integers.
                      K[0] is no-jump operator, the rest are jump operators.
                      Shape of each operator is [b,NH,NH], b is batch size
-            
         """
         self.Kraus = Kraus
 
     def _step(self, j, psi, steps):
         """
         One step in the Markov chain.
-        
         """
         traj, p, norm = {}, {}, {}
         cumulant = tf.zeros([psi.shape[0], 1])
@@ -59,11 +55,11 @@ class QuantumTrajectorySim:
     def run(self, psi, steps):
         """
         Simulate a batch of trajectories for a number of steps.
-        
+
         Input:
             psi -- batch of state vectors; shape=[b,NH]
             steps -- number of steps to run the trajectory
-            
+
         """
         psi = normalize(psi)
         j = tf.constant(0)

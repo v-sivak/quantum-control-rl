@@ -4,80 +4,56 @@ Created on Mon May  4 14:30:01 2020
 
 @author: Vladimir Sivak
 """
-
-import qutip as qt
-from numpy import pi, sqrt
 import tensorflow as tf
-from tensorflow import complex64 as c64
+from numpy import sqrt
 from tensorflow.keras.backend import batch_dot
 
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
-from simulator.quantum_trajectory_sim import QuantumTrajectorySim
+
+from simulator.hilbert_spaces import Oscillator
+from simulator.mixins import BatchOperatorMixinBCH
 from simulator.utils import normalize
 
 
-class OscillatorGKP(GKP):
+class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
     """
     This class inherits simulation-independent functionality from the GKP
     class and implements simulation by abstracting away the qubit and using
     Kraus maps formalism to rather efficiently simulate operations on the
-    oscillator Hilbert space. 
-    
-    """    
-    def __init__(self, **kwargs):
-        self.tensorstate = False
-        super(OscillatorGKP, self).__init__(**kwargs)
+    oscillator Hilbert space.
+    """
 
-
-    def setup_simulator(self):
+    def __init__(
+        self,
+        *args,
+        # Required kwargs
+        t_delay,
+        t_gate,
+        t_read,
+        # Optional kwargs
+        N=100,
+        **kwargs
+    ):
         """
-        Define all relevant operators as tensorflow tensors of shape [N,N].
-        Methods need to take care of batch dimension explicitly. 
-        
-        Initialize tensorflow quantum trajectory simulator. This is used to
-        simulate decoherence, dephasing, Kerr etc using quantum jumps.
-        
-        """     
-        N = self.N
-        
-        # Create qutip tensor ops acting on oscillator Hilbert space
-        I = qt.identity(N)
-        a = qt.destroy(N)
-        a_dag = qt.create(N)
-        q = (a.dag() + a) / sqrt(2)
-        p = 1j*(a.dag() - a) / sqrt(2)
-        n = qt.num(N)
-        
-        # Create qutip Hamiltonian and collapse ops
-        Hamiltonian = -1/2*(2*pi)*self.K_osc*n*n  # Kerr
-        c_ops = [sqrt(1/self.T1_osc)*a]           # photon loss
+        Args:
+            t_delay (float): Feedback delay in seconds.
+            t_gate (float): Gate time in seconds.
+            t_read (float): Readout time in seconds.
+            N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
+        """
+        self._N = N
+        self.t_round = tf.constant(t_gate + t_read)
+        self.t_delay = tf.constant(t_delay)
+        super().__init__(*args, N=N, **kwargs)
 
-        # Convert to TensorFlow tensors
-        self.I = tf.constant(I.full(), dtype=c64)
-        self.a = tf.constant(a.full(), dtype=c64)
-        self.a_dag = tf.constant(a_dag.full(), dtype=c64)
-        self.q = tf.constant(q.full(), dtype=c64)
-        self.p = tf.constant(p.full(), dtype=c64)
-        self.n = tf.constant(n.full(), dtype=c64)
+    @property
+    def N(self):
+        return self._N
 
-        self.Hamiltonian = tf.constant(Hamiltonian.full(), dtype=c64)
-        self.c_ops = [tf.constant(op.full(), dtype=c64) for op in c_ops]        
-
-        # Create Kraus ops for free evolution simulator
-        Kraus = {}
-        dt = self.discrete_step_duration
-        Kraus[0] = self.I - 1j*self.Hamiltonian*dt
-        for i, c in enumerate(self.c_ops):
-            Kraus[i+1] = sqrt(dt) * c
-            Kraus[0] -= 1/2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
-        
-        # Initialize quantum trajectories simulator
-        self.mcsim = QuantumTrajectorySim(Kraus)
-            
-        self.mcsteps_round = tf.constant(int((self.t_gate + self.t_read)/dt))
-        self.mcsteps_delay = tf.constant(int(self.t_delay/dt))
-
+    @property
+    def tensorstate(self):
+        return False
 
     @tf.function
     def quantum_circuit_v1(self, psi, action):
@@ -107,9 +83,9 @@ class OscillatorGKP(GKP):
         Kraus[0] = 1/2*(I + self.phase(phi)*T['b'])
         Kraus[1] = 1/2*(I - self.phase(phi)*T['b'])
         
-        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        psi = self.simulate(psi, self.t_delay)
         psi_cached = batch_dot(T['a'], psi)
-        psi = self.mcsim.run(psi_cached, self.mcsteps_round)
+        psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
@@ -142,10 +118,10 @@ class OscillatorGKP(GKP):
         Kraus[0] = 1/2*(tf.linalg.adjoint(T['b']) + self.phase(phi)*T['b'])
         Kraus[1] = 1/2*(tf.linalg.adjoint(T['b']) - self.phase(phi)*T['b'])
 
-        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        psi = self.simulate(psi, self.t_delay)
         psi = batch_dot(T['a'], psi)
         psi_cached = batch_dot(Rotation, psi)
-        psi = self.mcsim.run(psi_cached, self.mcsteps_round)
+        psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
@@ -197,9 +173,9 @@ class OscillatorGKP(GKP):
         Kraus[0] = 1/4*(chunk1 + self.phase(phi)*chunk2)
         Kraus[1] = 1/4*(chunk1 - self.phase(phi)*chunk2)
 
-        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        psi = self.simulate(psi, self.t_delay)
         psi_cached = batch_dot(T['a'], psi)
-        psi = self.mcsim.run(psi_cached, self.mcsteps_round)
+        psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
@@ -245,9 +221,9 @@ class OscillatorGKP(GKP):
         Kraus[0] = 1/2/sqrt(2)*(chunk1 + chunk2)
         Kraus[1] = 1/2/sqrt(2)*(chunk1 - chunk2)
 
-        psi = self.mcsim.run(psi, self.mcsteps_delay)
+        psi = self.simulate(psi, self.t_delay)
         psi_cached = batch_dot(T['a'], psi)
-        psi = self.mcsim.run(psi_cached, self.mcsteps_round)
+        psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
         psi_final, obs = self.measurement(psi, Kraus, sample=True)
         
