@@ -24,19 +24,19 @@ from gkp.gkp_tf_env import policy as plc
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = gkp_init(simulate='oscillator', 
-                init='random', H=1, T=4, batch_size=100, episode_length=48, 
+env = gkp_init(simulate='oscillator_qubit', 
+                init='random', H=2, T=4, attn_step=1, batch_size=200, episode_length=24, 
                 reward_mode = 'pauli', quantum_circuit_type='v2',
                 encoding='square')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':False}
+to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorQubitGKP'
 exp_name = 'test'
-policy_dir = r'policy\000030000'
+policy_dir = r'policy\000000000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
 
 
@@ -107,15 +107,16 @@ for a in ['alpha','beta']:
         axes[i].grid('on')
         axes[i].set_aspect('equal')
 
-    fig.savefig(os.path.join(root_dir, exp_name, a + '_plot.pdf'))
+    # fig.savefig(os.path.join(root_dir, exp_name, a + '_plot.pdf'))
 
 # Plot histogram of 'phi'
-a = 'phi'
-action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()
-all_actions = action_cache.flatten()
-H, edges = np.histogram(all_actions, bins=101, range=[-2,2])
-centers = (edges[1:] + edges[:-1]) / 2
-fig, ax = plt.subplots(1,1)
-ax.set_title(a)
-ax.set_ylabel('Counts')
-ax.plot(centers, H)
+for a in ['phi', 'theta']:
+    action_cache = np.stack(env.history[a][-env.episode_length:]).squeeze()
+    all_actions = action_cache.flatten()
+    lim = 2 if a=='phi' else 0.04
+    H, edges = np.histogram(all_actions, bins=101, range=[-lim,lim])
+    centers = (edges[1:] + edges[:-1]) / 2
+    fig, ax = plt.subplots(1,1)
+    ax.set_title(a)
+    ax.set_ylabel('Counts')
+    ax.plot(centers, H)

@@ -23,7 +23,7 @@ script = {
     'alpha' : [a_amp+0j, -1j*delta, -1j*a_amp, delta+0j],
     'beta'  : [b_amp+0j, eps+0j, 1j*b_amp, 1j*eps],
     'phi' : [pi/2]*4,
-    'theta' : [0.001]*4
+    'theta' : [0.0]*4
     }
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on

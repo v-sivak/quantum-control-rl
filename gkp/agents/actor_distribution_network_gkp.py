@@ -100,7 +100,9 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
         self._clock_encoder = clock_encoder
         self._projection_networks = projection_networks
         self._output_tensor_spec = output_tensor_spec
-    
+        
+        # list of action dimensions that are independent of the measurements
+        self._clock_only_actions = ['beta', 'theta']
     
     @property
     def output_tensor_spec(self):
@@ -123,12 +125,14 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
         # distributions 'output_actions'. All action components except 'beta'
         # use the output of the 'encoder', while 'beta' uses 'clock_encoder'
         output_actions = {}
-        for a in self._output_tensor_spec.keys() - ['beta']:
-            output_actions[a], _ = self._projection_networks[a](
-                encoder_state, outer_rank, training=training)
-        output_actions['beta'], _ = self._projection_networks['beta'](
-            clock_encoder_state, outer_rank, training=training)
-        
+        for a in self._output_tensor_spec.keys():
+            if a in self._clock_only_actions:
+                output_actions[a], _ = self._projection_networks[a](
+                    clock_encoder_state, outer_rank, training=training)
+            else:
+                output_actions[a], _ = self._projection_networks[a](
+                    encoder_state, outer_rank, training=training)
+
         return output_actions, network_state    
     
     
