@@ -10,9 +10,7 @@ from math import sqrt
 import numpy as np
 import qutip as qt
 import tensorflow as tf
-import tensorflow_probability as tfp
 from tensorflow import complex64 as c64
-from tensorflow.keras.backend import batch_dot
 from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
@@ -272,39 +270,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                        for key, val in states.items()}
         vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
         self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
-
-
-    @tf.function
-    def measurement(self, psi, Kraus, sample=True):
-        """
-        Batch measurement projection.
-        
-        Input:
-            psi -- batch of states; shape=[batch_size, NH]
-            Kraus -- dictionary of Kraus operators corresponding to 2 different 
-                     qubit measurement outcomes. Shape of each operator is 
-                     [b,NH,NH], where b is batch size
-            sample -- bool flag to sample or return expectation value
-            
-        Output:
-            psi -- batch of collapsed states; shape=[batch_size,NH]
-            obs -- measurement outcomes; shape=[batch_size,1]
-            
-        """    
-        collapsed, p = {}, {}
-        for i in Kraus.keys():
-            collapsed[i] = tf.linalg.matvec(Kraus[i], psi)
-            p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
-            p[i] = tf.math.real(p[i])
-        
-        if sample:
-            obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
-            psi = tf.where(obs==1, collapsed[1], collapsed[0])
-            obs = 1 - 2*obs  # convert to {-1,1}
-            obs = tf.cast(obs, dtype=tf.float32)
-            return psi, obs
-        else:
-            return psi, p[0]-p[1]
 
 
     ### REWARD FUNCTIONS

@@ -43,14 +43,35 @@ class SimulatorHilbertSpace(ABC):
         however, that discretization *does* impart a rounding effect.
 
         Args:
-            psi (Tensor([batch_size, N], c64): The (batched) WF to evolve.
+            psi (Tensor([batch_size, N], c64)): The (batched) WF to evolve.
             time (float): Time in seconds to run the simulation forward by.
 
         Returns:
             Tensor([batch_size, N], c64: The evolved wavefunction after time/dt steps.
         """
-        steps = tf.cast(time / self._dt, dtype=tf.int32)
+        steps = tf.cast(time / self._dt, dtype=tf.int32)  # TODO: fix the rounding issue
         return self.mcsim.run(psi, steps)
+
+    @tf.function
+    def measure(self, psi, Kraus, sample=True):
+        """
+        Batch measurement projection using the Monte Carlo simulator.
+
+        Args:
+            psi (Tensor([batch_size, N], c64)):
+                The (batched) WF to measure projectively.
+            Kraus ({0: Tensor([batch_size, N, N], c64), 1: Tensor(...)}):
+                Dictionary of Kraus operators corresponding to 2 different qubit
+                measurement outcomes.
+            sample (bool, optional):
+                Sample or return expectation value. Defaults to True.
+
+        Returns:
+            (Tensor([batch_size, N], c64), Tensor([batch_size, 1], c64)):
+                0 -- batch of collapsed states
+                1 -- measurement outcomes
+        """
+        return self.mcsim.measure(psi, Kraus, sample)
 
     @abstractmethod
     def _define_fixed_operators(self, N):

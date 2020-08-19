@@ -98,7 +98,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
-        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
         psi = self.simulate(psi, self.t_delay)
@@ -155,7 +155,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
-        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
         psi = self.simulate(psi, self.t_delay)
@@ -226,7 +226,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
-        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
         psi = self.simulate(psi, self.t_delay)
@@ -290,7 +290,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Rxm, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
-        psi, obs = self.measurement(psi, self.P, sample=True)
+        psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
         psi = self.simulate(psi, self.t_delay)
@@ -329,7 +329,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
         psi = normalize(psi)
-        return self.measurement(psi, self.P, sample=sample)
+        return self.measure(psi, self.P)
 
     
 

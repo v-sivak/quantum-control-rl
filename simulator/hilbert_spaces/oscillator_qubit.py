@@ -26,10 +26,10 @@ class OscillatorQubit(SimulatorHilbertSpace):
     def __init__(self, *args, K_osc, T1_osc, T1_qb, Tphi_qb, **kwargs):
         """
         Args:
-            K_osc (float): Kerr of oscillator.
+            K_osc (float): Kerr of oscillator (Hz).
             T1_osc (float): T1 relaxation time of oscillator (seconds).
             T1_qb (float): T1 relaxation time of qubit (seconds).
-            Tphi_qb (float): T2 dephasing time of qubit (seconds).
+            Tphi_qb (float): Dephasing time of qubit, incl. T1 and T2 (seconds).
         """
         self._K_osc = K_osc
         self._T1_osc = T1_osc
@@ -75,10 +75,7 @@ class OscillatorQubit(SimulatorHilbertSpace):
         self.rxm = tf.constant(rxm.full(), dtype=c64)
         self.hadamard = tf.constant(hadamard.full(), dtype=c64)
 
-        self.P = {
-            i: tf.expand_dims(tf.constant(P[i].full(), dtype=c64), axis=0)
-            for i in [0, 1]
-        }
+        self.P = {i: tf.constant(P[i].full(), dtype=c64) for i in [0, 1]}
 
     @property
     def _hamiltonian(self):

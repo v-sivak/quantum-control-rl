@@ -88,7 +88,7 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus, sample=True)
+        psi_final, obs = self.measure(psi, Kraus)
         
         return psi_final, psi_cached, obs
 
@@ -124,7 +124,7 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         psi_cached = batch_dot(Rotation, psi)
         psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus, sample=True)
+        psi_final, obs = self.measure(psi, Kraus)
         
         return psi_final, psi_cached, obs
 
@@ -178,7 +178,7 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus, sample=True)
+        psi_final, obs = self.measure(psi, Kraus)
         
         return psi_final, psi_cached, obs
 
@@ -226,7 +226,7 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         psi_cached = batch_dot(T['a'], psi)
         psi = self.simulate(psi_cached, self.t_round)
         psi = normalize(psi)
-        psi_final, obs = self.measurement(psi, Kraus, sample=True)
+        psi_final, obs = self.measure(psi, Kraus)
         
         return psi_final, psi_cached, obs
 
@@ -256,4 +256,4 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
         
         psi = normalize(psi)
-        return self.measurement(psi, Kraus, sample=sample)
+        return self.measure(psi, Kraus)
