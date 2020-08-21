@@ -35,7 +35,7 @@ class IdlePolicy(fixed_policy.FixedPolicy):
 
 
 
-class ScriptedPolicy(tf_policy.Base):
+class ScriptedPolicy(tf_policy.TFPolicy):
     """
     Policy that follows script of actions.
 
@@ -92,7 +92,7 @@ class ScriptedPolicy(tf_policy.Base):
 
 
 
-class BayesianFeedbackPolicy(tf_policy.Base):
+class BayesianFeedbackPolicy(tf_policy.TFPolicy):
     """
     Policy that follows script of actions.
 
@@ -209,7 +209,7 @@ class BayesianFeedbackPolicy(tf_policy.Base):
         return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
 
 
-class SupervisedNeuralNet(tf_policy.Base):
+class SupervisedNeuralNet(tf_policy.TFPolicy):
     """
     The neural network in this policy was trained in a supervised way to
     reproduce the results of the MarkovianPolicyV2. It was trained on finite

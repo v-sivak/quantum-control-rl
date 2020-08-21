@@ -100,7 +100,7 @@ def action_table_lookup(table, key, H, T):
     return actions
 
 
-class ActionTablePolicyWrapper(tf_policy.Base):
+class ActionTablePolicyWrapper(tf_policy.TFPolicy):
     """
     Wrapper for the neural net policy that allows to convert it to a table. 
     
@@ -161,7 +161,7 @@ class ActionTableEpisodeDriver(dynamic_episode_driver.DynamicEpisodeDriver):
 
 
 
-class ActionTableStochasticPolicyWrapper(tf_policy.Base):
+class ActionTableStochasticPolicyWrapper(tf_policy.TFPolicy):
     """
     Samples a deterministic action table from the stochastic collect policy at 
     the beginning of each episode, and uses this table to map observations to 
