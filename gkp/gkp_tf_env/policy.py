@@ -10,14 +10,15 @@ import numpy as np
 import tensorflow as tf
 from math import sqrt, pi
 from tensorflow import keras
-from tensorflow.math import real, imag
-from tf_agents.policies import fixed_policy, tf_policy
+from tf_agents.policies import fixed_policy
 from tf_agents.trajectories import policy_step
 from tf_agents import specs
 from tf_agents.utils import nest_utils
 from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 from scipy.integrate import quad
+
+from gkp.utils.version_helper import TFPolicy
 
 __all__ = ['IdlePolicy', 'ScriptedPolicy', 'BayesianFeedbackPolicy',
            'SupervisedNeuralNet']
@@ -34,8 +35,7 @@ class IdlePolicy(fixed_policy.FixedPolicy):
                                          time_step_spec, action_spec)
 
 
-
-class ScriptedPolicy(tf_policy.TFPolicy):
+class ScriptedPolicy(TFPolicy):
     """
     Policy that follows script of actions.
 
@@ -66,7 +66,7 @@ class ScriptedPolicy(tf_policy.TFPolicy):
 
         for a, val in self.script.items():
             if self.dims_map[a] == 2:
-                A = tf.stack([real(val), imag(val)], axis=-1)
+                A = tf.stack([tf.math.real(val), tf.math.imag(val)], axis=-1)
             elif self.dims_map[a] == 1:
                 A = tf.constant(val, shape=[self.period,1])
             self.script[a] = tf.cast(A, tf.float32)
@@ -75,7 +75,6 @@ class ScriptedPolicy(tf_policy.TFPolicy):
                                               policy_state_spec,
                                               automatic_state_reset=True)
         self._policy_info = ()
-
 
     def _action(self, time_step, policy_state, seed):
         i = policy_state[0] % self.period # position within the policy period
@@ -91,8 +90,7 @@ class ScriptedPolicy(tf_policy.TFPolicy):
         return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
 
 
-
-class BayesianFeedbackPolicy(tf_policy.TFPolicy):
+class BayesianFeedbackPolicy(TFPolicy):
     """
     Policy that follows script of actions.
 
@@ -133,7 +131,7 @@ class BayesianFeedbackPolicy(tf_policy.TFPolicy):
 
         for a, val in self.script.items():
             if self.dims_map[a] == 2:
-                A = tf.stack([real(val), imag(val)], axis=-1)
+                A = tf.stack([tf.math.real(val), tf.math.imag(val)], axis=-1)
             elif self.dims_map[a] == 1:
                 A = tf.constant(val, shape=[self.period,1])
             self.script[a] = tf.cast(A, tf.float32)
@@ -142,7 +140,6 @@ class BayesianFeedbackPolicy(tf_policy.TFPolicy):
                                               policy_state_spec,
                                               automatic_state_reset=True)
         self._policy_info = ()
-
 
         def prior(x):
             " Gaussian zero-centered prior with standard deviation 'sigma'. "
@@ -184,10 +181,9 @@ class BayesianFeedbackPolicy(tf_policy.TFPolicy):
             phase = tf.cast(phase_func(s), tf.complex64)
             quadrature = {2*K-1 : 1j, 2*K : -1 + 0j}
             A = phase * quadrature[int(i)] / (2*sqrt(pi))
-            return tf.concat([real(A), imag(A)], axis=1)
+            return tf.concat([tf.math.real(A), tf.math.imag(A)], axis=1)
 
         self.Bayesian_feedback = Bayesian_feedback
-
 
     def _action(self, time_step, policy_state, seed):
         i = policy_state[0] % self.period # position within the policy period
@@ -209,7 +205,7 @@ class BayesianFeedbackPolicy(tf_policy.TFPolicy):
         return policy_step.PolicyStep(action, policy_state+1, self._policy_info)
 
 
-class SupervisedNeuralNet(tf_policy.TFPolicy):
+class SupervisedNeuralNet(TFPolicy):
     """
     The neural network in this policy was trained in a supervised way to
     reproduce the results of the MarkovianPolicyV2. It was trained on finite

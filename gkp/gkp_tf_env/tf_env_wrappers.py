@@ -7,7 +7,6 @@ Created on Wed Mar 18 20:10:01 2020
 import numpy as np
 import tensorflow as tf
 from numpy import pi
-from tensorflow.math import real, imag
 from tf_agents import specs
 from tf_agents.utils import common, nest_utils
 from tf_agents.specs import tensor_spec
@@ -183,9 +182,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             if C1 or C2: # if not learning: replicate scripted action
                 A = common.replicate(self.script[a][i], out_shape)
                 if self.dims_map[a] == 2:
-                    action[a] = tf.concat([real(A), imag(A)], axis=1)
+                    action[a] = tf.concat([tf.math.real(A), tf.math.imag(A)], axis=1)
                 if self.dims_map[a] == 1:
-                    action[a] = real(A)
+                    action[a] = tf.math.real(A)
             else: # if learning: rescale input tensor
                 action[a] = input_action[a]*self.scale[a]
 
