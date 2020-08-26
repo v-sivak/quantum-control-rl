@@ -16,10 +16,12 @@ from simulator.tests.utils import coeff_err, random_alphas
 
 class TestHarnessClass(BatchOperatorMixin):
     """Wrapper harness for mixin"""
+
     def __init__(self):
         self.a = destroy(100)
         self.a_dag = create(100)
         super().__init__()
+
 
 class TestBatchOperatorMixin(unittest.TestCase):
     def setUp(self):

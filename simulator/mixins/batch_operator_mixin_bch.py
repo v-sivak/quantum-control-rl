@@ -15,7 +15,7 @@ class BatchOperatorMixinBCH:
     """
     Mixin which defines batched operators on a given Hilbert space. The translate and
     displace operators are implemented with the Baker-Campbell-Hausdorff formula.
-    
+
     All of these functions are defined so as to be compatible with @tf.function. The
     batch_size is implicit in the shape of the input argument.
     """
@@ -25,14 +25,15 @@ class BatchOperatorMixinBCH:
         Our mixin's __init__ is just to set-up the diagonalized matrices for displace
         and translate. We pass the arguments up the init chain.
         """
-        # Pre-diagonalize for displace/translate
+        # Ensure correct dtype for inherited operators
         p = tf.cast(self.p, dtype=tf.complex64)
         q = tf.cast(self.q, dtype=tf.complex64)
+        n = tf.cast(self.n, dtype=tf.complex64)
 
-        # We assume self.p and self.q are already created
+        # Pre-diagonalize
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
-        (self._eig_n, self._U_n) = tf.linalg.eigh(self.n)
+        (self._eig_n, self._U_n) = tf.linalg.eigh(n)
 
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
 
@@ -43,13 +44,13 @@ class BatchOperatorMixinBCH:
     def phase(self, phi):
         """
         Batch phase factor.
-        
+
         Input:
             phi -- tensor of shape (batch_size,) or compatible
 
         Output:
             op -- phase factor; shape=[batch_size,1,1]
-            
+
         """
         phi = matrix_flatten(tf.cast(phi, dtype=tf.complex64))
         return tf.linalg.expm(1j * phi)
@@ -113,14 +114,10 @@ class BatchOperatorMixinBCH:
         Returns:
             Tensor([batch_size, N, N], c64): A batch of R(angle)
         """
-        angle = tf.cast(
-            tf.reshape(angle, [angle.shape[0], 1]), dtype=tf.complex64)
-        
+        angle = tf.cast(tf.reshape(angle, [angle.shape[0], 1]), dtype=tf.complex64)
+
         expm_n = tf.linalg.diag(tf.math.exp(-1j * angle * self._eig_n))
-        
+
         return tf.cast(
-            self._U_n
-            @ expm_n
-            @ tf.linalg.adjoint(self._U_n),
-            dtype=tf.complex64,
+            self._U_n @ expm_n @ tf.linalg.adjoint(self._U_n), dtype=tf.complex64,
         )

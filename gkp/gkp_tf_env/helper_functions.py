@@ -5,10 +5,11 @@ Created on Fri Jan 24 21:52:25 2020
 
 @author: Vladimir Sivak
 """
+from math import pi, sqrt
 
 import qutip as qt
 import numpy as np
-from math import pi, sqrt
+import tensorflow as tf
 import matplotlib.pyplot as plt
 
 # TODO: add docs
@@ -131,3 +132,11 @@ def plot_wigner_tf_wrapper(state, tensorstate=False, *args, **kwargs):
     state = qt.Qobj(state, dims=dims, type='ket')    
     plot_wigner(state, tensorstate, *args, **kwargs)
 
+
+def vec_to_complex(a):
+    """
+    Convert vectorized action of shape [batch_sized,2] to complex-valued
+    action of shape (batch_sized,)
+    
+    """
+    return tf.complex(a[:, 0], a[:, 1])

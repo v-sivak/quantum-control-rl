@@ -8,6 +8,10 @@ from gkp.gkp_tf_env import oscillator_qubit_env
 
 
 def gkp_init(simulate, **kwargs):
+    # Load default parameters of oscillator-qubit system
+    params = {k: v for k, v in config.__dict__.items() if '__' not in k}
+    kwargs = {**params, **kwargs}  # Add/override default params with kwargs
+
     if simulate == 'oscillator':
         return oscillator_env.OscillatorGKP(**kwargs)
     elif simulate == 'oscillator_qubit':
