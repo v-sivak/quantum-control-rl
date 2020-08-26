@@ -71,15 +71,15 @@ class QuantumTrajectorySim:
         psi_new = tf.where(mask, psi, psi_new)
         return psi_new
 
-    def measure(self, psi, Kraus, sample):
+    def measure(self, psi, M_ops, sample):
         """
         Batch measurement projection.
 
         Input:
             psi -- batch of states; shape=[batch_size, NH]
-            Kraus -- dictionary of Kraus operators corresponding to 2 different
-                     qubit measurement outcomes. Shape of each operator is
-                     [b,NH,NH], where b is batch size
+            M_ops -- dictionary of measurement operators corresponding to two
+                     different qubit measurement outcomes. Shape of each operator
+                     is [b,NH,NH], where b is batch size
             sample -- bool flag to sample or return expectation value
 
         Output:
@@ -88,8 +88,8 @@ class QuantumTrajectorySim:
 
         """
         collapsed, p = {}, {}
-        for i in Kraus.keys():
-            collapsed[i] = tf.linalg.matvec(Kraus[i], psi)
+        for i in M_ops.keys():
+            collapsed[i] = tf.linalg.matvec(M_ops[i], psi)
             p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
             p[i] = tf.math.real(p[i])
 
