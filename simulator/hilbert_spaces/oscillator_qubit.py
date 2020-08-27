@@ -23,18 +23,20 @@ class OscillatorQubit(SimulatorHilbertSpace):
     simulate decoherence, dephasing, Kerr etc using quantum jumps.
     """
 
-    def __init__(self, *args, K_osc, T1_osc, T1_qb, Tphi_qb, **kwargs):
+    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, **kwargs):
         """
         Args:
             K_osc (float): Kerr of oscillator (Hz).
             T1_osc (float): T1 relaxation time of oscillator (seconds).
             T1_qb (float): T1 relaxation time of qubit (seconds).
-            Tphi_qb (float): Dephasing time of qubit, incl. T1 and T2 (seconds).
+            T2_qb (float): T2 decoherence time of qubit (seconds).
         """
         self._K_osc = K_osc
         self._T1_osc = T1_osc
         self._T1_qb = T1_qb
-        self._Tphi_qb = Tphi_qb
+        self._T2_qb = T2_qb
+
+        self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
         super().__init__(self, *args, **kwargs)
 
     def _define_fixed_operators(self, N):
@@ -92,7 +94,7 @@ class OscillatorQubit(SimulatorHilbertSpace):
             * self.sm
         )
         qubit_dephasing = (
-            tf.cast(tf.sqrt(tf.math.reciprocal(2 * self._Tphi_qb)), dtype=tf.complex64)
+            tf.cast(tf.sqrt(tf.math.reciprocal(2 * self._T2_star_qb)), dtype=tf.complex64)
             * self.sz
         )
 
