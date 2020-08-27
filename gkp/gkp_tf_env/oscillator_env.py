@@ -256,4 +256,4 @@ class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
         Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
         
         psi = normalize(psi)
-        return self.measure(psi, Kraus)
+        return self.measure(psi, Kraus, sample)

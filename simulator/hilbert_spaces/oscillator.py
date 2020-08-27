@@ -46,7 +46,7 @@ class Oscillator(SimulatorHilbertSpace):
     @property
     def _collapse_operators(self):
         photon_loss = (
-            tf.cast(tf.sqrt(tf.math.reciprocal(self._T1_osc)), dtype=tf.complex64)
+            tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
             * self.a
         )
 

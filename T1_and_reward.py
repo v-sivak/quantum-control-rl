@@ -24,30 +24,30 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 
 env = gkp_init(simulate='oscillator', 
-               init='X+', H=3, T=4, attn_step=4, batch_size=2500, episode_length=400, 
-               reward_mode='fidelity', quantum_circuit_type='v2',
-               encoding='square')
+                init='X+', H=1, T=4, attn_step=1, batch_size=2000, episode_length=100, 
+                reward_mode = 'fidelity', quantum_circuit_type='v2',
+                encoding='square')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':False}
+to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-exp_name = 'mlp3_2head_H3T4Att4_steps36_64_v2'
-policy_dir = r'policy\000240000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP'
+exp_name = 'mlp_steps36_48_learn_beta_v2'
+policy_dir = r'policy\000310000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
 
 
 
-# # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-reps = 4 # serialize episode collection in a loop if can't fit into GPU memory
+reps = 1 # serialize episode collection in a loop if can't fit into GPU memory
 B = env.batch_size
 states = ['X+', 'Y+', 'Z+']
 rewards = {state : np.zeros((env.episode_length, B*reps))
@@ -87,9 +87,9 @@ for i, state in enumerate(states):
     mean_rewards = rewards[state].mean(axis=1) # average across episodes
     ax.plot(steps, mean_rewards, color=palette(i),
             linestyle='none', marker='.')
-    times = steps*env.step_duration
+    times = steps*float(env.step_duration)
     popt, pcov = curve_fit(hf.exp_decay, times, mean_rewards,
-                           p0=[1, env.T1_osc])
+                           p0=[1, env._T1_osc])
     ax.plot(steps, hf.exp_decay(times, popt[0], popt[1]), 
             label = state + ' : %.2f us' %(popt[1]*1e6),
             linestyle='--', color=palette(i))

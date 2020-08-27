@@ -329,7 +329,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
         psi = normalize(psi)
-        return self.measure(psi, self.P)
+        return self.measure(psi, self.P, sample)
 
 
 
