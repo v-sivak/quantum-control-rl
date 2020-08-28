@@ -25,25 +25,28 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         self,
         *args,
         # Required kwargs
-        t_delay,
         t_gate,
         t_read,
+        t_feedback,
+        t_idle,
         # Optional kwargs
         N=100,
         **kwargs
     ):
         """
         Args:
-            t_delay (float): Feedback delay in seconds.
             t_gate (float): Gate time in seconds.
             t_read (float): Readout time in seconds.
+            t_feedback (float): Feedback delay in seconds.
+            t_idle (float): Wait time between rounds in seconds.
             N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
         """
         self._N = N
         self.t_read = tf.constant(t_read / 2)  # Split read time before/after meas.
         self.t_gate = tf.constant(t_gate)
-        self.t_delay = tf.constant(t_delay)
-        self.step_duration = tf.constant(t_gate + t_read + t_delay)
+        self.t_feedback = tf.constant(t_feedback)
+        self.t_idle = tf.constant(t_idle)
+        self.step_duration = tf.constant(t_gate + t_read + t_feedback + t_idle)
         super().__init__(*args, N=N, **kwargs)
 
     @property
@@ -87,6 +90,8 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
 
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
+        # Between-round wait time
+        psi = self.simulate(psi, self.t_idle)
         # Qubit gates
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation
@@ -101,7 +106,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
-        psi = self.simulate(psi, self.t_delay)
+        psi = self.simulate(psi, self.t_feedback)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64)
         psi_final += batch_dot(sx, psi) * tf.cast((obs==-1), c64)
@@ -144,6 +149,8 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         # Feedback translation
         psi = batch_dot(T['a'], psi)
         psi_cached = batch_dot(Rotation, psi)
+        # Between-round wait time
+        psi = self.simulate(psi, self.t_idle)
         # Qubit gates
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation
@@ -158,7 +165,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
-        psi = self.simulate(psi, self.t_delay)
+        psi = self.simulate(psi, self.t_feedback)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64)
         psi_final += batch_dot(sx, psi) * tf.cast((obs==-1), c64)
@@ -205,6 +212,8 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
 
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
+        # Between-round wait time
+        psi = self.simulate(psi, self.t_idle)
         # Qubit gates
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation
@@ -229,7 +238,7 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
-        psi = self.simulate(psi, self.t_delay)
+        psi = self.simulate(psi, self.t_feedback)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64)
         psi_final += batch_dot(sx, psi) * tf.cast((obs==-1), c64)
@@ -276,6 +285,8 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
 
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
+        # Between-round wait time
+        psi = self.simulate(psi, self.t_idle)
         # Qubit gates
         psi = batch_dot(Hadamard, psi_cached)
         # Conditional translation
@@ -293,15 +304,14 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi, obs = self.measure(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
-        psi = self.simulate(psi, self.t_delay)
+        psi = self.simulate(psi, self.t_feedback)
         # Flip qubit conditioned on the measurement
         psi_final = psi * tf.cast((obs==1), c64)
         psi_final += batch_dot(sx, psi) * tf.cast((obs==-1), c64)
 
         return psi_final, psi_cached, obs
 
-
-    @tf.function # TODO: add losses in phase estimation?
+    @tf.function  # TODO: add losses in phase estimation?
     def phase_estimation(self, psi, beta, angle, sample=False):
         """
         One round of phase estimation.
@@ -330,8 +340,6 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(Hadamard, psi)
         psi = normalize(psi)
         return self.measure(psi, self.P, sample)
-
-
 
     @tf.function
     def ctrl(self, U0, U1):
