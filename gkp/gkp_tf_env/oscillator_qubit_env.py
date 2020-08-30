@@ -91,9 +91,9 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
         # Between-round wait time
-        psi = self.simulate(psi, self.t_idle)
+        psi = self.simulate(psi_cached, self.t_idle)
         # Qubit gates
-        psi = batch_dot(Hadamard, psi_cached)
+        psi = batch_dot(Hadamard, psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
@@ -150,9 +150,9 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         psi = batch_dot(T['a'], psi)
         psi_cached = batch_dot(Rotation, psi)
         # Between-round wait time
-        psi = self.simulate(psi, self.t_idle)
+        psi = self.simulate(psi_cached, self.t_idle)
         # Qubit gates
-        psi = batch_dot(Hadamard, psi_cached)
+        psi = batch_dot(Hadamard, psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
@@ -213,9 +213,9 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
         # Between-round wait time
-        psi = self.simulate(psi, self.t_idle)
+        psi = self.simulate(psi_cached, self.t_idle)
         # Qubit gates
-        psi = batch_dot(Hadamard, psi_cached)
+        psi = batch_dot(Hadamard, psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
@@ -286,9 +286,9 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
         # Feedback translation
         psi_cached = batch_dot(T['a'], psi)
         # Between-round wait time
-        psi = self.simulate(psi, self.t_idle)
+        psi = self.simulate(psi_cached, self.t_idle)
         # Qubit gates
-        psi = batch_dot(Hadamard, psi_cached)
+        psi = batch_dot(Hadamard, psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
