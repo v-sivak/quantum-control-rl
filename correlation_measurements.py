@@ -13,12 +13,13 @@ import matplotlib.pyplot as plt
 from gkp.gkp_tf_env import policy as plc
 from gkp.gkp_tf_env import gkp_init
 from time import time
+import tensorflow as tf 
+from math import sqrt, pi
 
 # initialize environment and policy
 env = gkp_init(simulate='oscillator',
                 init='Z+', H=1, batch_size=2000, episode_length=30, 
-                reward_mode='fidelity', quantum_circuit_type='v2',
-                T1_osc=1000e-6)
+                reward_mode='fidelity', quantum_circuit_type='v2')
 
 from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
@@ -37,14 +38,15 @@ for i in range(reps):
         time_step = env.step(action_step.action)
         counter += 1
         print('%d: Time %.3f sec' %(counter, time()-t))
-    all_obs.append(np.array(env.history['msmt'][1:]).squeeze())
+    all_obs.append(tf.squeeze(tf.stack(env.history['msmt'][1:], axis=0)))
 
-obs = np.concatenate(all_obs, axis=1)
+obs = tf.concat(all_obs, axis=1)
 T = env.episode_length
 R = np.zeros([T,T])    # correlation matrix
 
 # compute correlations
-corr = lambda x, y : (x*y).mean(axis=0) - x.mean(axis=0)*y.mean(axis=0)
+corr = lambda x, y : tf.reduce_mean(x*y, axis=0) - \
+    tf.reduce_mean(x, axis=0)*tf.reduce_mean(y, axis=0)
 r = lambda x, y : corr(x,y)/np.sqrt(corr(x,x)*corr(y,y))
 
 for i in range(T):
@@ -57,3 +59,4 @@ ax.set_xlabel('Episode step')
 ax.set_ylabel('Episode step')
 ax.pcolormesh(range(T), range(T), np.transpose(R), cmap='seismic', 
               vmax=1,vmin=-1)
+
