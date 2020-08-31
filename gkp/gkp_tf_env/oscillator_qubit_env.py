@@ -42,10 +42,10 @@ class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
             N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
         """
         self._N = N
-        self.t_read = tf.constant(t_read / 2)  # Split read time before/after meas.
-        self.t_gate = tf.constant(t_gate)
-        self.t_feedback = tf.constant(t_feedback)
-        self.t_idle = tf.constant(t_idle)
+        self.t_read = tf.constant(t_read / 2, dtype=tf.float32)  # Split read time before/after meas.
+        self.t_gate = tf.constant(t_gate, dtype=tf.float32)
+        self.t_feedback = tf.constant(t_feedback, dtype=tf.float32)
+        self.t_idle = tf.constant(t_idle, dtype=tf.float32)
         self.step_duration = tf.constant(t_gate + t_read + t_feedback + t_idle)
         super().__init__(*args, N=N, **kwargs)
 
