@@ -108,7 +108,7 @@ for k in range(len(Kerr)):
                 linestyle='none', marker='.')
         times = steps*env.step_duration
         popt, pcov = curve_fit(hf.exp_decay, times, mean_rewards,
-                               p0=[1, env.T1_osc])
+                               p0=[1, env._T1_osc])
         ax.plot(steps, hf.exp_decay(times, popt[0], popt[1]), 
                 label = state + ' : %.2f us' %(popt[1]*1e6),
                 linestyle='--', color=palette(i))

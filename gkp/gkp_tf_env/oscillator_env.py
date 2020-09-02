@@ -12,11 +12,10 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 
 from simulator.hilbert_spaces import Oscillator
-from simulator.mixins import BatchOperatorMixinBCH
 from simulator.utils import normalize
 
 
-class OscillatorGKP(Oscillator, BatchOperatorMixinBCH, GKP):
+class OscillatorGKP(Oscillator, GKP):
     """
     This class inherits simulation-independent functionality from the GKP
     class and implements simulation by abstracting away the qubit and using

@@ -11,11 +11,10 @@ from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from simulator.hilbert_spaces import OscillatorQubit
-from simulator.mixins import BatchOperatorMixinBCH
 from simulator.utils import normalize
 
 
-class OscillatorQubitGKP(OscillatorQubit, BatchOperatorMixinBCH, GKP):
+class OscillatorQubitGKP(OscillatorQubit, GKP):
     """
     This class inherits simulation-independent functionality from the GKP
     class and implements simulation by including the qubit in the Hilbert

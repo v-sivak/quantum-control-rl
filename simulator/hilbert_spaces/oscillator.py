@@ -10,9 +10,9 @@ import tensorflow as tf
 
 from simulator.operators import identity, destroy, create, position, momentum, num
 from .base import SimulatorHilbertSpace
+from simulator.mixins import BatchOperatorMixinBCH
 
-
-class Oscillator(SimulatorHilbertSpace):
+class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
     """
     Define all relevant operators as tensorflow tensors of shape [N,N].
     Methods need to take care of batch dimension explicitly.

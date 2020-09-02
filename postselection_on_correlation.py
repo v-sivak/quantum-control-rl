@@ -95,7 +95,7 @@ for k in range(1,6):
 # This part simulates oscillator_qubit and post-selects trajectories
 
 env = gkp_init(simulate='oscillator_qubit', 
-                init='X+', H=1, batch_size=1000, episode_length=60, 
+                init='X+', H=1, batch_size=2000, episode_length=100, 
                 reward_mode = 'fidelity', quantum_circuit_type='v2',
                 encoding='square')
 
@@ -103,7 +103,7 @@ from gkp.action_script import phase_estimation_symmetric_with_trim_4round as act
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
-reps = 100 # serialize episode collection in a loop if can't fit into GPU memory
+reps = 500 # serialize episode collection in a loop if can't fit into GPU memory
 B = env.batch_size
 states = ['X+']
 rewards = {state : np.zeros((env.episode_length, B*reps)) for state in states}
@@ -136,7 +136,7 @@ for state in states:
     obs[state] = tf.concat(all_obs, axis=1).numpy()
             
 
-# Function that produces a mask of shape (episode_length,batch_size) to indicate
+# Function that produces a mask of shape (episode_length, batch_size) to indicate
 # which trajectory are likely faulty and need to be trashed
 def mask(obs):
     T = obs.shape[0]
@@ -144,9 +144,9 @@ def mask(obs):
     error_mask = np.array([False]*B)
     
     def logical_and(condition):
-    X = np.array([True]*len(condition[0]))
-    for i in range(len(condition)):
-        X = np.logical_and(condition[i], X)
+        X = np.array([True]*len(condition[0]))
+        for C in condition:
+            X = np.logical_and(C, X)
         return X
     
     for i in np.arange(0,T-8,2):
@@ -166,9 +166,9 @@ fig, ax = plt.subplots(1,1)
 ax.set_xlabel('Step')
 ax.set_ylabel(r'$\langle X\rangle$, $\langle Y\rangle$, $\langle Z\rangle$')
 palette = plt.get_cmap('tab10')
-steps = np.arange(env.episode_length)
+steps = np.arange(env.episode_length)[:60]
 for i, state in enumerate(states):
-    mean_rewards = np.ma.array(rewards[state], mask=mask(obs[state])).mean(axis=1)
+    mean_rewards = np.ma.array(rewards[state][:60,:], mask=mask(obs[state][:60,:])).mean(axis=1)
     ax.plot(steps, mean_rewards, color=palette(i),
             linestyle='none', marker='.')
     times = steps*float(env.step_duration)
@@ -186,5 +186,49 @@ fig, ax = plt.subplots(1,1)
 ax.set_xscale('log')
 ax.set_xlabel('Fraction of post-selected trajectories')
 ax.set_ylabel('Logical lifetime')
-ax.plot([1.0, 0.36966, 0.10666, 0.00307],
-        [263, 287, 298, 312])
+# 100-step trajectories
+ax.plot([1.0, 0.1503, 0.016425, 4.3e-05],
+        [262, 299, 324, 334],
+        label='100 steps')
+# 80-step trajectories
+ax.plot([1.0, 0.2363, 0.0418, 0.000378],
+        [262, 297, 314, 329],
+        label='80 steps')
+# 60-step trajectories
+ax.plot([1.0, 0.3724, 0.1069, 0.003321],
+        [262, 292, 306, 333],
+        label='60 steps')
+# 40-step trajectories
+ax.plot([1.0, 0.5853, 0.27389, 0.030345],
+        [262, 282, 292, 315],
+        label='40 steps')
+# 20-step trajectories
+ax.plot([1.0, 0.8914, 0.6807, 0.2689],
+        [262, 267, 267, 272],
+        label='20 steps')
+ax.legend(loc='lower left')
+ax.set_xlim(1e-5,2)
+
+# Plot logical lifetime as a function of post-selection survival probability
+fig, ax = plt.subplots(1,1)
+ax.set_xscale('log')
+ax.set_xlabel('Fraction of post-selected trajectories')
+ax.set_ylabel('Logical lifetime')
+# 100-step trajectories
+ax.scatter([1.0], [262], label='all data')
+ax.plot([1.0, 1.0, 1.0, 1.0, 1.0],
+        [262, 262, 262, 262, 262])
+# C1-4 correlators
+ax.plot([0.1503, 0.2363, 0.3724, 0.5853, 0.8914],
+        [299, 297, 292, 282, 267],
+        label=r'$C_4, C_8, C_{12}, C_{16}$')
+# C1-3 correlators
+ax.plot([0.0164, 0.0418, 0.1069, 0.27389, 0.6807],
+        [324, 314, 306, 292, 267],
+        label=r'$C_4, C_8, C_{12}$')
+# C1-2 correlators
+ax.plot([4.3e-05, 0.000378, 0.003321, 0.030345, 0.2689],
+        [334, 329, 333, 315, 272],
+        label=r'$C_4, C_8$')
+ax.legend(loc='lower left')
+ax.set_xlim(1e-5,2)

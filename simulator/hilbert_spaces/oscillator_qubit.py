@@ -11,9 +11,9 @@ from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 
 from .base import SimulatorHilbertSpace
+from simulator.mixins import BatchOperatorMixinBCH
 
-
-class OscillatorQubit(SimulatorHilbertSpace):
+class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.
@@ -86,15 +86,15 @@ class OscillatorQubit(SimulatorHilbertSpace):
     @property
     def _collapse_operators(self):
         photon_loss = (
-            tf.cast(tf.sqrt(tf.math.reciprocal(self._T1_osc)), dtype=tf.complex64)
+            tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
             * self.a
         )
         qubit_decay = (
-            tf.cast(tf.sqrt(tf.math.reciprocal(self._T1_qb)), dtype=tf.complex64)
+            tf.cast(tf.sqrt(1/self._T1_qb), dtype=tf.complex64)
             * self.sm
         )
         qubit_dephasing = (
-            tf.cast(tf.sqrt(tf.math.reciprocal(2 * self._T2_star_qb)), dtype=tf.complex64)
+            tf.cast(tf.sqrt(1/(2*self._T2_star_qb)), dtype=tf.complex64)
             * self.sz
         )
 
