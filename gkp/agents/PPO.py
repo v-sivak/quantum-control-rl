@@ -69,7 +69,8 @@ def train_eval(
         value_fc_layers = (),
         use_rnn = True,
         actor_lstm_size = (12,),
-        value_lstm_size = (12,)):
+        value_lstm_size = (12,),
+        **kwargs):
     """ A simple train and eval for PPO agent. 
     
     Args:
@@ -140,6 +141,7 @@ def train_eval(
         use_rnn (bool): whether to use LSTM units in the neural net.
         actor_lstm_size (tuple): sizes of LSTM layers in actor net.
         value_lstm_size (tuple): sizes of LSTM layers in value net.
+        **kwargs: optional additional arguments to pass to GKP environment
     """
     if root_dir is None:
         raise AttributeError('PPO requires a root_dir.')    
@@ -151,7 +153,7 @@ def train_eval(
                     init='random', H=horizon, T=clock_period,
                     batch_size=train_batch_size, encoding=encoding,
                     reward_mode=reward_mode, attn_step=attention_step,
-                    quantum_circuit_type=quantum_circuit_type)
+                    quantum_circuit_type=quantum_circuit_type, **kwargs)
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
 
     # Create evaluation env and wrap it
@@ -160,7 +162,7 @@ def train_eval(
                     batch_size=eval_batch_size, encoding=encoding,
                     episode_length=eval_episode_length,
                     reward_mode=reward_mode, attn_step=attention_step,
-                    quantum_circuit_type=quantum_circuit_type)
+                    quantum_circuit_type=quantum_circuit_type, **kwargs)
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
 
     # --------------------------------------------------------------------

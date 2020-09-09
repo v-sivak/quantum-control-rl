@@ -140,7 +140,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         super(ActionWrapper, self).__init__(env)
 
         self.scale = {'alpha' : 1, 'beta' : 1, 'epsilon' : 1, 'phi' : pi,
-                      'theta' : 0.1}
+                      'theta' : 0.02}
         self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2,
                          'phi' : 1, 'theta' : 1}
         self.period = action_script.period # periodicity of the protocol
