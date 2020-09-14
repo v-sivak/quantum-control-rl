@@ -5,12 +5,15 @@ Created on Fri Jan 24 21:52:25 2020
 
 @author: Vladimir Sivak
 """
+import os
 from math import pi, sqrt
-
 import qutip as qt
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import h5py
+from time import time
+from scipy.optimize import curve_fit
 
 # TODO: add docs
 
@@ -140,3 +143,82 @@ def vec_to_complex(a):
     
     """
     return tf.complex(a[:, 0], a[:, 1])
+
+
+def fit_logical_lifetime(env, policy, plot=True, save_dir=None, 
+                         states=['X+', 'Y+', 'Z+'], reps=1):
+    """
+    Fit exponential decay of logical Pauli eigenstates and extract T1.
+    
+    Args:
+        env (GKP): instance of GKP environment
+        policy (TFPolicy): instance of TFPolicy
+        plot (bool): flag to plot the T1 data together with the fit
+        save_dir (str): directory to save data in hdf5 format
+        states (list): list of Pauli eigenstates 'X+', 'Y+', 'Z+'
+        reps (int): number of repetitions to do in series (use if can't batch 
+                    enough episodes due to GPU memory limit)
+    """
+    B = env.batch_size
+    rewards = {s : np.zeros((env.episode_length, B*reps)) for s in states}
+    mean_rewards = {s : np.zeros(env.episode_length) for s in states}
+    fit_params = {s : np.zeros(2) for s in states}
+
+    steps = np.arange(env.episode_length)
+    times = steps*float(env.step_duration)
+    
+    for s in states:
+        if '_env' in env.__dir__(): 
+            env._env.init = s
+            env._env.reward_mode = 'fidelity'
+        else:
+            env.init = s
+            env.reward_mode = 'fidelity'
+        
+        # Collect batch of episodes, loop if can't fit in GPU memory
+        for i in range(reps):
+            time_step = env.reset()
+            policy_state = policy.get_initial_state(B)
+            j = 0
+            while not time_step.is_last()[0]:
+                t = time()
+                action_step = policy.action(time_step, policy_state)
+                policy_state = action_step.state
+                time_step = env.step(action_step.action)
+                rewards[s][j][i*B:(i+1)*B] = time_step.reward
+                j += 1
+                print('%d: Time %.3f sec' %(j, time()-t))
+        
+        mean_rewards[s] = rewards[s].mean(axis=1) # average across episodes
+        fit_params[s], _ = curve_fit(exp_decay, times, mean_rewards[s],
+                               p0=[1, env._T1_osc])
+    
+    # Save data
+    if save_dir:
+        h5file = h5py.File(os.path.join(save_dir, 'logical_lifetime'), 'a')
+        try:
+            for s in states:
+                grp = h5file.create_group(s)
+                grp.create_dataset('rewards', data=rewards[s])
+                grp.create_dataset('times (s)', data=times)
+                grp.attrs['T1 (s)'] = fit_params[s][1]
+                grp.attrs['Exp scaling factor'] = fit_params[s][0]
+        finally:
+            h5file.close()
+    
+    # Plot average reward from every time step and T1 exponential fit
+    if plot:
+        fig, ax = plt.subplots(1,1)
+        ax.set_xlabel('Step')
+        ax.set_ylabel(r'$\langle X\rangle$, $\langle Y\rangle$, $\langle Z\rangle$')
+        palette = plt.get_cmap('tab10')
+        for i, s in enumerate(states):
+            ax.plot(steps, mean_rewards[s], color=palette(i),
+                    linestyle='none', marker='.')
+            ax.plot(steps, exp_decay(times, fit_params[s][0], fit_params[s][1]), 
+                    label = s + ' : %.2f us' %(fit_params[s][1]*1e6),
+                    linestyle='--', color=palette(i))
+        ax.set_title('Logical lifetime')
+        ax.legend()
+    
+    return fit_params

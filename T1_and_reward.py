@@ -13,86 +13,33 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
-from scipy.optimize import curve_fit
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.gkp_tf_env import policy as plc
 from gkp.gkp_tf_env import gkp_init
 
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
 
 env = gkp_init(simulate='oscillator', 
-                init='X+', H=1, T=4, attn_step=1, batch_size=2000, episode_length=100, 
-                reward_mode = 'fidelity', quantum_circuit_type='v2',
-                encoding='square')
+                init='X+', H=1, T=6, attn_step=1, batch_size=3000, episode_length=200, 
+                reward_mode = 'zero', quantum_circuit_type='v2',
+                encoding='hexagonal')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP'
-exp_name = 'mlp_steps36_48_learn_beta_v2'
-policy_dir = r'policy\000310000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,exp_name,policy_dir))
-
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep_4000\perfect_qubit_without_rotation\K1'
+policy_dir = r'policy\000020000'
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 # from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-reps = 1 # serialize episode collection in a loop if can't fit into GPU memory
-B = env.batch_size
-states = ['X+', 'Y+', 'Z+']
-rewards = {state : np.zeros((env.episode_length, B*reps))
-           for state in states}
 
-# can do this only with fidelity reward, because it is used to fit T1
-assert env.reward_mode == 'fidelity'
-
-for state in states:
-    if '_env' in env.__dir__(): 
-        env._env.init = state
-    else:
-        env.init = state
-    
-    # Collect batch of episodes, loop if can't fit in GPU memory
-    for i in range(reps):
-        time_step = env.reset()
-        policy_state = policy.get_initial_state(B)
-        j = 0
-        while not time_step.is_last()[0]:
-            t = time()
-            action_step = policy.action(time_step, policy_state)
-            policy_state = action_step.state
-            time_step = env.step(action_step.action)
-            rewards[state][j][i*B:(i+1)*B] = time_step.reward
-            j += 1
-            print('%d: Time %.3f sec' %(j, time()-t))
-
-
-# Plot average reward from every time step and fit T1
-fig, ax = plt.subplots(1,1)
-ax.set_xlabel('Step')
-ax.set_ylabel(r'$\langle X\rangle$, $\langle Y\rangle$, $\langle Z\rangle$')
-palette = plt.get_cmap('tab10')
-steps = np.arange(env.episode_length)
-for i, state in enumerate(states):
-    mean_rewards = rewards[state].mean(axis=1) # average across episodes
-    ax.plot(steps, mean_rewards, color=palette(i),
-            linestyle='none', marker='.')
-    times = steps*float(env.step_duration)
-    popt, pcov = curve_fit(hf.exp_decay, times, mean_rewards,
-                           p0=[1, env._T1_osc])
-    ax.plot(steps, hf.exp_decay(times, popt[0], popt[1]), 
-            label = state + ' : %.2f us' %(popt[1]*1e6),
-            linestyle='--', color=palette(i))
-ax.set_title('Logical lifetime')
-ax.legend()
-    
+fit_params = hf.fit_logical_lifetime(env, policy, plot=True, reps=1, states=['X+'])
