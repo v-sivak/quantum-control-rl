@@ -9,11 +9,12 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
+import tensorflow as tf
 from gkp.agents import PPO
 from gkp.agents import actor_distribution_network_gkp
 
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep\perfect_qubit_without_rotation'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep_4000'
 
 Kerr = np.array([1,5,10,15,20,25,30,35,40,45,50]) # Kerr in Hz
 t_gate = 1.2e-6/np.sqrt(np.sqrt(Kerr)) # assume gate time scales as 1/(chi*alpha_c)
@@ -24,6 +25,8 @@ for i in range(len(Kerr)):
     save_dir = os.path.join(root_dir,'K%d' %Kerr[i])
     to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': False}
     simulate = 'oscillator'
+    
+    tf.compat.v1.reset_default_graph() # to reset global_step used in PPO
     
     PPO.train_eval(
         root_dir = save_dir,
