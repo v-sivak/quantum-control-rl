@@ -59,9 +59,9 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
         # Initializer to use for the kernels of the conv and dense layers.
         kernel_initializer = tf.compat.v1.keras.initializers.glorot_uniform()
     
-        # Encoder network for full observations. Preprocessing should flatten
+        # Encoder network for full input observations. Preprocessing should flatten
         # and concatenate all observation components. 
-        encoder = encoding_network.EncodingNetwork(
+        input_encoder = encoding_network.EncodingNetwork(
             input_tensor_spec,
             preprocessing_layers=preprocessing_layers,
             preprocessing_combiner=preprocessing_combiner,
@@ -72,10 +72,19 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
             dtype=tf.float32)
         
         # Encoder network for 'clock' observation only. This network head is 
-        # completely independent from the previous encoder.
+        # completely independent from the 'input_encoder'.
         clock_encoder = encoding_network.EncodingNetwork(
             input_tensor_spec['clock'],
             fc_layer_params=fc_layer_params,
+            activation_fn=tf.keras.activations.relu,
+            kernel_initializer=kernel_initializer,
+            batch_squash=batch_squash,
+            dtype=tf.float32)
+
+        # Encoder network for 'const' observation only.
+        const_encoder = encoding_network.EncodingNetwork(
+            input_tensor_spec['const'],
+            fc_layer_params=(),
             activation_fn=tf.keras.activations.relu,
             kernel_initializer=kernel_initializer,
             batch_squash=batch_squash,
@@ -96,13 +105,15 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
             output_spec=output_spec,
             name=name)
     
-        self._encoder = encoder
+        self._input_encoder = input_encoder
         self._clock_encoder = clock_encoder
+        self._const_encoder = const_encoder
         self._projection_networks = projection_networks
         self._output_tensor_spec = output_tensor_spec
         
         # list of action dimensions that are independent of the measurements
-        self._clock_only_actions = ['beta', 'theta']
+        self._clock_only_actions = ['beta']
+        self._const_actions = ['theta']
     
     @property
     def output_tensor_spec(self):
@@ -113,12 +124,16 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
         outer_rank = nest_utils.get_outer_rank(
             observations, self.input_tensor_spec)
         
-        encoder_state, _ = self._encoder(
+        input_encoder_state, _ = self._input_encoder(
             observations,
             training=training)
 
         clock_encoder_state, _ = self._clock_encoder(
             observations['clock'],
+            training=training)
+
+        const_encoder_state, _ = self._const_encoder(
+            observations['const'],
             training=training)
           
         # Apply projection networks to encoder outputs, producing a nest of
@@ -129,9 +144,12 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
             if a in self._clock_only_actions:
                 output_actions[a], _ = self._projection_networks[a](
                     clock_encoder_state, outer_rank, training=training)
+            elif a in self._const_actions:
+                output_actions[a], _ = self._projection_networks[a](
+                    const_encoder_state, outer_rank, training=training)
             else:
                 output_actions[a], _ = self._projection_networks[a](
-                    encoder_state, outer_rank, training=training)
+                    input_encoder_state, outer_rank, training=training)
 
         return output_actions, network_state    
     

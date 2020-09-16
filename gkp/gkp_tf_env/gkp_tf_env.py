@@ -121,7 +121,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Create time step spec
         observation_spec = {
             'msmt'  : spec(self.H, 1),
-            'clock' : spec(1, self.T)}
+            'clock' : spec(1, self.T),
+            'const'   : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
         self.quantum_circuit = getattr(
@@ -165,6 +166,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         observation['msmt'] = tf.concat(H, axis=1)
         C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
         observation['clock'] = C
+        observation['const'] = tf.ones(shape=[self.batch_size,1])
 
         reward = self.calculate_reward(action)
         self._episode_return += reward
@@ -223,7 +225,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {
             'msmt'  : tf.concat(self.history['msmt'][-self.H:], axis=1), 
-            'clock' : tf.zeros(shape=[self.batch_size,1,self.T])}
+            'clock' : tf.zeros(shape=[self.batch_size,1,self.T]),
+            'const'   : tf.ones(shape=[self.batch_size,1])}
 
         # Will keep track of code flips in symmetrized phase estimation
         if self.quantum_circuit_type == 'v2': 
