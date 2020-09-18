@@ -5,7 +5,7 @@ Created on Thu Feb 20 14:50:22 2020
 @author: Vladimir Sivak
 """
 from abc import ABCMeta, abstractmethod
-from math import sqrt
+from math import sqrt, pi
 
 import numpy as np
 import qutip as qt
@@ -64,6 +64,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         reward_mode="zero",
         quantum_circuit_type="v1",
         encoding="square",
+        stabilizer_translations=None,
         **kwargs
     ):
         """
@@ -77,7 +78,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
             quantum_circuit_type (str, optional): Circuit protocol version. Defaults to "v1".
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
-
+            stabilizer_translations (list, optional): list of stabilizer translation amplitudes.
+            
         """
         # Default simulation parameters
         self.H = H
@@ -88,6 +90,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.init = init
         self.reward_mode = reward_mode
         self.quantum_circuit_type = quantum_circuit_type
+        self.stabilizer_translations = stabilizer_translations
 
         if encoding == 'square':
             S = np.array([[1, 0], [0, 1]])
@@ -273,7 +276,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                        for key, val in states.items()}
         vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
         self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
-
+        
 
     ### REWARD FUNCTIONS
 
@@ -322,6 +325,29 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
 
 
+    def reward_stabilizers(self, *args):
+        """
+        Reward only on last time step with the result of measurement of one of
+        the stabilizers using cached wavefunction (after feedback translation).
+            
+        """
+        # Calculate reward
+        if self._elapsed_steps < self.episode_length:
+            z = tf.zeros(self.batch_size, dtype=tf.float32)
+        else:
+            # TODO: this works only for 2 stabilizers, generalize
+            mask = tf.random.categorical(
+                tf.math.log([[0.5, 0.5] for _ in range(self.batch_size)]),1)
+            stabilizers = [self.stabilizer_translations[int(m)] for m in mask]
+            stabilizers = tf.convert_to_tensor(stabilizers, dtype=c64)
+            phi = tf.zeros(self.batch_size)
+            _, z = self.phase_estimation(self.info['psi_cached'], stabilizers, 
+                                         angle=phi, sample=True)
+            z = tf.cast(z, dtype=tf.float32)
+            z = tf.reshape(z, shape=(self.batch_size,))
+        return z
+    
+
     def reward_fidelity(self, act):
         """
         Reward only on last time step with the result of measurement of logical
@@ -361,7 +387,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         the code and increment the corresponding counter of X, Y, or Z flips.
         
         """
-        amp = hf.vec_to_complex(action[key])                
+        amp = hf.vec_to_complex(action[key])
         ref_amps = {'alpha' : ['X','Y','Z'], 'beta' : ['S_x','S_y','S_z']}
         for a, b in zip(['X','Y','Z'], ref_amps[key]):
             ref = self.code_map[b]
@@ -401,7 +427,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'fidelity']
+            assert mode in ['zero', 'pauli', 'fidelity', 'stabilizers']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
@@ -411,6 +437,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 self.calculate_reward = self.reward_pauli
             if mode == 'fidelity':
                 self.calculate_reward = self.reward_fidelity
+            if mode == 'stabilizers':
+                self.calculate_reward = self.reward_stabilizers
         except: 
             raise ValueError('Reward mode not supported.') 
     

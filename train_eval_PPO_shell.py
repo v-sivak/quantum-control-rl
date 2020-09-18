@@ -46,6 +46,7 @@ if __name__ == '__main__':
     attention_step = 1
     train_episode_length = lambda x: 36 if x<1000 else 48
     eval_episode_length = 48
+    init_state = 'random'
     reward_mode = 'pauli'
     encoding = 'square'
     quantum_circuit_type = 'v2'
@@ -146,6 +147,9 @@ if __name__ == '__main__':
     parser.add_argument('--reward_mode', type=str,
                         default=reward_mode)
 
+    parser.add_argument('--init_state', type=str,
+                        default=init_state)
+
     parser.add_argument('--encoding', type=str,
                         default=encoding)
     
@@ -203,6 +207,7 @@ if __name__ == '__main__':
         attention_step=args.attention_step,
         train_episode_length=train_episode_length,
         eval_episode_length=args.eval_episode_length,
+        init_state=args.init_state,
         reward_mode=args.reward_mode,
         encoding=args.encoding,
         quantum_circuit_type=args.quantum_circuit_type,

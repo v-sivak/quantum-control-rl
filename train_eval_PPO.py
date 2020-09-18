@@ -9,21 +9,23 @@ import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-root_dir = os.path.join(root_dir,'test')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\state_prep'
+root_dir = os.path.join(root_dir,'sensor_prep_steps8_H1C4A1_qb_v1')
 
+kwargs = {'stabilizer_translations' : [sqrt(2*pi)+0j, 1j*sqrt(2*pi)]}
 
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
         # Params for collect
-        num_iterations = 1000000,
-        train_batch_size = 10,
-        replay_buffer_capacity = 70000,
+        num_iterations = 4000,
+        train_batch_size = 1000,
+        replay_buffer_capacity = 15000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -36,28 +38,29 @@ PPO.train_eval(
         importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
-        eval_batch_size = 20,
+        eval_batch_size = 600,
         eval_interval = 100,
         save_interval = 500,
         checkpoint_interval = 500,
         summary_interval = 100,
         # Params for environment
         simulate = 'oscillator_qubit',
-        horizon = 4,
+        horizon = 1,
         clock_period = 4,
-        attention_step = 4,
-        train_episode_length = lambda x: 12,
-        eval_episode_length = 12,
-        reward_mode = 'pauli',
+        attention_step = 1,
+        train_episode_length = lambda x: 8,
+        eval_episode_length = 8,
+        reward_mode = 'stabilizers',
         encoding = 'square',
-        quantum_circuit_type = 'v2',
-        action_script = 'phase_estimation_symmetric_with_trim_4round',
-        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': True},
+        quantum_circuit_type = 'v1',
+        action_script = 'phase_estimation_4round',
+        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': False},
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
-        actor_fc_layers = (200,100,50),
-        value_fc_layers = (200,100,50),
+        actor_fc_layers = (100,50),
+        value_fc_layers = (100,50),
         use_rnn = False,
         actor_lstm_size = (12,),
         value_lstm_size = (12,),
+        **kwargs
         )
