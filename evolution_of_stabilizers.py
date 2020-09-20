@@ -23,28 +23,41 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 
 env = gkp_init(simulate='oscillator', 
-                init='vac', H=4, T=4, batch_size=1000, episode_length=100, 
+                init='vac', H=1, T=8, A=1, batch_size=1000, episode_length=50, 
                 reward_mode='zero', quantum_circuit_type='v2')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':False}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-env = wrappers.FlattenObservationsWrapperTF(env,
-                        observations_whitelist=['msmt','clock'])
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP'
-policy_dir = r'mlp3_steps36_48_lr1e-4_script_alpha_v2\policy\000100000'
+# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
+from gkp.action_script import v2_square_sharpen_3x_trim as action_script
+to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
+env = wrappers.ActionWrapper(env, action_script, to_learn)
+
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\rnn_H1T8A1_stabilizers_sharpen_3x_trim_v2'
+policy_dir = r'policy\000090000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+
+# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-
 # What operators to measure 
+# names = [r'Re($S_1$)', r'Re($S_2$)',
+#          r'Im($S_1$)', r'Im($S_2$)']
+# # Translation amplitudes
+# stabilizers = [np.sqrt(pi), 2j*np.sqrt(pi)]*2
+# # Qubit measurement angles
+# angles = [0]*2 + [-pi/2]*2
+# # Params for plotting
+# lines = ['-']*2 + ['--']*2
+# palette = plt.get_cmap('tab10')
+# colors = [palette(0), palette(1), palette(2)]*2
+
+
+# # What operators to measure 
 names = [r'Re($S_x$)', r'Re($S_y$)', r'Re($S_z$)',
          r'Im($S_x$)', r'Im($S_y$)', r'Im($S_z$)']
 # Translation amplitudes
@@ -89,6 +102,7 @@ fig, ax = plt.subplots(1,1)
 ax.set_xlabel('Step')
 ax.set_title('Stabilizers')
 steps = np.arange(env.episode_length)
+# ax.set_ylim(-0.2, 0.9)
 for i, name in enumerate(names):
     ax.plot(steps, results[name], label=name, 
             linestyle=lines[i], color=colors[i])

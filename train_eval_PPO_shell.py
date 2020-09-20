@@ -10,13 +10,14 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from gkp.agents import PPO
+from numpy import sqrt, pi
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\July\OscillatorGKP\test'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp2_H1T8A1_stabilizers_sharpen_3x_trim_v2'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
@@ -34,32 +35,33 @@ if __name__ == '__main__':
     importance_ratio_clipping = 0.1
     value_pred_loss_coef = 0.005
     # Params for log, eval, save
-    eval_batch_size = 200
+    eval_batch_size = 600
     eval_interval = 100
     save_interval = 500
-    checkpoint_interval = 500
+    checkpoint_interval = 5000
     summary_interval = 100
     # Params for environment
     simulate = 'oscillator'
-    horizon = 4
-    clock_period = 4
+    horizon = 1
+    clock_period = 8
     attention_step = 1
-    train_episode_length = lambda x: 36 if x<1000 else 48
-    eval_episode_length = 48
-    init_state = 'random'
-    reward_mode = 'pauli'
+    train_episode_length = lambda x: 36 if x<1000 else 64
+    eval_episode_length = 64
+    init_state = 'vac'
+    reward_mode = 'stabilizers'
     encoding = 'square'
     quantum_circuit_type = 'v2'
-    action_script = 'phase_estimation_symmetric_with_trim_4round'
+    action_script = 'v2_square_sharpen_3x_trim'
     to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
     # Policy and value networks
     ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP
-    actor_fc_layers = (200,100,50)
-    value_fc_layers = (200,100,50)
+    actor_fc_layers = (100,50)
+    value_fc_layers = (100,50)
     use_rnn = False
     actor_lstm_size = (12,)
     value_lstm_size = (12,)
     
+    kwargs = {'stabilizer_translations' : [2*sqrt(pi)+0j, 2j*sqrt(pi)]}
     
     import argparse
     parser = argparse.ArgumentParser()
@@ -219,4 +221,5 @@ if __name__ == '__main__':
         use_rnn=args.use_rnn,
         actor_lstm_size=args.actor_lstm_size,
         value_lstm_size=args.value_lstm_size,
+        **kwargs
         )

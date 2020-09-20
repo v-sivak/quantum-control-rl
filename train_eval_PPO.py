@@ -50,6 +50,7 @@ PPO.train_eval(
         attention_step = 1,
         train_episode_length = lambda x: 8,
         eval_episode_length = 8,
+        init_state = 'vac',
         reward_mode = 'stabilizers',
         encoding = 'square',
         quantum_circuit_type = 'v1',

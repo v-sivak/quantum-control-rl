@@ -14,7 +14,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import gkp_init
-from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+from gkp.action_script import v2_hexagonal_phase_estimation_6round as action_script
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep_4000'
@@ -24,8 +24,8 @@ names = [
     # '50us_qubit_without_rotation',
     # '120us_qubit_with_rotation',
     # '120us_qubit_without_rotation',
-    'perfect_qubit_with_rotation',
-    'perfect_qubit_without_rotation']
+    'perfect_qubit_with_rotation_v2']
+    # 'perfect_qubit_without_rotation']
 
 palette = plt.get_cmap('tab10')
     
@@ -41,11 +41,11 @@ for i in range(len(names)):
     for K in K_vals:
         # Load the policy
         data_dir = os.path.join(train_dir, 'K' + str(K), 'policy')
-        policy_dir = os.path.join(data_dir, '000060000')
+        policy_dir = os.path.join(data_dir, '000080000')
         policy = tf.compat.v2.saved_model.load(policy_dir)
         
         # Additional simulation parameters
-        kwargs = {'K' : K, 't_gate' : 1.2e-6/np.sqrt(np.sqrt(K)), 'T1_osc' : 250e-6}
+        kwargs = {'K_osc' : K, 't_gate' : 1.2e-6/np.sqrt(np.sqrt(K)), 'T1_osc' : 250e-6}
         if 'perfect' in names[i]:
             kwargs['simulate'] = 'oscillator'
         else:
