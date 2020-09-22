@@ -8,9 +8,10 @@ Created on Sun Jul 26 19:39:18 2020
 from abc import ABC, abstractmethod
 
 import tensorflow as tf
-
+import tensorflow_probability as tfp
+from tensorflow.keras.backend import batch_dot
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
-
+from simulator.diffusion_channel_sim import DiffusionChannelSim
 
 class SimulatorHilbertSpace(ABC):
     """
@@ -19,59 +20,66 @@ class SimulatorHilbertSpace(ABC):
     operators on the space, a Hamiltonian, and a set of jump operators.
     """
 
-    def __init__(self, *args, N, discrete_step_duration, **kwargs):
+    def __init__(self, *args, channel, N, discrete_step_duration, diffusion_rate, **kwargs):
         """
         Args:
+            channel (str): either 'diffusion' or 'quantum_jumps' error channel
             N (int): Size of the oscillator Hilbert space
             discrete_step_duration (float): Simulator time discretization in seconds.
+            diffusion_rate (float): Rate of diffusion in 1/s.
         """
         # Tensor ops acting on oscillator Hilbert space
         self._define_fixed_operators(N)
-
+        
         # Initialize quantum trajectories simulator
-        self.mcsim = QuantumTrajectorySim(self._kraus_ops(discrete_step_duration))
-        self._dt = tf.constant(discrete_step_duration)
+        if channel == 'quantum_jumps':
+            self.mcsim = QuantumTrajectorySim(self._kraus_ops(discrete_step_duration))
+            def simulate(psi, time):
+                # TODO: fix the rounding issue
+                steps = tf.cast(time / discrete_step_duration, dtype=tf.int32)
+                return self.mcsim.run(psi, steps)
+        
+        if channel == 'diffusion':
+            self.mcsim = DiffusionChannelSim(self.translate)
+            def simulate(psi, time):
+                diffusion_sigma = tf.math.sqrt(diffusion_rate * time)
+                return self.mcsim.run(psi, diffusion_sigma)
 
+        self.simulate = tf.function(simulate)
         super().__init__(*args, **kwargs)
 
-    @tf.function
-    def simulate(self, psi, time):
-        """
-        Evolves the wavefunction `psi` for `time` using the Monte Carlo simulator with
-        previously defined Kraus operators. This is mostly a helper function to
-        abstract the time discretization of the simulator from the caller. Note,
-        however, that discretization *does* impart a rounding effect.
-
-        Args:
-            psi (Tensor([batch_size, N], c64)): The (batched) WF to evolve.
-            time (float): Time in seconds to run the simulation forward by.
-
-        Returns:
-            Tensor([batch_size, N], c64: The evolved wavefunction after time/dt steps.
-        """
-        steps = tf.cast(time / self._dt, dtype=tf.int32)  # TODO: fix the rounding issue
-        return self.mcsim.run(psi, steps)
 
     @tf.function
-    def measure(self, psi, Kraus, sample=True):
+    def measure(self, psi, M_ops, sample=True):
         """
-        Batch measurement projection using the Monte Carlo simulator.
+        Batch measurement projection.
 
-        Args:
-            psi (Tensor([batch_size, N], c64)):
-                The (batched) WF to measure projectively.
-            Kraus ({0: Tensor([batch_size, N, N], c64), 1: Tensor(...)}):
-                Dictionary of Kraus operators corresponding to 2 different qubit
-                measurement outcomes.
-            sample (bool, optional):
-                Sample or return expectation value. Defaults to True.
+        Input:
+            psi -- batch of states; shape=[batch_size, NH]
+            M_ops -- dictionary of measurement operators corresponding to two
+                     different qubit measurement outcomes. Shape of each operator
+                     is [b,NH,NH], where b is batch size
+            sample -- bool flag to sample or return expectation value
 
-        Returns:
-            (Tensor([batch_size, N], c64), Tensor([batch_size, 1], c64)):
-                0 -- batch of collapsed states
-                1 -- measurement outcomes
+        Output:
+            psi -- batch of collapsed states; shape=[batch_size,NH]
+            obs -- measurement outcomes; shape=[batch_size,1]
+
         """
-        return self.mcsim.measure(psi, Kraus, sample)
+        collapsed, p = {}, {}
+        for i in M_ops.keys():
+            collapsed[i] = tf.linalg.matvec(M_ops[i], psi)
+            p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
+            p[i] = tf.math.real(p[i])
+
+        if sample:
+            obs = tfp.distributions.Bernoulli(probs=p[1] / (p[0] + p[1])).sample()
+            psi = tf.where(obs == 1, collapsed[1], collapsed[0])
+            obs = 1 - 2 * obs  # convert to {-1,1}
+            obs = tf.cast(obs, dtype=tf.float32)
+            return psi, obs
+        else:
+            return psi, p[0] - p[1]
 
     @abstractmethod
     def _define_fixed_operators(self, N):

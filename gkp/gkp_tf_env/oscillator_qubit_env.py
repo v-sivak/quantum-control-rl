@@ -30,6 +30,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         t_idle,
         # Optional kwargs
         N=100,
+        channel='quantum_jumps',
         **kwargs
     ):
         """
@@ -39,6 +40,8 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
             t_feedback (float): Feedback delay in seconds.
             t_idle (float): Wait time between rounds in seconds.
             N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
+            channel (str, optional): model of the error channel, either 'diffusion'
+                    or 'quantum_jumps'.
         """
         self._N = N
         self.t_read = tf.constant(t_read / 2, dtype=tf.float32)  # Split read time before/after meas.
@@ -46,7 +49,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         self.t_feedback = tf.constant(t_feedback, dtype=tf.float32)
         self.t_idle = tf.constant(t_idle, dtype=tf.float32)
         self.step_duration = tf.constant(t_gate + t_read + t_feedback + t_idle)
-        super().__init__(*args, N=N, **kwargs)
+        super().__init__(*args, N=N, channel=channel, **kwargs)
 
     @property
     def N(self):

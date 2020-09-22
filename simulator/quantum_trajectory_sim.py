@@ -70,34 +70,3 @@ class QuantumTrajectorySim:
         mask = tf.math.is_nan(tf.math.real(psi_new))
         psi_new = tf.where(mask, psi, psi_new)
         return psi_new
-
-    def measure(self, psi, M_ops, sample):
-        """
-        Batch measurement projection.
-
-        Input:
-            psi -- batch of states; shape=[batch_size, NH]
-            M_ops -- dictionary of measurement operators corresponding to two
-                     different qubit measurement outcomes. Shape of each operator
-                     is [b,NH,NH], where b is batch size
-            sample -- bool flag to sample or return expectation value
-
-        Output:
-            psi -- batch of collapsed states; shape=[batch_size,NH]
-            obs -- measurement outcomes; shape=[batch_size,1]
-
-        """
-        collapsed, p = {}, {}
-        for i in M_ops.keys():
-            collapsed[i] = tf.linalg.matvec(M_ops[i], psi)
-            p[i] = batch_dot(tf.math.conj(collapsed[i]), collapsed[i])
-            p[i] = tf.math.real(p[i])
-
-        if sample:
-            obs = tfp.distributions.Bernoulli(probs=p[1] / (p[0] + p[1])).sample()
-            psi = tf.where(obs == 1, collapsed[1], collapsed[0])
-            obs = 1 - 2 * obs  # convert to {-1,1}
-            obs = tf.cast(obs, dtype=tf.float32)
-            return psi, obs
-        else:
-            return psi, p[0] - p[1]
