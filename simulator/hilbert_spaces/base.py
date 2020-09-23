@@ -12,6 +12,7 @@ import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 from simulator.diffusion_channel_sim import DiffusionChannelSim
+from simulator.utils import normalize
 
 class SimulatorHilbertSpace(ABC):
     """
@@ -77,9 +78,10 @@ class SimulatorHilbertSpace(ABC):
             psi = tf.where(obs == 1, collapsed[1], collapsed[0])
             obs = 1 - 2 * obs  # convert to {-1,1}
             obs = tf.cast(obs, dtype=tf.float32)
-            return psi, obs
+            return normalize(psi), obs
         else:
-            return psi, p[0] - p[1]
+            return normalize(psi), p[0] - p[1]
+    
 
     @abstractmethod
     def _define_fixed_operators(self, N):

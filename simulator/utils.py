@@ -37,3 +37,18 @@ def normalize(state, dtype=tf.complex64):
     norm = tf.cast(tf.math.sqrt(norm), dtype=dtype)
     state = state / norm
     return state
+
+
+def expectation(psi, O):
+    """
+    Expectation of operator 'O' with respect to a batch of states 'psi'.
+
+    Input:
+        O (Tensor([N,N], c64)): operator on a Hilbert space
+        state (Tensor([batch_size,N], c64)): batch of state vectors
+
+    """    
+    psi = normalize(psi)
+    O_batch = batch_dot(tf.math.conj(psi), tf.linalg.matvec(O, psi))
+    O_expect = tf.math.reduce_mean(O_batch)
+    return O_expect
