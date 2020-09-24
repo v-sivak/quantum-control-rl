@@ -9,7 +9,8 @@ import qutip as qt
 import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
-
+from tensorflow.keras.backend import batch_dot
+from simulator.utils import normalize
 from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
 
@@ -23,21 +24,25 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
     simulate decoherence, dephasing, Kerr etc using quantum jumps.
     """
 
-    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, **kwargs):
+    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, channel='quantum_jumps', **kwargs):
         """
         Args:
             K_osc (float): Kerr of oscillator (Hz).
             T1_osc (float): T1 relaxation time of oscillator (seconds).
             T1_qb (float): T1 relaxation time of qubit (seconds).
             T2_qb (float): T2 decoherence time of qubit (seconds).
+            N (int, optional): Size of oscillator Hilbert space.
+            channel (str, optional): model of the error channel, either 'diffusion'
+                    or 'quantum_jumps'.
         """
+        self._N = N
         self._K_osc = K_osc
         self._T1_osc = T1_osc
         self._T1_qb = T1_qb
         self._T2_qb = T2_qb
 
         self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
-        super().__init__(self, *args, **kwargs)
+        super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
     def _define_fixed_operators(self, N):
         # TODO: Convert this to TensorFlow? #
@@ -101,3 +106,55 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         )
 
         return [photon_loss, qubit_decay, qubit_dephasing]
+
+    @tf.function
+    def ctrl(self, U0, U1):
+        """
+        Batch controlled-U gate. Apply 'U0' if qubit is '0', and 'U1' if
+        qubit is '1'.
+
+        Input:
+            U0 -- unitary on the oscillator subspace written in the combined
+                  qubit-oscillator Hilbert space; shape=[batch_size,2N,2N]
+            U1 -- same as above
+
+        """
+        return self.P[0] @ U0 + self.P[1] @ U1
+
+    @tf.function  # TODO: add losses in phase estimation?
+    def phase_estimation(self, psi, beta, angle, sample=False):
+        """
+        One round of phase estimation.
+
+        Input:
+            psi -- batch of state vectors; shape=[batch_size,2N]
+            beta -- translation amplitude. shape=(batch_size,)
+            angle -- angle along which to measure qubit. shape=(batch_size,)
+            sample -- bool flag to sample or return expectation value
+
+        Output:
+            psi -- batch of collapsed states if sample==True, otherwise same
+                   as input psi; shape=[batch_size,2N]
+            z -- batch of measurement outcomes if sample==True, otherwise
+                 batch of expectation values of qubit sigma_z.
+
+        """
+        I = tf.stack([self.I]*self.batch_size)
+        CT = self.ctrl(I, self.translate(beta))
+        Phase = self.rotate_qb(angle, axis='z')
+        Hadamard = tf.stack([self.hadamard]*self.batch_size)
+
+        psi = batch_dot(Hadamard, psi)
+        psi = batch_dot(CT, psi)
+        psi = batch_dot(Phase, psi)
+        psi = batch_dot(Hadamard, psi)
+        psi = normalize(psi)
+        return self.measure(psi, self.P, sample)
+
+    @property
+    def N(self):
+        return self._N
+
+    @property
+    def tensorstate(self):
+        return True

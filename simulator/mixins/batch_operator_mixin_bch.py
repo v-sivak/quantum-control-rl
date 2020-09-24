@@ -54,6 +54,18 @@ class BatchOperatorMixinBCH:
         # Continue up the init chain
         super().__init__(*args, **kwargs)
 
+    @tf.function	
+    def phase(self, phi):	
+        """	
+        Batch phase factor.	
+        Input:	
+            phi -- tensor of shape (batch_size,) or compatible	
+        Output:	
+            op -- phase factor; shape=[batch_size,1,1]	
+        """	
+        phi = matrix_flatten(tf.cast(phi, dtype=tf.complex64))	
+        return tf.linalg.expm(1j * phi)
+
     @tf.function
     def translate(self, amplitude):
         """Calculates T(amplitude) for a batch of amplitudes

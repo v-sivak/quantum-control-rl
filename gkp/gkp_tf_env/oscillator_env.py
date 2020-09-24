@@ -32,8 +32,6 @@ class OscillatorGKP(Oscillator, GKP):
         t_feedback,
         t_idle,
         # Optional kwargs
-        N=100,
-        channel='quantum_jumps', #TODO: why do we need N and channel here? 
         **kwargs
     ):
         """
@@ -42,24 +40,13 @@ class OscillatorGKP(Oscillator, GKP):
             t_read (float): Readout time in seconds.
             t_feedback (float): Feedback delay in seconds.
             t_idle (float): Wait time between rounds in seconds.
-            N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
-            channel (str, optional): model of the error channel, either 'diffusion'
-                    or 'quantum_jumps'.
         """
-        self._N = N
         self.t_round = tf.constant(t_gate + t_read, dtype=tf.float32)
         self.t_feedback = tf.constant(t_feedback, dtype=tf.float32)
         self.t_idle = tf.constant(t_idle, dtype=tf.float32)
         self.step_duration = tf.constant(t_gate + t_read + t_feedback + t_idle)
-        super().__init__(*args, N=N, channel=channel, **kwargs)
+        super().__init__(*args, **kwargs)
 
-    @property
-    def N(self):
-        return self._N
-
-    @property
-    def tensorstate(self):
-        return False
 
     @tf.function
     def quantum_circuit_v1(self, psi, action):
@@ -235,30 +222,3 @@ class OscillatorGKP(Oscillator, GKP):
 
         return psi_final, psi_cached, obs
 
-
-    @tf.function
-    def phase_estimation(self, psi, beta, angle, sample=False):
-        """
-        One round of phase estimation.
-
-        Input:
-            psi -- batch of state vectors; shape=[batch_size,N]
-            beta -- translation amplitude. shape=(batch_size,)
-            angle -- angle along which to measure qubit. shape=(batch_size,)
-            sample -- bool flag to sample or return expectation value
-
-        Output:
-            psi -- batch of collapsed states if sample==True, otherwise same
-                   as input psi; shape=[batch_size,N]
-            z -- batch of measurement outcomes if sample==True, otherwise
-                 batch of expectation values of qubit sigma_z.
-
-        """
-        Kraus = {}
-        I = tf.stack([self.I]*self.batch_size)
-        T_b = self.translate(beta)
-        Kraus[0] = 1/2*(I + self.phase(angle)*T_b)
-        Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
-
-        psi = normalize(psi)
-        return self.measure(psi, Kraus, sample)
