@@ -33,7 +33,7 @@ class OscillatorGKP(Oscillator, GKP):
         t_idle,
         # Optional kwargs
         N=100,
-        channel='quantum_jumps',
+        channel='quantum_jumps', #TODO: why do we need N and channel here? 
         **kwargs
     ):
         """

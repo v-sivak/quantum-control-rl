@@ -7,7 +7,7 @@ Created on Sun Jul 26 20:55:36 2020
 @author: Henry Liu
 """
 import tensorflow as tf
-
+from tensorflow import complex64 as c64
 from simulator.utils import matrix_flatten
 
 
@@ -26,9 +26,16 @@ class BatchOperatorMixinBCH:
         and translate. We pass the arguments up the init chain.
         """
         # Ensure correct dtype for inherited operators
-        p = tf.cast(self.p, dtype=tf.complex64)
-        q = tf.cast(self.q, dtype=tf.complex64)
-        n = tf.cast(self.n, dtype=tf.complex64)
+        p = tf.cast(self.p, dtype=c64)
+        q = tf.cast(self.q, dtype=c64)
+        n = tf.cast(self.n, dtype=c64)
+        
+        try:
+            sx = tf.cast(self.__getattribute__('sx'), dtype=c64)
+            sy = tf.cast(self.__getattribute__('sy'), dtype=c64)
+            sz = tf.cast(self.__getattribute__('sz'), dtype=c64)
+        except AttributeError:
+            pass
 
         # Pre-diagonalize
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
@@ -37,23 +44,15 @@ class BatchOperatorMixinBCH:
 
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
 
+        try:
+            (self._eig_sx, self._U_sx) = tf.linalg.eigh(sx)
+            (self._eig_sy, self._U_sy) = tf.linalg.eigh(sy)
+            (self._eig_sz, self._U_sz) = tf.linalg.eigh(sz)
+        except NameError:
+            pass
+
         # Continue up the init chain
         super().__init__(*args, **kwargs)
-
-    @tf.function
-    def phase(self, phi):
-        """
-        Batch phase factor.
-
-        Input:
-            phi -- tensor of shape (batch_size,) or compatible
-
-        Output:
-            op -- phase factor; shape=[batch_size,1,1]
-
-        """
-        phi = matrix_flatten(tf.cast(phi, dtype=tf.complex64))
-        return tf.linalg.expm(1j * phi)
 
     @tf.function
     def translate(self, amplitude):
@@ -67,12 +66,12 @@ class BatchOperatorMixinBCH:
         """
         # Reshape amplitude for broadcast against diagonals
         amplitude = tf.cast(
-            tf.reshape(amplitude, [amplitude.shape[0], 1]), dtype=tf.complex64
+            tf.reshape(amplitude, [amplitude.shape[0], 1]), dtype=c64
         )
 
         # Take real/imag of amplitude for the commutator part of the expansion
-        re_a = tf.cast(tf.math.real(amplitude), dtype=tf.complex64)
-        im_a = tf.cast(tf.math.imag(amplitude), dtype=tf.complex64)
+        re_a = tf.cast(tf.math.real(amplitude), dtype=c64)
+        im_a = tf.cast(tf.math.imag(amplitude), dtype=c64)
 
         # Exponentiate diagonal matrices
         expm_q = tf.linalg.diag(tf.math.exp(1j * im_a * self._eig_q))
@@ -88,7 +87,7 @@ class BatchOperatorMixinBCH:
             @ expm_p
             @ tf.linalg.adjoint(self._U_p)
             @ expm_c,
-            dtype=tf.complex64,
+            dtype=c64,
         )
 
     @tf.function
@@ -101,8 +100,8 @@ class BatchOperatorMixinBCH:
         Returns:
             Tensor([batch_size, N, N], c64): A batch of D(amplitude)
         """
-        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=tf.complex64))
-        return self.translate(tf.cast(amplitude, dtype=tf.complex64) * sqrt2)
+        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=c64))
+        return self.translate(tf.cast(amplitude, dtype=c64) * sqrt2)
 
     @tf.function
     def rotate(self, angle):
@@ -114,10 +113,35 @@ class BatchOperatorMixinBCH:
         Returns:
             Tensor([batch_size, N, N], c64): A batch of R(angle)
         """
-        angle = tf.cast(tf.reshape(angle, [angle.shape[0], 1]), dtype=tf.complex64)
+        angle = tf.cast(tf.reshape(angle, [angle.shape[0], 1]), dtype=c64)
 
         expm_n = tf.linalg.diag(tf.math.exp(-1j * angle * self._eig_n))
 
         return tf.cast(
-            self._U_n @ expm_n @ tf.linalg.adjoint(self._U_n), dtype=tf.complex64,
+            self._U_n @ expm_n @ tf.linalg.adjoint(self._U_n), dtype=c64,
+        )
+
+    @tf.function
+    def rotate_qb(self, phi, axis):
+        """Calculates qubit rotation matrix for a batch of angles.
+
+        Args:
+            phi (Tensor([batch_size], c64)): A batch of rotation angles
+            axis (str): rotation axis, one of {'x', 'y', 'z'}
+
+        Returns:
+            Tensor([batch_size, N, N], c64): A batch of Rx(phi)
+        """
+        if axis == 'x':
+            eig, U = (self._eig_sx, self._U_sx)
+        if axis == 'y':
+            eig, U = (self._eig_sy, self._U_sy)
+        if axis == 'z':
+            eig, U = (self._eig_sz, self._U_sz)
+        
+        phi = tf.cast(tf.reshape(phi, [phi.shape[0], 1]), dtype=c64)
+        exp_eig = tf.linalg.diag(tf.math.exp(-1j * phi * eig / 2))
+
+        return tf.cast(
+            U @ exp_eig @ tf.linalg.adjoint(U), dtype=c64,
         )

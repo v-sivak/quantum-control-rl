@@ -84,7 +84,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
         sx = tf.stack([self.sx]*self.batch_size)
         I = tf.stack([self.I]*self.batch_size)
-        Phase = self.ctrl(I, self.phase(phi)*I)
+        Phase = self.rotate_qb(phi, axis='z')
         T, CT = {}, {}
         T['a'] = self.translate(alpha)
         T['b'] = self.translate(beta/2.0)
@@ -141,7 +141,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
         sx = tf.stack([self.sx]*self.batch_size)
         I = tf.stack([self.I]*self.batch_size)
-        Phase = self.ctrl(I, self.phase(phi)*I)
+        Phase = self.rotate_qb(phi, axis='z')
         Rotation = self.rotate(action['theta'])
         T, CT = {}, {}
         T['a'] = self.translate(alpha)
@@ -202,7 +202,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
         sx = tf.stack([self.sx]*self.batch_size)
         I = tf.stack([self.I]*self.batch_size)
-        Phase = self.ctrl(I, self.phase(phi)*I)
+        Phase = self.rotate_qb(phi, axis='z')
         Rxp = tf.stack([self.rxp]*self.batch_size)
         Rxm = tf.stack([self.rxm]*self.batch_size)
         T, CT = {}, {}
@@ -333,7 +333,7 @@ class OscillatorQubitGKP(OscillatorQubit, GKP):
         """
         I = tf.stack([self.I]*self.batch_size)
         CT = self.ctrl(I, self.translate(beta))
-        Phase = self.ctrl(I, self.phase(angle)*I)
+        Phase = self.rotate_qb(angle, axis='z')
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
 
         psi = batch_dot(Hadamard, psi)
