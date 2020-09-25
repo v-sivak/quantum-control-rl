@@ -95,44 +95,20 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if encoding == 'square':
             S = np.array([[1, 0], [0, 1]])
         elif encoding == 'hexagonal':
-            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))        
+            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))
         self.define_stabilizer_code(S)
 
         # Define action and observation specs
-        action_spec, time_step_spec = self.create_specs()
-        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
+        self.quantum_circuit = self._quantum_circuit
+        action_spec = self._quantum_circuit_spec
 
-        
-    def create_specs(self):
-        """
-        Depending on the 'quantum_circuit_type', create action and time_step
-        specs required by parent class.
-        
-        """
-        # Create action spec
-        spec = lambda x,y: specs.TensorSpec(shape=[x,y], dtype=tf.float32)
-        action_spec = {
-            'alpha' : spec(1,2), 
-            'beta'  : spec(1,2), 
-            'phi'   : spec(1,1),
-            'theta' : spec(1,1)}
-        if self.quantum_circuit_type in ['v3','v4']: 
-            action_spec['epsilon'] = spec(1,2)
-        if self.quantum_circuit_type == 'v4':
-            del(action_spec['phi'])
-
-        # Create time step spec
         observation_spec = {
-            'msmt'  : spec(self.H, 1),
-            'clock' : spec(1, self.T),
-            'const'   : specs.TensorSpec(shape=[1], dtype=tf.float32)}
+            'msmt'  : specs.TensorSpec(shape=[self.H,1], dtype=tf.float32),
+            'clock' : specs.TensorSpec(shape=[1,self.T], dtype=tf.float32),
+            'const' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
-        self.quantum_circuit = getattr(
-            self, "quantum_circuit_" + self.quantum_circuit_type
-        )
-
-        return action_spec, time_step_spec
+        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
         
 
     ### STANDARD
@@ -252,7 +228,27 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     
 
     ### GKP - SPECIFIC
+    
+    
+    @abstractmethod
+    def _quantum_circuit(self, psi, action):
+        """
+        Quantum circuit to run on every step, to be defined by the subclass.
+        Input:
+            psi (Tensor([batch_size,N], c64)): batch of states
+            action (dict, 'alpha' : Tensor([batch_size,1,2], tf.float32),
+                    'beta': Tensor([batch_size,1,2], tf.float32), etc): 
+                    dictionary of actions with keys representing different 
+                    operations (translations, rotations etc) as required by 
+                    the subclasses. 
 
+        Output:
+            psi_final (Tensor([batch_size,N], c64)): batch of final states
+            psi_cached (Tensor([batch_size,N], c64)) batch of cached states
+            obs (Tensor([batch_size,1], float32)) measurement outcomes; 
+                In open-loop control problems can return a tensor of zeros.
+        """
+        pass
 
     def define_stabilizer_code(self, S):
         """
