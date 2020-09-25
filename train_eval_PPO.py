@@ -14,10 +14,11 @@ from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\state_prep'
-root_dir = os.path.join(root_dir,'sensor_prep_steps8_H1C4A1_qb_v1')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP'
+root_dir = os.path.join(root_dir,'test')
 
-kwargs = {'stabilizer_translations' : [sqrt(2*pi)+0j, 1j*sqrt(2*pi)]}
+kwargs = {'stabilizer_translations' : [2*sqrt(pi)+0j, 2j*sqrt(pi)],
+          'channel' : 'quantum_jumps'}
 
 PPO.train_eval(
         root_dir = root_dir,
@@ -25,7 +26,7 @@ PPO.train_eval(
         # Params for collect
         num_iterations = 4000,
         train_batch_size = 1000,
-        replay_buffer_capacity = 15000,
+        replay_buffer_capacity = 70000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -41,20 +42,19 @@ PPO.train_eval(
         eval_batch_size = 600,
         eval_interval = 100,
         save_interval = 500,
-        checkpoint_interval = 500,
+        checkpoint_interval = 5000,
         summary_interval = 100,
         # Params for environment
-        simulate = 'oscillator_qubit',
+        simulate = 'phase_estimation_osc_v2',
         horizon = 1,
         clock_period = 4,
         attention_step = 1,
-        train_episode_length = lambda x: 8,
-        eval_episode_length = 8,
+        train_episode_length = lambda x: 36 if x<1000 else 64,
+        eval_episode_length = 64,
         init_state = 'vac',
         reward_mode = 'stabilizers',
         encoding = 'square',
-        quantum_circuit_type = 'v1',
-        action_script = 'phase_estimation_4round',
+        action_script = 'v2_phase_estimation_with_trim_4round',
         to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': False},
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,

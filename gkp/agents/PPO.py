@@ -61,7 +61,6 @@ def train_eval(
         init_state = 'random',
         reward_mode = 'pauli',
         encoding = 'square',
-        quantum_circuit_type = 'v3',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
         # Policy and value networks
@@ -130,9 +129,8 @@ def train_eval(
             'vac' for state preparation.
         reward_mode (str): see GKP docs for more details.
         encoding (str): GKP encoding, either 'square' or 'hexagonal'
-        quantum_circuit_type (str): see GKP docs for more details.
         action_script (str): name of action script, should be compatible with 
-            this quantum_circuit_type. Action wrapper will select actions from
+            this quantum_circuit. Action wrapper will select actions from
             this script if they are not to be learned.
         to_learn (dict, str:bool): dictionary mapping action dimensions to 
             bool flags. Specifies if the action should be learned or scripted.
@@ -156,7 +154,7 @@ def train_eval(
                     init=init_state, H=horizon, T=clock_period,
                     batch_size=train_batch_size, encoding=encoding,
                     reward_mode=reward_mode, attn_step=attention_step,
-                    quantum_circuit_type=quantum_circuit_type, **kwargs)
+                    **kwargs)
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
 
     # Create evaluation env and wrap it
@@ -165,7 +163,7 @@ def train_eval(
                     batch_size=eval_batch_size, encoding=encoding,
                     episode_length=eval_episode_length,
                     reward_mode=reward_mode, attn_step=attention_step,
-                    quantum_circuit_type=quantum_circuit_type, **kwargs)
+                    **kwargs)
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
 
     # --------------------------------------------------------------------

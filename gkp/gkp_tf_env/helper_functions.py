@@ -167,13 +167,13 @@ def fit_logical_lifetime(env, policy, plot=True, save_dir=None,
     steps = np.arange(env.episode_length)
     times = steps*float(env.step_duration)
     
-    for s in states:
+    assert env.reward_mode in ['fidelity', 'fidelity_with_code_flips']
+    
+    for s in states:            
         if '_env' in env.__dir__(): 
             env._env.init = s
-            env._env.reward_mode = 'fidelity'
         else:
             env.init = s
-            env.reward_mode = 'fidelity'
         
         # Collect batch of episodes, loop if can't fit in GPU memory
         for i in range(reps):

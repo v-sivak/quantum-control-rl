@@ -22,29 +22,18 @@ from gkp.gkp_tf_env import helper_functions as hf
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     """
     Custom environment that follows TensorFlow Agents interface and allows to
-    train a reinforcement learning agent to find optimal measurement-based
-    feedback protocol for GKP-state stabilization.
+    train a reinforcement learning agent to find quantum control policies.
 
-    This implementation heavily relies on tensorflow to do fast computations
+    This implementation heavily relies on TensorFlow to do fast computations
     in parallel on GPU by adding batch dimension to all tensors. The speedup
-    over all-qutip implementation is about x100 on NVIDIA RTX 2080Ti.
+    over all-Qutip implementation is about x100 on NVIDIA RTX 2080Ti.
 
-    This is the base class for GKP environment which incorporates simulation-
-    independet methods. The child classes OscillatorGKP and OscillatorQubitGKP
-    inherit these methods and add their own implementations of the quantum
-    circuits. The former is much faster but it doesn't include qubit into the
-    Hilbert space, thus it is less representative of reality. The latter is
-    slower but allows for much more flexibility in simulation.
-
-    Actions are parametrized according to the sequence of gates applied at
-    each time step, see <quantum_circuit_v1>, <...v2>, <...v3> in child class.
-
-    In <quantum_circuit_v1> and <...v2> each action is a 5-vector
-    [Re(alpha), Im(alpha), Re(beta), Im(beta), phi], where 'alpha' and 'beta'
-    are feedback and controlled-translation amplitudes, and 'phi' is qubit
-    measurement angle. Observations are qubit sigma_z measurement outcomes from
-    the set {-1,1}. In <...v3> additional action dimensions Re(eps) and Im(eps)
-    are added for trimming of GKP envelope, thus each action is a 7-vector.
+    This is the base environment class for quantum control problems which 
+    incorporates simulation-independet methods. The QuantumCircuit subclasses 
+    inherit from this base class and from a simulation class. Subclasses
+    implementat 'quantum_circuit' which is ran at each time step. RL agent's 
+    actions are parametrized according to the sequence of gates applied at
+    each time step, as defined by 'quantum_circuit'.
 
     Environment step() method returns TimeStep tuple whose 'observation'
     attribute stores the finite-horizon history of applied actions, measurement
@@ -62,7 +51,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         batch_size=50,
         init="vac",
         reward_mode="zero",
-        quantum_circuit_type="v1",
         encoding="square",
         stabilizer_translations=None,
         **kwargs
@@ -76,7 +64,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             init (str, optional): Initial quantum state of system. Defaults to "vac".
             reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
-            quantum_circuit_type (str, optional): Circuit protocol version. Defaults to "v1".
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
             stabilizer_translations (list, optional): list of stabilizer translation amplitudes.
             
@@ -89,7 +76,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.batch_size = batch_size
         self.init = init
         self.reward_mode = reward_mode
-        self.quantum_circuit_type = quantum_circuit_type
         self.stabilizer_translations = stabilizer_translations
 
         if encoding == 'square':
@@ -208,7 +194,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             'const'   : tf.ones(shape=[self.batch_size,1])}
 
         # Will keep track of code flips in symmetrized phase estimation
-        if self.quantum_circuit_type == 'v2': 
+        if self.reward_mode in ['pauli_with_code_flips', 
+                                'fidelity_with_code_flips']: 
             self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
@@ -286,7 +273,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return tf.zeros(self.batch_size, dtype=tf.float32)
 
 
-    def reward_pauli(self, act):
+    def reward_pauli(self, act, code_flips=True):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
@@ -294,18 +281,14 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
         Input:
             act -- actions at this time step; shape=(batch_size,act_dim)
+            code_flips (bool): flag to control code flips count "in software"
             
         """
-        # Count code flips for v2 circuit
-        if self.quantum_circuit_type == 'v2':                 
-            self.count_code_flips(act, 'alpha')
+        if code_flips: self.count_code_flips(act, 'alpha')
         
-        # Calculate reward
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
-            # Count code flips for v2 circuit
-            if self.quantum_circuit_type == 'v2':
-                self.count_code_flips(act, 'beta')
+            if code_flips: self.count_code_flips(act, 'beta')
         else:
             pauli = [self.code_map[self._original[i][0]]
                          for i in range(self.batch_size)]
@@ -315,9 +298,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                                          angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
-            # Correct for code flips in v2 circuit
-            if self.quantum_circuit_type == 'v2':
-                z *= self.undo_code_flips()
+            # Correct for code flips
+            if code_flips: z *= self.undo_code_flips()
         return z
 
 
@@ -344,7 +326,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
     
 
-    def reward_fidelity(self, act):
+    def reward_fidelity(self, act, code_flips):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
@@ -352,11 +334,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
         Input:
             act -- actions at this time step; shape=(batch_size,act_dim)
-            
+            code_flips (bool): flag to control code flips count "in software"
+
         """
         # Count code flips that affect cached state
-        if self.quantum_circuit_type == 'v2':
-            self.count_code_flips(act, 'alpha')
+        if code_flips: self.count_code_flips(act, 'alpha')
 
         # Measure the Pauli expectation on cached state 
         pauli = [self.code_map[self._original[i][0]]
@@ -369,11 +351,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         z = tf.reshape(z, shape=(self.batch_size,))
         
         # Correct the Pauli expectation if the code flipped
-        if self.quantum_circuit_type == 'v2':
-                z *= self.undo_code_flips()
+        if code_flips: z *= self.undo_code_flips()
         # Count code flips that happened after the state was cached
-        if self.quantum_circuit_type == 'v2':
-            self.count_code_flips(act, 'beta')
+        if code_flips: self.count_code_flips(act, 'beta')
         return z
 
 
@@ -423,18 +403,30 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     @reward_mode.setter
     def reward_mode(self, mode):
         try:
-            assert mode in ['zero', 'pauli', 'fidelity', 'stabilizers']
+            assert mode in ['zero', 'stabilizers', 'pauli', 'fidelity',
+                            'pauli_with_code_flips',
+                            'fidelity_with_code_flips']
             self._reward_mode = mode
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
             if mode == 'pauli':
                 if self.init == 'vac':
                     raise Exception('Pauli reward not supported for vac')
-                self.calculate_reward = self.reward_pauli
+                self.calculate_reward = lambda a : self.reward_pauli(a, False)
             if mode == 'fidelity':
-                self.calculate_reward = self.reward_fidelity
+                if self.init == 'vac':
+                    raise Exception('Fidelity reward not supported for vac')
+                self.calculate_reward = lambda a : self.reward_fidelity(a, False)
             if mode == 'stabilizers':
                 self.calculate_reward = self.reward_stabilizers
+            if mode == 'pauli_with_code_flips':
+                if self.init == 'vac':
+                    raise Exception('Pauli reward not supported for vac')
+                self.calculate_reward = lambda a : self.reward_pauli(a, True)
+            if mode == 'fidelity_with_code_flips':
+                if self.init == 'vac':
+                    raise Exception('Fidelity reward not supported for vac')
+                self.calculate_reward = lambda a : self.reward_fidelity(a, True)
         except: 
             raise ValueError('Reward mode not supported.') 
     
