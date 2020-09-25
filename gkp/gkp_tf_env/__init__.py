@@ -12,6 +12,7 @@ from gkp.quantum_circuit import Baptiste_feedback_osc
 from gkp.quantum_circuit import Baptiste_feedback_osc_qb
 from gkp.quantum_circuit import Baptiste_autonomous_osc
 from gkp.quantum_circuit import Baptiste_autonomous_osc_qb
+from gkp.quantum_circuit import Alec_universal_gate_set
 
 def gkp_init(simulate, **kwargs):
     # Load default parameters of oscillator-qubit system
@@ -41,3 +42,6 @@ def gkp_init(simulate, **kwargs):
 
     if simulate == 'Baptiste_autonomous_osc_qb':
         return Baptiste_autonomous_osc_qb.QuantumCircuit(**kwargs)
+    
+    if simulate == 'Alec_universal_gate_set':
+        return Alec_universal_gate_set.QuantumCircuit(**kwargs)
