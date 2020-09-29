@@ -7,6 +7,14 @@ Created on Thu Sep 24 09:34:40 2020
 Qubit is included in the Hilbert space. Simulation is done with a gate-based 
 approach to quantum circuits.
 """
+import tensorflow as tf
+from tensorflow import complex64 as c64
+from tensorflow.keras.backend import batch_dot
+from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.gkp_tf_env import helper_functions as hf
+from tf_agents import specs
+from simulator.hilbert_spaces import OscillatorQubit
+from simulator.utils import normalize
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
@@ -38,6 +46,13 @@ class QuantumCircuit(OscillatorQubit, GKP):
         self.step_duration = self.t_gate
         super().__init__(*args, **kwargs)
 
+    @property
+    def _quantum_circuit_spec(self):
+        spec = {'alpha' : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
+                'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
+                'phi'   : specs.TensorSpec(shape=[1,3], dtype=tf.float32)}
+        return spec
+
     @tf.function
     def _quantum_circuit(self, psi, action):
         """
@@ -53,7 +68,9 @@ class QuantumCircuit(OscillatorQubit, GKP):
         # Extract parameters
         alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
-        phi_x, phi_y, phi_z = tf.transpose(action['phi'])
+        phi_x = action['phi'][:,0]
+        phi_y = action['phi'][:,1]
+        phi_z = action['phi'][:,2]
 
         # Construct gates
         T, CT, R = {}, {}, {}
@@ -66,7 +83,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         R['z'] = self.rotate_qb(phi_z, axis='z')
 
         # Oscillator translation
-        psi_cached = batch_dot(T['a'], psi)
+        psi = batch_dot(T['a'], psi)
         # Qubit rotation
         psi = batch_dot(R['x'], psi)
         psi = batch_dot(R['y'], psi)
@@ -76,4 +93,4 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi = self.simulate(psi, self.t_gate)
         psi = batch_dot(CT['b'], psi)
 
-        return psi, psi, tf.zeros(self.batch_size)
+        return psi, psi, tf.ones((self.batch_size,1))
