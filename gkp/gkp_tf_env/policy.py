@@ -55,21 +55,18 @@ class ScriptedPolicy(TFPolicy):
                              'epsilon', 'phi' and 'period'.
         """
         self.period = action_script.period # periodicity of the protocol
-        self.script = action_script.script # load the script of actions
+
+        # load the script of actions and convert to tensors
+        self.script = action_script.script
+        for a, val in self.script.items():
+            self.script[a] = tf.constant(val, dtype=tf.float32)
 
         # Calculate specs and call init of parent class
-        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2,
-                         'phi' : 1, 'theta' : 1}
-        spec = lambda x: specs.TensorSpec(shape=[x], dtype=tf.float32)
-        action_spec = {a : spec(self.dims_map[a]) for a in self.script.keys()}
-        policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32)
+        action_spec = {
+            a : specs.TensorSpec(shape = C.shape[1:], dtype=tf.float32)
+            for a, C in self.script.items()}
 
-        for a, val in self.script.items():
-            if self.dims_map[a] == 2:
-                A = tf.stack([tf.math.real(val), tf.math.imag(val)], axis=-1)
-            elif self.dims_map[a] == 1:
-                A = tf.constant(val, shape=[self.period,1])
-            self.script[a] = tf.cast(A, tf.float32)
+        policy_state_spec = specs.TensorSpec(shape=[], dtype=tf.int32)
 
         super(ScriptedPolicy, self).__init__(time_step_spec, action_spec,
                                               policy_state_spec,
