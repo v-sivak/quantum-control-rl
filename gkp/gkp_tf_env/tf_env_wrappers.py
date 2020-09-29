@@ -6,7 +6,7 @@ Created on Wed Mar 18 20:10:01 2020
 """
 import numpy as np
 import tensorflow as tf
-from numpy import pi
+from numpy import pi, sqrt
 from tf_agents import specs
 from tf_agents.utils import common, nest_utils
 from tf_agents.specs import tensor_spec
@@ -141,23 +141,19 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
         self.scale = {'alpha' : 1, 'beta' : 1, 'epsilon' : 1, 'phi' : pi,
                       'theta' : 0.02}
-        self.dims_map = {'alpha' : 2, 'beta' : 2, 'epsilon' : 2,
-                         'phi' : 1, 'theta' : 1}
         self.period = action_script.period # periodicity of the protocol
         self.to_learn = to_learn
         self.use_mask = use_mask
         self.mask = action_script.mask
 
-        self._action_spec = {a : specs.BoundedTensorSpec(
-            shape=[self.dims_map[a]], dtype=tf.float32, minimum=-1, maximum=1)
-            for a, C in to_learn.items() if C}
-
         # load the script of actions and convert to tensors
         self.script = action_script.script
         for a, val in self.script.items():
-            self.script[a] = tf.constant(val, shape=[self.period,1],
-                                          dtype=tf.complex64)
+            self.script[a] = tf.constant(val, dtype=tf.float32)
 
+        self._action_spec = {a : specs.BoundedTensorSpec(
+            shape = C.shape[1:], dtype=tf.float32, minimum=-1, maximum=1)
+            for a, C in self.script.items() if self.to_learn[a]}
 
     def wrap(self, input_action):
         """
@@ -180,11 +176,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             C1 = self.use_mask and self.mask[a][i]==0
             C2 = not self.to_learn[a]
             if C1 or C2: # if not learning: replicate scripted action
-                A = common.replicate(self.script[a][i], out_shape)
-                if self.dims_map[a] == 2:
-                    action[a] = tf.concat([tf.math.real(A), tf.math.imag(A)], axis=1)
-                if self.dims_map[a] == 1:
-                    action[a] = tf.math.real(A)
+                action[a] = common.replicate(self.script[a][i], out_shape)
             else: # if learning: rescale input tensor
                 action[a] = input_action[a]*self.scale[a]
 

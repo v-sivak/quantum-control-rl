@@ -21,10 +21,10 @@ b_amp = 2*sqrt(pi)
 
 # Script of actions
 script = {
-    'alpha' : [-delta+0j, -1j*delta, delta+0j, 1j*delta],
-    'beta'  : [b_amp/2+0j, 1j*b_amp, -b_amp/2+0j, -1j*b_amp],
-    'phi' : [pi/2]*4,
-    'theta' : [0.0]*4
+    'alpha' : [[-delta, 0], [0, -delta], [delta, 0], [0, delta]],
+    'beta'  : [[b_amp/2, 0], [0, b_amp], [-b_amp/2, 0], [0, -b_amp]],
+    'phi' : [[pi/2]]*4,
+    'theta' : [[0.0]]*4
     }
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
