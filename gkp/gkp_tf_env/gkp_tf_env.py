@@ -15,7 +15,7 @@ from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
-
+from simulator.utils import expectation
 from gkp.gkp_tf_env import helper_functions as hf
 
 
@@ -53,6 +53,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         reward_mode="zero",
         encoding="square",
         stabilizer_translations=None,
+        target_projector=None,
         **kwargs
     ):
         """
@@ -66,6 +67,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
             stabilizer_translations (list, optional): list of stabilizer translation amplitudes.
+            target_projector (Tensor([2N,2N], c64)): projector onto the target state
             
         """
         # Default simulation parameters
@@ -77,6 +79,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.init = init
         self.reward_mode = reward_mode
         self.stabilizer_translations = stabilizer_translations
+        self.target_projector = target_projector
 
         if encoding == 'square':
             S = np.array([[1, 0], [0, 1]])
@@ -259,9 +262,25 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                        for key, val in states.items()}
         vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
         self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
-        
 
     ### REWARD FUNCTIONS
+
+    def reward_overlap(self, *args):
+        """
+        Reward only on last time step using the overlap of the cached state 
+        with the target state. The cached state is measured prior to computing
+        the overlap, to make sure that the oscillator and qubit are disentangled.
+        The agent can learn to arrange things so that this measurement doesn't
+        matter (i.e. if they are already disentangled before the measurement). 
+        
+        """        
+        if self._elapsed_steps < self.episode_length:
+            z = tf.zeros(self.batch_size, dtype=tf.float32)
+        else:            
+            psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
+            overlap = expectation(psi, self.target_projector, reduce_batch=False)
+            z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
+        return z
 
 
     @tf.function
@@ -404,9 +423,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     def reward_mode(self, mode):
         try:
             assert mode in ['zero', 'stabilizers', 'pauli', 'fidelity',
-                            'pauli_with_code_flips',
-                            'fidelity_with_code_flips']
+                            'pauli_with_code_flips', 'fidelity_with_code_flips',
+                            'overlap']
             self._reward_mode = mode
+            if mode == 'overlap':
+                self.calculate_reward = self.reward_overlap
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
             if mode == 'pauli':

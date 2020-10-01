@@ -39,16 +39,24 @@ def normalize(state, dtype=tf.complex64):
     return state
 
 
-def expectation(psi, O):
+def expectation(psi, O, reduce_batch=True):
     """
     Expectation of operator 'O' with respect to a batch of states 'psi'.
 
     Input:
+        psi (Tensor([batch_size,N], c64)): batch of state vectors
         O (Tensor([N,N], c64)): operator on a Hilbert space
-        state (Tensor([batch_size,N], c64)): batch of state vectors
-
+        reduce_batch (bool): flag to reduce over batch dimension.
+    Returns:
+        O_batch (Tensor([batch_size,1], c64)): returns this if reduce_batch==False;
+            expectation of 'O' in each state of the batch. 
+        O_expect (Tensor([], c64)): returns this if reduce_batch==True;
+            expectation of 'O' for ensamble of states in the batch.
     """    
     psi = normalize(psi)
     O_batch = batch_dot(tf.math.conj(psi), tf.linalg.matvec(O, psi))
-    O_expect = tf.math.reduce_mean(O_batch)
-    return O_expect
+    if reduce_batch: 
+        O_expect = tf.math.reduce_mean(O_batch)
+        return O_expect
+    else:
+        return O_batch

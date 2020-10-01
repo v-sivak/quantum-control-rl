@@ -14,24 +14,30 @@ from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP'
-root_dir = os.path.join(root_dir,'test')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\overlap'
+root_dir = os.path.join(root_dir,'fock5_beta4')
 
-kwargs = {'stabilizer_translations' : [2*sqrt(pi)+0j, 2j*sqrt(pi)],
-          'channel' : 'quantum_jumps'}
+import qutip as qt
+import tensorflow as tf
+N=20
+target = qt.tensor(qt.basis(2,0), qt.basis(N,5))
+target_projector = qt.ket2dm(target)
+target_projector = tf.constant(target_projector.full(), dtype=tf.complex64)
+
+kwargs = {'N': N, 'target_projector': target_projector}
 
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
         # Params for collect
-        num_iterations = 4000,
-        train_batch_size = 1000,
-        replay_buffer_capacity = 70000,
+        num_iterations = 100000,
+        train_batch_size = 100,
+        replay_buffer_capacity = 15000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-4,
+        lr = 1e-3,
         lr_schedule = None,
         num_policy_epochs = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -39,23 +45,23 @@ PPO.train_eval(
         importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
-        eval_batch_size = 600,
+        eval_batch_size = 500,
         eval_interval = 100,
         save_interval = 500,
         checkpoint_interval = 5000,
         summary_interval = 100,
         # Params for environment
-        simulate = 'phase_estimation_osc_v2',
+        simulate = 'Alec_universal_gate_set',
         horizon = 1,
-        clock_period = 4,
+        clock_period = 6,
         attention_step = 1,
-        train_episode_length = lambda x: 36 if x<1000 else 64,
-        eval_episode_length = 64,
+        train_episode_length = lambda x: 6,
+        eval_episode_length = 6,
         init_state = 'vac',
-        reward_mode = 'stabilizers',
+        reward_mode = 'overlap',
         encoding = 'square',
-        action_script = 'v2_phase_estimation_with_trim_4round',
-        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta': False},
+        action_script = 'Alec_universal_gate_set_6round',
+        to_learn = {'alpha':True, 'beta':True, 'phi':True},
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (100,50),
