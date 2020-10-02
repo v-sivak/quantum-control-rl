@@ -39,24 +39,54 @@ def normalize(state, dtype=tf.complex64):
     return state
 
 
-def expectation(psi, O, reduce_batch=True):
+def expectation(psi, Op, reduce_batch=True):
     """
-    Expectation of operator 'O' with respect to a batch of states 'psi'.
+    Expectation of operator 'Op' in state 'psi'. 
+    Supports various batching options:
+        
+        1) psi.shape = [batch_size,N]
+           Op.shape  = [batch_size,N,N]
+           
+           Returns a batch of expectation values of shape=[batch_size,1] 
+        
+        2) psi.shape = [1,N]
+           Op.shape  = [batch_size,N,N]
+           
+           Broadcasts 'psi' and returns a batch of expectation values of 
+           shape=[batch_size,1] 
 
-    Input:
-        psi (Tensor([batch_size,N], c64)): batch of state vectors
-        O (Tensor([N,N], c64)): operator on a Hilbert space
-        reduce_batch (bool): flag to reduce over batch dimension.
-    Returns:
-        O_batch (Tensor([batch_size,1], c64)): returns this if reduce_batch==False;
-            expectation of 'O' in each state of the batch. 
-        O_expect (Tensor([], c64)): returns this if reduce_batch==True;
-            expectation of 'O' for ensamble of states in the batch.
-    """    
+        3) psi.shape = [batch_size,N]
+           Op.shape  = [N,N]
+           
+           If reduce_batch=False, returns a batch of expectation values of 
+           shape=[batch_size,1]. If reduce_batch=True, reduces over a batch 
+           of states and returns a single expectation value of shape [].
+
+    """
     psi = normalize(psi)
-    O_batch = batch_dot(tf.math.conj(psi), tf.linalg.matvec(O, psi))
-    if reduce_batch: 
-        O_expect = tf.math.reduce_mean(O_batch)
-        return O_expect
-    else:
-        return O_batch
+    
+    # batched operator, batched or single wavefunction
+    if len(Op.shape) == 3:
+        assert Op.shape[1] == Op.shape[2] # N
+        assert Op.shape[1] == psi.shape[1] # N
+        
+        # if single wavefunction, broadcase to batched
+        if psi.shape[0] == 1:
+            psi = tf.broadcast_to(psi, [Op.shape[0],psi.shape[1]])
+    
+        assert Op.shape[0] == psi.shape[0] # batch_size
+        
+        expect_batch = batch_dot(tf.math.conj(psi), batch_dot(Op, psi))
+        
+    # single operator, batched wavefunction
+    if len(Op.shape) == 2:
+        assert Op.shape[0] == Op.shape[1] # N
+        assert Op.shape[0] == psi.shape[1] # N
+
+        expect_batch = batch_dot(tf.math.conj(psi), tf.linalg.matvec(Op, psi))
+
+        if reduce_batch: 
+            expect_batch_reduced = tf.math.reduce_mean(expect_batch)
+            return expect_batch_reduced
+
+    return expect_batch

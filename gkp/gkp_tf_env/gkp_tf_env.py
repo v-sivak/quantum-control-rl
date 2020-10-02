@@ -10,6 +10,7 @@ from math import sqrt, pi
 import numpy as np
 import qutip as qt
 import tensorflow as tf
+import tensorflow_probability as tfp
 from tensorflow import complex64 as c64
 from tf_agents import specs
 from tf_agents.environments import tf_environment
@@ -53,7 +54,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         reward_mode="zero",
         encoding="square",
         stabilizer_translations=None,
-        target_projector=None,
+        target_state=None,
         **kwargs
     ):
         """
@@ -67,7 +68,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
             stabilizer_translations (list, optional): list of stabilizer translation amplitudes.
-            target_projector (Tensor([2N,2N], c64)): projector onto the target state
+            target_state (Qobj, type=ket): Qutip object corresponding to target state
             
         """
         # Default simulation parameters
@@ -79,7 +80,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.init = init
         self.reward_mode = reward_mode
         self.stabilizer_translations = stabilizer_translations
-        self.target_projector = target_projector
+        
+        if target_state:       
+            target_projector = qt.ket2dm(target_state)
+            target_projector = tf.constant(target_projector.full(), dtype=c64)
+            self.target_projector = target_projector
+            target_state = tf.constant(target_state.full(), dtype=c64)
+            self.target_state = tf.transpose(target_state)
 
         if encoding == 'square':
             S = np.array([[1, 0], [0, 1]])
@@ -272,14 +279,55 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         the overlap, to make sure that the oscillator and qubit are disentangled.
         The agent can learn to arrange things so that this measurement doesn't
         matter (i.e. if they are already disentangled before the measurement). 
-        
-        """        
+
+        """
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
             overlap = expectation(psi, self.target_projector, reduce_batch=False)
             z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
+        return z
+
+    def reward_tomography(self, *args):
+        """
+        Reward only on last time step using the empirical approximation of the 
+        overlap of the prepared state with the target state. This overlap is
+        computed in characteristic-function-tomography-like fashing.
+        
+        The state is measured prior to acquiring a tomography point on the 
+        oscillator to make sure that the oscillator and qubit are disentangled.
+        The agent can learn to arrange things so that this measurement doesn't
+        matter (i.e. if they are already disentangled before the measurement). 
+
+        """        
+        if self._elapsed_steps < self.episode_length:
+            z = tf.zeros(self.batch_size, dtype=tf.float32)
+        else:
+            L = 6
+            # sample a batch of points in which to measure characteristic func
+            # TODO: generalize to allow arbitrary sampling distribution
+            P = tfp.distributions.Uniform(
+                low=[[-L,-L]]*self.batch_size, high=[[L,L]]*self.batch_size)
+            points = hf.vec_to_complex(P.sample())
+            
+            # compute characteristic func of target state
+            C_target = expectation(self.target_state, self.translate(-points))
+            C_target = tf.squeeze(C_target)
+            
+            # measure characteristic func of cached state after disentangling
+            # it from the qubit with projective qubit measurement
+            psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
+            _, msmt = self.phase_estimation(psi, points, 
+                                angle=tf.zeros(self.batch_size), sample=True)
+            msmt = tf.squeeze(tf.cast(msmt, c64))
+            
+            # TODO: this would work only for symmetric states (GKP, Fock states)
+            z = 1/(2*pi) * (4*L*L) * tf.math.real(msmt * C_target)
+            
+            # Average the reward over the batch and give the same to every traj
+            z = tf.broadcast_to(tf.math.reduce_mean(z), [self.batch_size])
+            
         return z
 
 
@@ -424,30 +472,41 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         try:
             assert mode in ['zero', 'stabilizers', 'pauli', 'fidelity',
                             'pauli_with_code_flips', 'fidelity_with_code_flips',
-                            'overlap']
+                            'overlap', 'tomography']
             self._reward_mode = mode
+            
+            if mode == 'tomography':
+                self.calculate_reward = self.reward_tomography
+            
             if mode == 'overlap':
                 self.calculate_reward = self.reward_overlap
+            
             if mode == 'zero':
                 self.calculate_reward = self.reward_zero
+            
             if mode == 'pauli':
                 if self.init == 'vac':
                     raise Exception('Pauli reward not supported for vac')
                 self.calculate_reward = lambda a : self.reward_pauli(a, False)
+            
             if mode == 'fidelity':
                 if self.init == 'vac':
                     raise Exception('Fidelity reward not supported for vac')
                 self.calculate_reward = lambda a : self.reward_fidelity(a, False)
+            
             if mode == 'stabilizers':
                 self.calculate_reward = self.reward_stabilizers
+            
             if mode == 'pauli_with_code_flips':
                 if self.init == 'vac':
                     raise Exception('Pauli reward not supported for vac')
                 self.calculate_reward = lambda a : self.reward_pauli(a, True)
+            
             if mode == 'fidelity_with_code_flips':
                 if self.init == 'vac':
                     raise Exception('Fidelity reward not supported for vac')
                 self.calculate_reward = lambda a : self.reward_fidelity(a, True)
+                
         except: 
             raise ValueError('Reward mode not supported.') 
     
