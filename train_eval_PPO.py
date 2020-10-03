@@ -9,29 +9,33 @@ import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+import qutip as qt
+import tensorflow as tf
+import numpy as np
 from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
+from gkp.gkp_tf_env import helper_functions as hf
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\overlap'
-root_dir = os.path.join(root_dir,'fock5_beta4')
 
-import qutip as qt
-import tensorflow as tf
-N=20
-target = qt.tensor(qt.basis(2,0), qt.basis(N,5))
-target_projector = qt.ket2dm(target)
-target_projector = tf.constant(target_projector.full(), dtype=tf.complex64)
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\tomography_reward'
+root_dir = os.path.join(root_dir,'fock2_beta3_N40_window12_batch1000')
 
-kwargs = {'N': N, 'target_projector': target_projector}
+N=40
+target_state = qt.tensor(qt.basis(2,0), qt.basis(N,2))
+reward_kwargs = {'reward_mode' : 'tomography', 
+                 'target_state' : target_state,
+                 'window_size': 12}
+
+kwargs = {'N': N}
 
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
         # Params for collect
         num_iterations = 100000,
-        train_batch_size = 100,
+        train_batch_size = 1000,
         replay_buffer_capacity = 15000,
         # Params for train
         normalize_observations = True,
@@ -58,7 +62,7 @@ PPO.train_eval(
         train_episode_length = lambda x: 6,
         eval_episode_length = 6,
         init_state = 'vac',
-        reward_mode = 'overlap',
+        reward_kwargs = reward_kwargs,
         encoding = 'square',
         action_script = 'Alec_universal_gate_set_6round',
         to_learn = {'alpha':True, 'beta':True, 'phi':True},

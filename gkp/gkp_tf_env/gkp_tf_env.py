@@ -51,12 +51,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         episode_length=20,
         batch_size=50,
         init="vac",
-        reward_mode="zero",
+        reward_kwargs={'reward_mode' : 'zero'},
         encoding="square",
-        stabilizer_translations=None,
-        target_state=None,
-        **kwargs
-    ):
+        **kwargs):
         """
         Args:
             H (int, optional): Horizon for history returned in observations. Defaults to 1.
@@ -65,10 +62,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             episode_length (int, optional): Number of iterations in training episode. Defaults to 20.
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             init (str, optional): Initial quantum state of system. Defaults to "vac".
-            reward_mode (str, optional): Type of reward for RL agent. Defaults to "zero".
+            reward_kwargs (dict, optional): optional dictionary of parameters 
+                for the reward function of RL agent.
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
-            stabilizer_translations (list, optional): list of stabilizer translation amplitudes.
-            target_state (Qobj, type=ket): Qutip object corresponding to target state
             
         """
         # Default simulation parameters
@@ -78,21 +74,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.episode_length = episode_length
         self.batch_size = batch_size
         self.init = init
-        self.reward_mode = reward_mode
-        self.stabilizer_translations = stabilizer_translations
         
-        if target_state:       
-            target_projector = qt.ket2dm(target_state)
-            target_projector = tf.constant(target_projector.full(), dtype=c64)
-            self.target_projector = target_projector
-            target_state = tf.constant(target_state.full(), dtype=c64)
-            self.target_state = tf.transpose(target_state)
-
-        if encoding == 'square':
-            S = np.array([[1, 0], [0, 1]])
-        elif encoding == 'hexagonal':
-            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))
-        self.define_stabilizer_code(S)
+        self.setup_reward(reward_kwargs)
+        self.define_stabilizer_code(encoding)
 
         # Define action and observation specs
         self.quantum_circuit = self._quantum_circuit
@@ -196,17 +180,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         m = tf.ones(shape=[self.batch_size,1,1])
         self.history['msmt'] = [m]*self.H*self.attn_step
         
-        
         # Make observation of horizon H, shape=[batch_size,H,dim] of each
         observation = {
             'msmt'  : tf.concat(self.history['msmt'][-self.H:], axis=1), 
             'clock' : tf.zeros(shape=[self.batch_size,1,self.T]),
             'const'   : tf.ones(shape=[self.batch_size,1])}
-
-        # Will keep track of code flips in symmetrized phase estimation
-        if self.reward_mode in ['pauli_with_code_flips', 
-                                'fidelity_with_code_flips']: 
-            self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()    
@@ -247,7 +225,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         """
         pass
 
-    def define_stabilizer_code(self, S):
+    def define_stabilizer_code(self, encoding):
         """
         Create stabilizer tensors, logical Pauli tensors and GKP state tensors.
         The simulation Hilbert space consists of N levels of the oscillator 
@@ -255,9 +233,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         the latter case the qubit comes first in the tensor product. 
         
         Input:
-            S   -- symplectic 2x2 matrix that defines the code subspace
+            encoding (str): Type of GKP lattice (square or hexagonal)
             
         """
+        # S is symplectic 2x2 matrix that defines the code subspace
+        if encoding == 'square':
+            S = np.array([[1, 0], [0, 1]])
+        elif encoding == 'hexagonal':
+            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))
+            
         stabilizers, pauli, states, self.code_map = \
             hf.GKP_state(self.tensorstate, self.N, S)
         # Convert to tensorflow tensors.
@@ -272,7 +256,103 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
     ### REWARD FUNCTIONS
 
-    def reward_overlap(self, *args):
+    def setup_reward(self, reward_kwargs):
+        """Setup the reward function based on reward_kwargs. """
+        try:
+            assert 'reward_mode' in reward_kwargs
+            mode = reward_kwargs['reward_mode']
+            assert mode in ['zero', 
+                            'stabilizers', 
+                            'pauli', 
+                            'fidelity',
+                            'overlap', 
+                            'tomography']
+            self.reward_mode = mode
+        except: 
+            raise ValueError('reward_mode not specified or not supported.') 
+        
+        if mode == 'zero':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'zero'
+                
+            """
+            self.calculate_reward = self.reward_zero
+
+        if mode == 'pauli':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'pauli'
+                code_flips (bool): flag to count logical code flips
+                
+            """
+            assert 'code_flips' in reward_kwargs.keys()
+            if self.init == 'vac':
+                raise Exception('Pauli reward not supported for vac')
+            code_flips = reward_kwargs['code_flips']
+            if code_flips: self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
+            self.calculate_reward = \
+                lambda args : self.reward_fidelity(code_flips, args)
+
+        if mode == 'fidelity':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'fidelity'
+                code_flips (bool): flag to count logical code flips
+                
+            """
+            assert 'code_flips' in reward_kwargs.keys()
+            if self.init == 'vac':
+                raise Exception('Fidelity reward not supported for vac')
+            code_flips = reward_kwargs['code_flips']
+            if code_flips: self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
+            self.calculate_reward = \
+                lambda args : self.reward_fidelity(code_flips, args)
+        
+        if mode == 'overlap':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'overlap'
+                target_state (Qobj, type=ket): Qutip object
+                
+            """
+            assert 'target_state' in reward_kwargs.keys()
+            target_projector = qt.ket2dm(reward_kwargs['target_state'])
+            target_projector = tf.constant(target_projector.full(), dtype=c64)
+            self.calculate_reward = \
+                lambda args: self.reward_overlap(target_projector, args)
+
+        if mode == 'tomography':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'tomography'
+                target_state (Qobj, type=ket): Qutip object
+                window_size (float): size of window for uniform distribution
+                
+            """
+            assert 'target_state' in reward_kwargs.keys()
+            assert 'window_size' in reward_kwargs.keys()
+            window_size = reward_kwargs['window_size']
+            target_state = reward_kwargs['target_state']
+            target_state = tf.constant(target_state.full(), dtype=c64)
+            target_state = tf.transpose(target_state)
+            self.calculate_reward = \
+                lambda args: self.reward_tomography(target_state, window_size, args)
+
+        if mode == 'stabilizers':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'stabilizers'
+                stabilizer_translations (list, float): translation amplitudes
+                
+            """
+            assert 'stabilizer_translations' in reward_kwargs.keys()
+            stabilizer_translations = reward_kwargs['stabilizer_translations']
+            self.calculate_reward = \
+                lambda args: self.reward_stabilizers(stabilizer_translations, args)
+
+
+    def reward_overlap(self, target_projector, *args):
         """
         Reward only on last time step using the overlap of the cached state 
         with the target state. The cached state is measured prior to computing
@@ -285,11 +365,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
-            overlap = expectation(psi, self.target_projector, reduce_batch=False)
+            overlap = expectation(psi, target_projector, reduce_batch=False)
             z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
         return z
 
-    def reward_tomography(self, *args):
+
+    def reward_tomography(self, target_state, window_size, *args):
         """
         Reward only on last time step using the empirical approximation of the 
         overlap of the prepared state with the target state. This overlap is
@@ -304,7 +385,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:
-            L = 6
+            L = window_size/2
             # sample a batch of points in which to measure characteristic func
             # TODO: generalize to allow arbitrary sampling distribution
             P = tfp.distributions.Uniform(
@@ -312,7 +393,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             points = hf.vec_to_complex(P.sample())
             
             # compute characteristic func of target state
-            C_target = expectation(self.target_state, self.translate(-points))
+            C_target = expectation(target_state, self.translate(-points))
             C_target = tf.squeeze(C_target)
             
             # measure characteristic func of cached state after disentangling
@@ -327,12 +408,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             
             # Average the reward over the batch and give the same to every traj
             z = tf.broadcast_to(tf.math.reduce_mean(z), [self.batch_size])
-            
         return z
 
 
     @tf.function
-    def reward_zero(self, act):
+    def reward_zero(self, *args):
         """
         Reward is always zero (use when not training).
         
@@ -340,7 +420,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return tf.zeros(self.batch_size, dtype=tf.float32)
 
 
-    def reward_pauli(self, act, code_flips=True):
+    def reward_pauli(self, code_flips, act):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
@@ -366,11 +446,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,))
             # Correct for code flips
-            if code_flips: z *= self.undo_code_flips()
+            if code_flips: 
+                z *= self.undo_code_flips()
+                self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
         return z
 
 
-    def reward_stabilizers(self, *args):
+    def reward_stabilizers(self, stabilizer_translations, *args):
         """
         Reward only on last time step with the result of measurement of one of
         the stabilizers using cached wavefunction (after feedback translation).
@@ -383,7 +465,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             # TODO: this works only for 2 stabilizers, generalize
             mask = tf.random.categorical(
                 tf.math.log([[0.5, 0.5] for _ in range(self.batch_size)]),1)
-            stabilizers = [self.stabilizer_translations[int(m)] for m in mask]
+            stabilizers = [stabilizer_translations[int(m)] for m in mask]
             stabilizers = tf.convert_to_tensor(stabilizers, dtype=c64)
             phi = tf.zeros(self.batch_size)
             _, z = self.phase_estimation(self.info['psi_cached'], stabilizers, 
@@ -393,7 +475,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
     
 
-    def reward_fidelity(self, act, code_flips):
+    def reward_fidelity(self, code_flips, act):
         """
         Reward only on last time step with the result of measurement of logical
         Pauli operator using cached wavefunction (after feedback translation).
@@ -421,6 +503,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if code_flips: z *= self.undo_code_flips()
         # Count code flips that happened after the state was cached
         if code_flips: self.count_code_flips(act, 'beta')
+        
+        if self._elapsed_steps == self.episode_length and code_flips:
+            self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
+        
         return z
 
 
@@ -461,54 +547,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
 
     ### PROPERTIES
-    
-    
-    @property
-    def reward_mode(self):
-        return self._reward_mode
-
-    @reward_mode.setter
-    def reward_mode(self, mode):
-        try:
-            assert mode in ['zero', 'stabilizers', 'pauli', 'fidelity',
-                            'pauli_with_code_flips', 'fidelity_with_code_flips',
-                            'overlap', 'tomography']
-            self._reward_mode = mode
-            
-            if mode == 'tomography':
-                self.calculate_reward = self.reward_tomography
-            
-            if mode == 'overlap':
-                self.calculate_reward = self.reward_overlap
-            
-            if mode == 'zero':
-                self.calculate_reward = self.reward_zero
-            
-            if mode == 'pauli':
-                if self.init == 'vac':
-                    raise Exception('Pauli reward not supported for vac')
-                self.calculate_reward = lambda a : self.reward_pauli(a, False)
-            
-            if mode == 'fidelity':
-                if self.init == 'vac':
-                    raise Exception('Fidelity reward not supported for vac')
-                self.calculate_reward = lambda a : self.reward_fidelity(a, False)
-            
-            if mode == 'stabilizers':
-                self.calculate_reward = self.reward_stabilizers
-            
-            if mode == 'pauli_with_code_flips':
-                if self.init == 'vac':
-                    raise Exception('Pauli reward not supported for vac')
-                self.calculate_reward = lambda a : self.reward_pauli(a, True)
-            
-            if mode == 'fidelity_with_code_flips':
-                if self.init == 'vac':
-                    raise Exception('Fidelity reward not supported for vac')
-                self.calculate_reward = lambda a : self.reward_fidelity(a, True)
-                
-        except: 
-            raise ValueError('Reward mode not supported.') 
     
     @property
     def init(self):

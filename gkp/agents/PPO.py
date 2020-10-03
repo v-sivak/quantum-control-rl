@@ -59,7 +59,7 @@ def train_eval(
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
         init_state = 'random',
-        reward_mode = 'pauli',
+        reward_kwargs={'reward_mode':'pauli', 'code_flips':False},
         encoding = 'square',
         action_script = 'Baptiste_8round',
         to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
@@ -127,7 +127,7 @@ def train_eval(
         eval_episode_length (int): duration of evaluation episodes.
         init_state (str): initial state, use 'random' for error correction and
             'vac' for state preparation.
-        reward_mode (str): see GKP docs for more details.
+        reward_kwargs (dict): see GKP docs for more details.
         encoding (str): GKP encoding, either 'square' or 'hexagonal'
         action_script (str): name of action script, should be compatible with 
             this quantum_circuit. Action wrapper will select actions from
@@ -153,7 +153,7 @@ def train_eval(
     train_env = gkp_init(simulate=simulate,                 
                     init=init_state, H=horizon, T=clock_period,
                     batch_size=train_batch_size, encoding=encoding,
-                    reward_mode=reward_mode, attn_step=attention_step,
+                    reward_kwargs=reward_kwargs, attn_step=attention_step,
                     **kwargs)
     train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
 
@@ -162,7 +162,7 @@ def train_eval(
                     init=init_state, H=horizon, T=clock_period,
                     batch_size=eval_batch_size, encoding=encoding,
                     episode_length=eval_episode_length,
-                    reward_mode=reward_mode, attn_step=attention_step,
+                    reward_kwargs=reward_kwargs, attn_step=attention_step,
                     **kwargs)
     eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
 
