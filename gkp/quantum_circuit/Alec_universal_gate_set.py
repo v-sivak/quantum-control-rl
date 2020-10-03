@@ -50,7 +50,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
                 'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'phi'   : specs.TensorSpec(shape=[1,3], dtype=tf.float32)}
+                'phi'   : specs.TensorSpec(shape=[1,2], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -60,7 +60,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'alpha' : Tensor([batch_size,1,2], tf.float32),
                           'beta'  : Tensor([batch_size,1,2], tf.float32),
-                          'phi'   : Tensor([batch_size,1,3], tf.float32))
+                          'phi'   : Tensor([batch_size,1,2], tf.float32))
 
         Returns: see parent class docs
 
@@ -70,7 +70,6 @@ class QuantumCircuit(OscillatorQubit, GKP):
         beta = hf.vec_to_complex(action['beta'])
         phi_x = action['phi'][:,0]
         phi_y = action['phi'][:,1]
-        phi_z = action['phi'][:,2]
 
         # Construct gates
         T, CT, R = {}, {}, {}
@@ -80,14 +79,12 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         R['x'] = self.rotate_qb(phi_x, axis='x')
         R['y'] = self.rotate_qb(phi_y, axis='y')
-        R['z'] = self.rotate_qb(phi_z, axis='z')
 
         # Oscillator translation
         psi = batch_dot(T['a'], psi)
         # Qubit rotation
         psi = batch_dot(R['x'], psi)
         psi = batch_dot(R['y'], psi)
-        psi = batch_dot(R['z'], psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)

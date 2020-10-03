@@ -11,7 +11,7 @@ period = 6
 script = {
     'alpha' : [[0.0, 0.0]]*period,
     'beta'  : [[0.0, 0.0]]*period,
-    'phi' : [[0.0, 0.0, 0.0]]*period
+    'phi' : [[0.0, 0.0]]*period
     }
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
