@@ -9,6 +9,7 @@ from math import sqrt, pi
 
 import numpy as np
 import qutip as qt
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow import complex64 as c64
@@ -192,10 +193,38 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
     def render(self):
         """
-        Render environment to the screen (plot Wigner function).
+        Render environment to the screen (plot symmetric characteristic function 
+        of the cached state).
         
         """
-        hf.plot_wigner_tf_wrapper(self._state, tensorstate=self.tensorstate)
+        # hf.plot_wigner_tf_wrapper(self._state, tensorstate=self.tensorstate)
+        
+        x = np.linspace(-10,10,101)
+        y = np.linspace(-10,10,101)
+        state = self.info['psi_cached']
+
+        x = tf.squeeze(tf.constant(x, dtype=c64))
+        y = tf.squeeze(tf.constant(y, dtype=c64))
+        
+        one = tf.constant([1]*len(y), dtype=c64)
+        onej = tf.constant([1j]*len(x), dtype=c64)
+        
+        grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
+        grid_flat = tf.reshape(grid, [-1])
+        
+        C = expectation(state, self.translate(grid_flat))
+        C_grid = tf.reshape(C, grid.shape)
+        
+        fig, axes = plt.subplots(1,2, sharey=True)
+        fig.suptitle('step %d' %self._elapsed_steps)
+        axes[0].pcolormesh(x, y, np.transpose(C_grid.numpy().real), 
+                           cmap='RdBu_r', vmin=-1, vmax=1)
+        axes[1].pcolormesh(x, y, np.transpose(C_grid.numpy().imag), 
+                           cmap='RdBu_r', vmin=-1, vmax=1)
+        axes[0].set_title('Re')
+        axes[1].set_title('Im')
+        axes[0].set_aspect('equal')
+        axes[1].set_aspect('equal')
 
 
     def _current_time_step(self):
