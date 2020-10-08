@@ -20,13 +20,13 @@ from gkp.gkp_tf_env import helper_functions as hf
 
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\tomography_reward'
-root_dir = os.path.join(root_dir,'fock2_beta3_N40_window12_batch1000')
+root_dir = os.path.join(root_dir,'fock2_beta3_N40_B100_tomo10_lr3e-4_avg')
 
 N=40
 target_state = qt.tensor(qt.basis(2,0), qt.basis(N,2))
 reward_kwargs = {'reward_mode' : 'tomography', 
                  'target_state' : target_state,
-                 'window_size': 12}
+                 'window_size' : 12}
 
 kwargs = {'N': N}
 
@@ -35,13 +35,13 @@ PPO.train_eval(
         random_seed = 0,
         # Params for collect
         num_iterations = 100000,
-        train_batch_size = 1000,
+        train_batch_size = 100,
         replay_buffer_capacity = 15000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 3e-4,
         lr_schedule = None,
         num_policy_epochs = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -49,7 +49,7 @@ PPO.train_eval(
         importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
-        eval_batch_size = 500,
+        eval_batch_size = 1000,
         eval_interval = 100,
         save_interval = 500,
         checkpoint_interval = 5000,
@@ -68,9 +68,9 @@ PPO.train_eval(
         to_learn = {'alpha':True, 'beta':True, 'phi':True},
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
-        actor_fc_layers = (100,50),
-        value_fc_layers = (100,50),
-        use_rnn = False,
+        actor_fc_layers = (),
+        value_fc_layers = (),
+        use_rnn = True,
         actor_lstm_size = (12,),
         value_lstm_size = (12,),
         **kwargs

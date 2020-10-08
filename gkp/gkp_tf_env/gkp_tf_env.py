@@ -417,26 +417,32 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             L = window_size/2
             # sample a batch of points in which to measure characteristic func
             # TODO: generalize to allow arbitrary sampling distribution
-            P = tfp.distributions.Uniform(
-                low=[[-L,-L]]*self.batch_size, high=[[L,L]]*self.batch_size)
-            points = hf.vec_to_complex(P.sample())
+            P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
             
-            # compute characteristic func of target state
-            C_target = expectation(target_state, self.translate(-points))
-            C_target = tf.squeeze(C_target)
-            
-            # measure characteristic func of cached state after disentangling
-            # it from the qubit with projective qubit measurement
-            psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
-            _, msmt = self.phase_estimation(psi, points, 
-                                angle=tf.zeros(self.batch_size), sample=True)
-            msmt = tf.squeeze(tf.cast(msmt, c64))
-            
-            # TODO: this would work only for symmetric states (GKP, Fock states)
-            z = 1/(2*pi) * (4*L*L) * tf.math.real(msmt * C_target)
-            
-            # Average the reward over the batch and give the same to every traj
-            z = tf.broadcast_to(tf.math.reduce_mean(z), [self.batch_size])
+            z = tf.zeros(self.batch_size)
+            reps = 10
+            for i in range(reps):
+                points = tf.broadcast_to(P.sample(), [self.batch_size,2])
+                points = hf.vec_to_complex(points)
+                
+                # compute characteristic func of target state
+                C_target = expectation(target_state, self.translate(-points))
+                C_target = tf.squeeze(C_target)
+                
+                # measure the qubit to disentangle from oscillator
+                psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
+                mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+                
+                _, msmt = self.phase_estimation(psi, points, 
+                                    angle=tf.zeros(self.batch_size), sample=False)
+                msmt = tf.squeeze(tf.cast(msmt, c64))
+                
+                # TODO: this would work only for symmetric states (GKP, Fock states)
+                Z = 1/(2*pi) * (4*L*L) * tf.math.real(msmt * C_target)
+                
+                # mask out bad trajectories
+                z += Z * mask
+            z = z/reps
         return z
 
 
