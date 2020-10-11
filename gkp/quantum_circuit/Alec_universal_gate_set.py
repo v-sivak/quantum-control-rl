@@ -8,7 +8,6 @@ Qubit is included in the Hilbert space. Simulation is done with a gate-based
 approach to quantum circuits.
 """
 import tensorflow as tf
-from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
@@ -48,8 +47,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha' : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
+        spec = {'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[1,2], dtype=tf.float32)}
         return spec
 
@@ -58,30 +56,25 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha' : Tensor([batch_size,1,2], tf.float32),
-                          'beta'  : Tensor([batch_size,1,2], tf.float32),
+            action (dict, 'beta'  : Tensor([batch_size,1,2], tf.float32),
                           'phi'   : Tensor([batch_size,1,2], tf.float32))
 
         Returns: see parent class docs
 
         """
         # Extract parameters
-        alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
         phi_x = action['phi'][:,0]
         phi_y = action['phi'][:,1]
 
         # Construct gates
         T, CT, R = {}, {}, {}
-        T['a'] = self.translate(alpha)
         T['b'] = self.translate(beta/4.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
 
         R['x'] = self.rotate_qb(phi_x, axis='x')
         R['y'] = self.rotate_qb(phi_y, axis='y')
 
-        # Oscillator translation
-        psi = batch_dot(T['a'], psi)
         # Qubit rotation
         psi = batch_dot(R['x'], psi)
         psi = batch_dot(R['y'], psi)
