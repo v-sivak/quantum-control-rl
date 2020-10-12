@@ -393,9 +393,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
-            psi, _ = self.measure(self.info['psi_cached'], self.P, sample=True)
+            psi, _ = self.measure(self._state, self.P, sample=True)
             overlap = expectation(psi, target_projector, reduce_batch=False)
             z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
+            self.info['psi_cached'] = psi
         return z
 
 
@@ -423,7 +424,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size)
             M = tf.zeros(self.batch_size) + 1e-12
             
-            reps = 10
+            reps = 100
             for i in range(reps):
                 # shitty rejection sampling, need to vectorize
                 cond = True
@@ -446,7 +447,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                                 angle=tf.zeros(self.batch_size), sample=True)
                 
                 # this would work only for symmetric states (GKP, Fock states)
-                Z = tf.squeeze(msmt) * tf.math.sign(C_target)
+                Z = (tf.squeeze(msmt) - C_target) * tf.math.sign(C_target)
                 
                 # mask out trajectories where qubit was measured in |e>
                 z += Z * mask
