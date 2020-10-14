@@ -25,21 +25,16 @@ class ActionScript(object):
     
     def __init__(self, param):
         
-        delta = 0.19
-        eps = 0.19
-        self.period = 6
-        b_amp = sqrt(8*pi/sqrt(3))
-        a_amp = sqrt(2*pi/sqrt(3))
+        delta = param
+        self.period = 2
+        b_amp = 2*sqrt(pi)
+        a_amp = sqrt(pi)
         
         self.script = {
-            'alpha' : [1j*a_amp*exp(-0j*pi/3), delta*exp(-2j*pi/3),
-                       1j*a_amp*exp(-2j*pi/3), delta*exp(-1j*pi/3),
-                       1j*a_amp*exp(-1j*pi/3), delta*exp(-0j*pi/3)],
-            'beta'  : [1j*b_amp*exp(-2j*pi/3), -eps*exp(-2j*pi/3), 
-                       1j*b_amp*exp(-1j*pi/3), -eps*exp(-1j*pi/3), 
-                       1j*b_amp*exp(-0j*pi/3), -eps*exp(-0j*pi/3)],
-            'phi' : [pi/2]*6,
-            'theta' : [param]*6
+            'alpha' : [delta+0j, -1j*delta],
+            'beta'  : [b_amp+0j, 1j*b_amp],
+            'phi' : [pi/2]*2,
+            'theta' : [0.0]*2
             }
 
 
@@ -47,14 +42,12 @@ class ActionScript(object):
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = gkp_init(simulate='oscillator_qubit',
-               init='Z+', H=1, batch_size=500, episode_length=100, 
-               reward_mode = 'fidelity', quantum_circuit_type='v5',
-               encoding = 'hexagonal')
+env = gkp_init(simulate='oscillator', init='Z+', H=1, batch_size=1000, 
+               episode_length=200, reward_mode = 'fidelity', channel='diffusion',
+               quantum_circuit_type='v2', encoding = 'square', N=200)
 
-savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\osc_sims\test'
-params = [0j] + list(np.linspace(0.005, 0.025, 11, dtype=complex))
-states = ['Z+']
+savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\diffusion_channel'
+params = [0j] + list(np.linspace(0.0, 0.5, 11, dtype=complex))
 make_figure = True
 
 #-----------------------------------------------------------------------------
@@ -62,42 +55,17 @@ make_figure = True
 #-----------------------------------------------------------------------------
 
 lifetimes = np.zeros(len(params))
-returns = np.zeros(len(params))
 
 for j in range(len(params)):
     t = time()
     action_script = ActionScript(param=params[j])
     policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
-    
-    for state in states:
-        if '_env' in env.__dir__(): 
-            env._env.init = state
-        else:
-            env.init = state
-
-        # Collect batch of episodes
-        time_step = env.reset()
-        policy_state = policy.get_initial_state(env.batch_size)
-        rewards = np.zeros((env.episode_length, env.batch_size))
-        counter = 0
-        while not time_step.is_last()[0]:
-            action_step = policy.action(time_step, policy_state)
-            policy_state = action_step.state
-            time_step = env.step(action_step.action)
-            rewards[counter] = time_step.reward
-            counter += 1
         
-        # Fit T1
-        mean_rewards = rewards.mean(axis=1) # average across episodes
-        returns[j] = np.sum(mean_rewards)
-        times = np.arange(env.episode_length)*env.step_duration
-        T1_guess = (times[-1]-times[0])/(mean_rewards[0]-mean_rewards[-1])
-        popt, pcov = curve_fit(hf.exp_decay, times, mean_rewards,
-                               p0=[1, T1_guess])
-        lifetimes[j] = popt[1]*1e6
+    popt = hf.fit_logical_lifetime(env, policy, plot=False, save_dir=None, 
+                 states=['Z+'], reps=1)
+    lifetimes[j] = popt['Z+'][1]*1e6
     
     print('(%d): Time %.3f sec' %(j, time()-t))
-
 
 
 # Plot summary of the sweep and save the sweep data
@@ -112,4 +80,3 @@ if make_figure:
 
 np.save(os.path.join(savepath,'params'), params)
 np.save(os.path.join(savepath,'lifetimes'), lifetimes)
-np.save(os.path.join(savepath,'returns'), returns)

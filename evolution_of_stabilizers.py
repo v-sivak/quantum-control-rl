@@ -7,7 +7,7 @@ Created on Tue Apr  7 16:24:22 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import numpy as np
 import tensorflow as tf
@@ -22,20 +22,22 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = gkp_init(simulate='oscillator', 
-                init='vac', H=1, T=8, A=1, batch_size=1000, episode_length=50, 
-                reward_mode='zero', quantum_circuit_type='v2')
-
+env = gkp_init(simulate='Alec_universal_gate_set', 
+               channel='quantum_jumps', 
+               init='vac', H=1, T=6, attn_step=1, batch_size=500, episode_length=6, 
+               reward_mode = 'zero',
+               encoding='square')
 
 # from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
-from gkp.action_script import v2_square_sharpen_3x_trim as action_script
-to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
+from gkp.action_script import Alec_universal_gate_set_12round as action_script
+# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+# to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
+to_learn = {'alpha':True, 'beta':True, 'phi':True}
 env = wrappers.ActionWrapper(env, action_script, to_learn)
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\rnn_H1T8A1_stabilizers_sharpen_3x_trim_v2'
-policy_dir = r'policy\000090000'
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp_X_prep_msmt_free_4'
+policy_dir = r'policy\001510000'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
 
 
 # from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
@@ -44,7 +46,7 @@ policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-# What operators to measure 
+# # What operators to measure 
 # names = [r'Re($S_1$)', r'Re($S_2$)',
 #          r'Im($S_1$)', r'Im($S_2$)']
 # # Translation amplitudes
@@ -57,7 +59,7 @@ policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 # colors = [palette(0), palette(1), palette(2)]*2
 
 
-# # What operators to measure 
+# What operators to measure 
 names = [r'Re($S_x$)', r'Re($S_y$)', r'Re($S_z$)',
          r'Im($S_x$)', r'Im($S_y$)', r'Im($S_z$)']
 # Translation amplitudes

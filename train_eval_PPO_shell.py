@@ -17,17 +17,17 @@ from gkp.agents import actor_distribution_network_gkp
 
 if __name__ == '__main__':
 
-    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp2_H1T8A1_stabilizers_sharpen_3x_trim_v2'
+    root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp2_H3T4A4_steps36_64_qec_4'
     random_seed = 0
     # Params for collect
     num_iterations = 1000000
-    train_batch_size = 1000
+    train_batch_size = 100
     replay_buffer_capacity = 70000
     # Params for train
     normalize_observations = True
     normalize_rewards = False
     discount_factor = 1.0
-    lr = 1e-4
+    lr = 1e-3
     lr_schedule = None
     num_policy_epochs = 20
     initial_adaptive_kl_beta = 0.0
@@ -38,20 +38,19 @@ if __name__ == '__main__':
     eval_batch_size = 600
     eval_interval = 100
     save_interval = 500
-    checkpoint_interval = 5000
+    checkpoint_interval = 500
     summary_interval = 100
     # Params for environment
-    simulate = 'oscillator'
-    horizon = 1
-    clock_period = 8
-    attention_step = 1
+    simulate = 'phase_estimation_osc_v2'
+    horizon = 3
+    clock_period = 4
+    attention_step = 4
     train_episode_length = lambda x: 36 if x<1000 else 64
     eval_episode_length = 64
-    init_state = 'vac'
-    reward_mode = 'stabilizers'
+    init_state = 'random'
+    reward_mode = 'pauli_with_code_flips'
     encoding = 'square'
-    quantum_circuit_type = 'v2'
-    action_script = 'v2_square_sharpen_3x_trim'
+    action_script = 'v2_phase_estimation_with_trim_4round'
     to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
     # Policy and value networks
     ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP
@@ -155,9 +154,6 @@ if __name__ == '__main__':
     parser.add_argument('--encoding', type=str,
                         default=encoding)
     
-    parser.add_argument('--quantum_circuit_type', type=str,
-                        default=quantum_circuit_type)
-    
     parser.add_argument('--action_script', type=str,
                         default=action_script)
 
@@ -212,7 +208,6 @@ if __name__ == '__main__':
         init_state=args.init_state,
         reward_mode=args.reward_mode,
         encoding=args.encoding,
-        quantum_circuit_type=args.quantum_circuit_type,
         action_script=args.action_script,
         to_learn=to_learn,
         ActorNet=ActorNet,
