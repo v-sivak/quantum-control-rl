@@ -59,7 +59,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         Args:
             H (int, optional): Horizon for history returned in observations. Defaults to 1.
             T (int, optional): Periodicity of the 'clock' observation. Defaults to 4.
-            attn_step (int, optional): Step for attention to measurement outcomes. Defaults to 1.
+            attn_step (int, optional): step size for hard-coded attention to
+                measurement outcomes. For example, set to 4 to return history 
+                of measurement oucomes separated by 4 steps -- when the same 
+                stabilizer is measured in the square code. In hexagonal code 
+                this can be 2. Defaults to 1.
             episode_length (int, optional): Number of iterations in training episode. Defaults to 20.
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             init (str, optional): Initial quantum state of system. Defaults to "vac".

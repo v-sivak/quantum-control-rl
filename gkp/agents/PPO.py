@@ -27,6 +27,18 @@ def random_sample_episode_length(x):
     # sample random episode duration in the range [1..x]
     return np.random.randint(1, x)
 
+env_kwargs = {
+    'simulate' : 'oscillator',
+    'encoding' : 'square',
+    'init' : 'random',
+    'H' : 1,
+    'T' : 4, 
+    'attn_step' : 1}
+
+reward_kwargs = {
+    'reward_mode' : 'pauli', 
+    'code_flips' : False}
+
 def train_eval(
         root_dir = None,
         random_seed = 0,
@@ -52,17 +64,15 @@ def train_eval(
         checkpoint_interval = None,
         summary_interval = 100,
         # Params for environment
-        simulate = 'oscillator',
-        horizon = 1,
-        clock_period = 4,
-        attention_step = 1,
+        train_env_kwargs = env_kwargs,
+        eval_env_kwargs = env_kwargs,
+        reward_kwargs = reward_kwargs,
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
-        init_state = 'random',
-        reward_kwargs={'reward_mode':'pauli', 'code_flips':False},
-        encoding = 'square',
-        action_script = 'Baptiste_8round',
-        to_learn = {'alpha':True, 'beta':False, 'epsilon':True, 'phi':False},
+        # Params for action wrapper
+        action_script = 'v2_phase_estimation_with_trim_4round',
+        action_scale = {'alpha':1, 'beta':1, 'phi':np.pi, 'theta':0.02},
+        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False},
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         actor_fc_layers = (),
@@ -112,26 +122,19 @@ def train_eval(
         summary_interval (int): interval between summary writing, counted in 
             epochs. tf-agents takes care of summary writing; results can be
             later displayed in tensorboard.
-        simulate (str): type of simulator to use in the GKP environment. Can 
-            be either 'oscillator' or 'oscillator_qubit'.
-        horizon (int): how many past observations to return. Use 1 for RNNs 
-            and >=1 for MLP policies. 
-        clock_period (int): period for the one-hot encoded clock observation.
-        attention_step (int): step size for hard-coded attention mechanism.
-            For example, set to 4 to return history of measurement oucomes 
-            separated by 4 steps -- when the same stabilizer is measured in
-            the square code. In hexagonal code this can be 2. 
+        train_env_kwargs (dict): optional parameters for training environment
+        eval_env_kwargs (dict): optional parameters for evaluation environment
+        reward_kwargs (dict): optional parameters for reward function
         train_episode_length (callable: int -> int): function that defines the 
             schedule for training episode durations. Takes as argument the int 
             epoch number and returns int episode duration for this epoch.
         eval_episode_length (int): duration of evaluation episodes.
-        init_state (str): initial state, use 'random' for error correction and
-            'vac' for state preparation.
-        reward_kwargs (dict): see GKP docs for more details.
-        encoding (str): GKP encoding, either 'square' or 'hexagonal'
         action_script (str): name of action script, should be compatible with 
             this quantum_circuit. Action wrapper will select actions from
             this script if they are not to be learned.
+        action_scale (dict, str:float): dictionary mapping action dimensions to 
+            scaling factors. Action wrapper will rescale actions produced by
+            the agent's neural net policy by these factors.
         to_learn (dict, str:bool): dictionary mapping action dimensions to 
             bool flags. Specifies if the action should be learned or scripted.
         ActorNet (network.DistributionNetwork): a distribution actor network 
@@ -150,21 +153,16 @@ def train_eval(
     action_script = act_scripts.__getattribute__(action_script)
         
     # Create training env and wrap it
-    train_env = gkp_init(simulate=simulate,                 
-                    init=init_state, H=horizon, T=clock_period,
-                    batch_size=train_batch_size, encoding=encoding,
-                    reward_kwargs=reward_kwargs, attn_step=attention_step,
-                    **kwargs)
-    train_env = wrappers.ActionWrapper(train_env, action_script, to_learn)
+    train_env = gkp_init(batch_size=train_batch_size, reward_kwargs=reward_kwargs,
+                    **train_env_kwargs)
+    train_env = wrappers.ActionWrapper(train_env, action_script, 
+                                       action_scale, to_learn)
 
     # Create evaluation env and wrap it
-    eval_env = gkp_init(simulate=simulate,
-                    init=init_state, H=horizon, T=clock_period,
-                    batch_size=eval_batch_size, encoding=encoding,
-                    episode_length=eval_episode_length,
-                    reward_kwargs=reward_kwargs, attn_step=attention_step,
-                    **kwargs)
-    eval_env = wrappers.ActionWrapper(eval_env, action_script, to_learn)
+    eval_env = gkp_init(batch_size=eval_batch_size, reward_kwargs=reward_kwargs,
+                    episode_length=eval_episode_length, **eval_env_kwargs)
+    eval_env = wrappers.ActionWrapper(eval_env, action_script, 
+                                      action_scale, to_learn)
 
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------

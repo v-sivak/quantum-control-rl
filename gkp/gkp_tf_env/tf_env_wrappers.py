@@ -127,20 +127,20 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     to alternate between learned and scripted values with 'use_mask' flag.
 
     """
-    def __init__(self, env, action_script, to_learn, use_mask=True):
+    def __init__(self, env, action_script, scale, to_learn, use_mask=True):
         """
         Args:
             env: GKP environmen
             action_script: module or class with attributes corresponding to
                            action components such as 'alpha', 'phi' etc
+            scale: dictionary of scaling factors for action components
             to_learn: dictionary of bool values for action components
             use_mask: flag to control masking of action components
 
         """
         super(ActionWrapper, self).__init__(env)
 
-        self.scale = {'alpha' : 1, 'beta' : 3, 'epsilon' : 1, 'phi' : pi,
-                      'theta' : 0.02}
+        self.scale = scale
         self.period = action_script.period # periodicity of the protocol
         self.to_learn = to_learn
         self.use_mask = use_mask
