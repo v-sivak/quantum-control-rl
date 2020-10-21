@@ -321,7 +321,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             code_flips = reward_kwargs['code_flips']
             if code_flips: self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
             self.calculate_reward = \
-                lambda args : self.reward_fidelity(code_flips, args)
+                lambda args : self.reward_pauli(code_flips, args)
 
         if mode == 'fidelity':
             """
