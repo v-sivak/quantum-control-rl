@@ -569,7 +569,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         ref_amps = {'alpha' : ['X','Y','Z'], 'beta' : ['S_x','S_y','S_z']}
         for a, b in zip(['X','Y','Z'], ref_amps[key]):
             ref = self.code_map[b]
-            self.flips[a] += tf.where(amp==ref,1,0) + tf.where(amp==-ref,1,0)
+            atol = abs(ref) / 2
+            self.flips[a] += tf.where(tf.math.abs(amp-ref) < atol, 1, 0)
+            self.flips[a] += tf.where(tf.math.abs(amp+ref) < atol, 1, 0)
         return 
 
 
