@@ -17,16 +17,10 @@ from simulator.utils import normalize
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
-    This class inherits simulation-independent functionality from the GKP
-    class and implements simulation by abstracting away the qubit and using
-    Kraus maps formalism to efficiently simulate operations on the oscillator 
-    Hilbert space.
-    
     Universal gate sequence for open-loop unitary control of the oscillator.
     The gate sequence consists of 
-        1) oscillator translations in phase space 
-        2) qubit rotations on the Bloch sphere
-        3) conditional translations of the oscillator conditioned on qubit
+        1) qubit rotations in the xy-plane of the Bloch sphere
+        2) conditional translations of the oscillator conditioned on qubit
     
     """
     def __init__(
