@@ -151,6 +151,30 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         psi = normalize(psi)
         return self.measure(psi, self.P, sample)
 
+    @tf.function
+    def rotate_qb_xy(self, phi, theta):
+        """Calculate qubit rotation matrix for rotation axis in xy-plane.
+
+        Args:
+            phi (Tensor([batch_size], c64)): angle between rotation axis and 
+                x-axis of the Bloch sphere.
+            theta (Tensor([batch_size], c64)): rotation angle.
+
+        Returns:
+            Tensor([batch_size, N, N], c64): A batch of R_phi(theta)
+        """
+        # ensure correct shapes for 'phi' and 'theta'
+        phi = tf.cast(tf.reshape(phi, [phi.shape[0], 1, 1]), dtype=c64)
+        theta = tf.cast(tf.reshape(phi, [theta.shape[0], 1, 1]), dtype=c64)
+        
+        I = tf.expand_dims(self.I, axis=0)
+        sx = tf.expand_dims(self.sx, axis=0)
+        sy = tf.expand_dims(self.sy, axis=0)
+        
+        R = tf.math.cos(theta/2)*I - 1j*tf.math.sin(theta/2) * \
+            (tf.math.cos(phi)*sx + tf.math.sin(phi)*sy)
+        return R
+
     @property
     def N(self):
         return self._N

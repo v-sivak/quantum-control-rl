@@ -58,20 +58,17 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         # Extract parameters
         beta = hf.vec_to_complex(action['beta'])
-        phi_x = action['phi'][:,0]
-        phi_y = action['phi'][:,1]
+        phi = action['phi'][:,0]
+        theta = action['phi'][:,1]
 
         # Construct gates
         T, CT, R = {}, {}, {}
         T['b'] = self.translate(beta/4.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
-
-        R['x'] = self.rotate_qb(phi_x, axis='x')
-        R['y'] = self.rotate_qb(phi_y, axis='y')
+        R = self.rotate_qb_xy(phi, theta)
 
         # Qubit rotation
-        psi = batch_dot(R['x'], psi)
-        psi = batch_dot(R['y'], psi)
+        psi = batch_dot(R, psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
