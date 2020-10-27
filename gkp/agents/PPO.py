@@ -10,34 +10,14 @@ import numpy as np
 
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.policies import policy_saver
-from tf_agents.networks import actor_distribution_network, value_network, \
-    actor_distribution_rnn_network, value_rnn_network
+from tf_agents.networks import actor_distribution_network, value_network
+from tf_agents.networks import actor_distribution_rnn_network, value_rnn_network
 from tf_agents.utils import common
-from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.eval import metric_utils
 from tf_agents.agents.ppo import ppo_agent
 from tf_agents.utils import timer
-
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.utils.rl_train_utils import compute_avg_return, save_log
-import gkp.action_script as act_scripts
 
-def random_sample_episode_length(x):
-    # sample random episode duration in the range [1..x]
-    return np.random.randint(1, x)
-
-env_kwargs = {
-    'simulate' : 'oscillator',
-    'encoding' : 'square',
-    'init' : 'random',
-    'H' : 1,
-    'T' : 4, 
-    'attn_step' : 1}
-
-reward_kwargs = {
-    'reward_mode' : 'pauli', 
-    'code_flips' : False}
 
 def train_eval(
         root_dir = None,
@@ -63,16 +43,11 @@ def train_eval(
         save_interval = 1000,
         checkpoint_interval = None,
         summary_interval = 100,
-        # Params for environment
-        train_env_kwargs = env_kwargs,
-        eval_env_kwargs = env_kwargs,
-        reward_kwargs = reward_kwargs,
+        # Params for data collection
+        collect_driver = None,
+        eval_driver = None,
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
-        # Params for action wrapper
-        action_script = 'v2_phase_estimation_with_trim_4round',
-        action_scale = {'alpha':1, 'beta':1, 'phi':np.pi, 'theta':0.02},
-        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False},
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         actor_fc_layers = (),
@@ -122,21 +97,10 @@ def train_eval(
         summary_interval (int): interval between summary writing, counted in 
             epochs. tf-agents takes care of summary writing; results can be
             later displayed in tensorboard.
-        train_env_kwargs (dict): optional parameters for training environment
-        eval_env_kwargs (dict): optional parameters for evaluation environment
-        reward_kwargs (dict): optional parameters for reward function
         train_episode_length (callable: int -> int): function that defines the 
             schedule for training episode durations. Takes as argument the int 
             epoch number and returns int episode duration for this epoch.
         eval_episode_length (int): duration of evaluation episodes.
-        action_script (str): name of action script, should be compatible with 
-            this quantum_circuit. Action wrapper will select actions from
-            this script if they are not to be learned.
-        action_scale (dict, str:float): dictionary mapping action dimensions to 
-            scaling factors. Action wrapper will rescale actions produced by
-            the agent's neural net policy by these factors.
-        to_learn (dict, str:bool): dictionary mapping action dimensions to 
-            bool flags. Specifies if the action should be learned or scripted.
         ActorNet (network.DistributionNetwork): a distribution actor network 
             to use for training. The default is ActorDistributionNetwork from
             tf-agents, but this can also be customized.
@@ -150,19 +114,9 @@ def train_eval(
     if root_dir is None:
         raise AttributeError('PPO requires a root_dir.')    
     tf.compat.v1.set_random_seed(random_seed)
-    action_script = act_scripts.__getattribute__(action_script)
-        
-    # Create training env and wrap it
-    train_env = gkp_init(batch_size=train_batch_size, reward_kwargs=reward_kwargs,
-                    **train_env_kwargs)
-    train_env = wrappers.ActionWrapper(train_env, action_script, 
-                                       action_scale, to_learn)
 
     # Create evaluation env and wrap it
-    eval_env = gkp_init(batch_size=eval_batch_size, reward_kwargs=reward_kwargs,
-                    episode_length=eval_episode_length, **eval_env_kwargs)
-    eval_env = wrappers.ActionWrapper(eval_env, action_script, 
-                                      action_scale, to_learn)
+    eval_env = eval_driver.env
 
     # --------------------------------------------------------------------
     # --------------------------------------------------------------------
@@ -183,8 +137,8 @@ def train_eval(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
 
         # Define action and observation specs
-        observation_spec = train_env.observation_spec()
-        action_spec = train_env.action_spec()
+        observation_spec = collect_driver.env.observation_spec()
+        action_spec = collect_driver.env.action_spec()
         
         # Preprocessing: flatten and concatenate observation components
         preprocessing_layers = {
@@ -226,7 +180,7 @@ def train_eval(
         # Create PPO agent
         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr)
         tf_agent = ppo_agent.PPOAgent(
-            time_step_spec = train_env.time_step_spec(),
+            time_step_spec = collect_driver.env.time_step_spec(),
             action_spec = action_spec,
             optimizer = optimizer,
             actor_net = actor_net,
@@ -246,8 +200,6 @@ def train_eval(
         eval_policy = tf_agent.policy
         collect_policy = tf_agent.collect_policy
     
-        train_metrics = []
-    
         # Create replay buffer and collection driver
         replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             data_spec=tf_agent.collect_data_spec,
@@ -259,13 +211,8 @@ def train_eval(
             return tf_agent.train(experience)
     
         tf_agent.train = common.function(tf_agent.train)
-    
-        collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
-            train_env,
-            collect_policy,
-            observers=[replay_buffer.add_batch] + train_metrics,
-            num_episodes=train_batch_size
-            )
+        
+        collect_driver.setup(collect_policy, [replay_buffer.add_batch])
     
         # Create a checkpointer and load the saved agent 
         train_checkpointer = common.Checkpointer(
@@ -274,8 +221,7 @@ def train_eval(
             agent=tf_agent,
             policy=tf_agent.policy,
             replay_buffer=replay_buffer,
-            global_step=global_step,
-            metrics=metric_utils.MetricsGroup(train_metrics, 'train_metrics'))
+            global_step=global_step)
         
         train_checkpointer.initialize_or_restore()
         global_step = tf.compat.v1.train.get_global_step()
@@ -305,8 +251,7 @@ def train_eval(
         for epoch in range(num_iterations):
             # Collect new experience
             experience_timer.start()
-            train_env._env.episode_length = train_episode_length(epoch)
-            collect_driver.run()
+            collect_driver.run(train_episode_length(epoch))
             experience_timer.stop()
             # Update the policy 
             train_timer.start()
@@ -320,7 +265,7 @@ def train_eval(
             
             if global_step_val % (eval_interval*num_policy_epochs) == 0:
                 # Evaluate the policy
-                avg_return = compute_avg_return(eval_env, tf_agent.policy)
+                avg_return = compute_avg_return(eval_env, eval_policy)
                 # Print out and log all metrics
                 print('-------------------')
                 print('Epoch %d' %(global_step_val/num_policy_epochs))
