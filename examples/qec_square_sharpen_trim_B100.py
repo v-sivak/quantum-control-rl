@@ -32,11 +32,10 @@ Using batched of B=100, but another option that works well is B=1000.
 
 """
 
-
-
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
 root_dir = os.path.join(root_dir,'qec_square_sharpen_trim_B100')
 
+# Params for environment
 env_kwargs = {
     'simulate' : 'phase_estimation_osc_v2',
     'encoding' : 'square',
@@ -45,18 +44,35 @@ env_kwargs = {
     'T' : 4, 
     'attn_step' : 1}
 
+# Params for reward function
 reward_kwargs = {
     'reward_mode' : 'pauli', 
     'code_flips' : True}
+
+# Params for action wrapper
+action_script = 'v2_phase_estimation_with_trim_4round'
+action_scale = {'alpha':1, 'beta':1, 'phi':pi, 'theta':0.02}
+to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
+
+train_batch_size = 100
+eval_batch_size = 1000
+
+# Create drivers for data collection
+from gkp.agents import dynamic_episode_driver_sim_env
+
+collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
+    env_kwargs, reward_kwargs, train_batch_size, 
+    action_script, action_scale, to_learn)
+
+eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
+    env_kwargs, reward_kwargs, eval_batch_size, 
+    action_script, action_scale, to_learn)
 
 
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        # Params for collect
         num_iterations = 10000,
-        train_batch_size = 100,
-        replay_buffer_capacity = 70000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -69,21 +85,18 @@ PPO.train_eval(
         importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
-        eval_batch_size = 1000,
         eval_interval = 100,
         save_interval = 500,
         checkpoint_interval = 1000,
         summary_interval = 100,
-        # Params for environment
-        train_env_kwargs = env_kwargs,
-        eval_env_kwargs = env_kwargs,
-        reward_kwargs = reward_kwargs,
+        # Params for data collection
+        train_batch_size = train_batch_size,
+        eval_batch_size = eval_batch_size,
+        collect_driver = collect_driver,
+        eval_driver = eval_driver,
         train_episode_length =  lambda x: 36 if x<1000 else 64,
         eval_episode_length = 64,
-        # Params for action wrapper
-        action_script = 'v2_phase_estimation_with_trim_4round',
-        action_scale = {'alpha':1, 'beta':1, 'phi':pi, 'theta':0.02},
-        to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False},
+        replay_buffer_capacity = 70000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (100,50),

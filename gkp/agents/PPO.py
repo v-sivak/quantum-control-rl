@@ -16,38 +16,38 @@ from tf_agents.utils import common
 from tf_agents.eval import metric_utils
 from tf_agents.agents.ppo import ppo_agent
 from tf_agents.utils import timer
-from gkp.utils.rl_train_utils import compute_avg_return, save_log
+from tf_agents.metrics import tf_metrics
 
+from gkp.utils.rl_train_utils import save_log
 
 def train_eval(
-        root_dir = None,
+        root_dir,
         random_seed = 0,
-        # Params for collect
-        num_iterations = 1000000,
-        train_batch_size = 10,
-        replay_buffer_capacity = 20000,
+        num_epochs = 1000000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = True,
         discount_factor = 1.0,
         lr = 1e-5,
         lr_schedule = None,
-        num_policy_epochs = 20,
+        num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.2,
         value_pred_loss_coef = 0.5,
         # Params for log, eval, save
-        eval_batch_size = 100,
         eval_interval = 100,
         save_interval = 1000,
         checkpoint_interval = None,
         summary_interval = 100,
         # Params for data collection
+        train_batch_size = 10,
+        eval_batch_size = 100,
         collect_driver = None,
         eval_driver = None,
         train_episode_length = lambda x: 200,
         eval_episode_length = 200,
+        replay_buffer_capacity = 20000,
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         actor_fc_layers = (),
@@ -61,12 +61,9 @@ def train_eval(
     Args:
         root_dir (str): directory for saving training and evalutaion data
         random_seed (int): seed for random number generator
-        num_iterations (int): number of training epochs. At each epoch a batch
+        num_epochs (int): number of training epochs. At each epoch a batch
             of data is collected according to one stochastic policy, and then
             the policy is updated.
-        train_batch_size (int): training batch size, collected in parallel.
-        replay_buffer_capacity (int): How many transition tuples the buffer 
-            can store. The buffer is emptied and re-populated at each epoch.
         normalize_observations (bool): flag for normalization of observations.
             Uses StreamingTensorNormalizer which normalizes based on the whole
             history of observations.
@@ -78,7 +75,7 @@ def train_eval(
         lr_schedule (callable: int -> float, optional): function to schedule 
             the learning rate annealing. Takes as argument the int epoch
             number and returns float value of the learning rate. 
-        num_policy_epochs (int): number of policy gradient steps to do on each
+        num_policy_updates (int): number of policy gradient steps to do on each
             epoch of training. In PPO this is typically >1.
         initial_adaptive_kl_beta (float): see tf-agents PPO docs 
         kl_cutoff_factor (float): see tf-agents PPO docs 
@@ -87,7 +84,6 @@ def train_eval(
             change the policy. Should be in (0,1]
         value_pred_loss_coef (float): weight coefficient for quadratic value
             estimation loss.
-        eval_batch_size (int): batch size for evaluation of the policy.
         eval_interval (int): interval between evaluations, counted in epochs.
         save_interval (int): interval between savings, counted in epochs. It
             updates the log file and saves the deterministic policy.
@@ -97,10 +93,16 @@ def train_eval(
         summary_interval (int): interval between summary writing, counted in 
             epochs. tf-agents takes care of summary writing; results can be
             later displayed in tensorboard.
+        train_batch_size (int): training batch size, collected in parallel.
+        eval_batch_size (int): batch size for evaluation of the policy.
+        collect_driver (Driver): driver for training data collection
+        eval_driver (Driver): driver for evaluation data collection
         train_episode_length (callable: int -> int): function that defines the 
             schedule for training episode durations. Takes as argument the int 
             epoch number and returns int episode duration for this epoch.
         eval_episode_length (int): duration of evaluation episodes.
+        replay_buffer_capacity (int): How many transition tuples the buffer 
+            can store. The buffer is emptied and re-populated at each epoch.
         ActorNet (network.DistributionNetwork): a distribution actor network 
             to use for training. The default is ActorDistributionNetwork from
             tf-agents, but this can also be customized.
@@ -109,17 +111,10 @@ def train_eval(
         use_rnn (bool): whether to use LSTM units in the neural net.
         actor_lstm_size (tuple): sizes of LSTM layers in actor net.
         value_lstm_size (tuple): sizes of LSTM layers in value net.
-        **kwargs: optional additional arguments to pass to GKP environment
     """
-    if root_dir is None:
-        raise AttributeError('PPO requires a root_dir.')    
+    # --------------------------------------------------------------------
+    # --------------------------------------------------------------------
     tf.compat.v1.set_random_seed(random_seed)
-
-    # Create evaluation env and wrap it
-    eval_env = eval_driver.env
-
-    # --------------------------------------------------------------------
-    # --------------------------------------------------------------------
     
     # Setup directories within 'root_dir'
     if not os.path.isdir(root_dir): os.mkdir(root_dir)
@@ -131,7 +126,7 @@ def train_eval(
     # Create tf summary writer
     train_summary_writer = tf.compat.v2.summary.create_file_writer(train_dir)
     train_summary_writer.set_as_default()
-    summary_interval *= num_policy_epochs
+    summary_interval *= num_policy_updates
     global_step = tf.compat.v1.train.get_or_create_global_step()
     with tf.compat.v2.summary.record_if(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
@@ -185,7 +180,7 @@ def train_eval(
             optimizer = optimizer,
             actor_net = actor_net,
             value_net = value_net,
-            num_epochs = num_policy_epochs,
+            num_epochs = num_policy_updates,
             train_step_counter = global_step,
             discount_factor = discount_factor,
             normalize_observations = normalize_observations,
@@ -211,8 +206,12 @@ def train_eval(
             return tf_agent.train(experience)
     
         tf_agent.train = common.function(tf_agent.train)
+
+        avg_return_metric = tf_metrics.AverageReturnMetric(
+            batch_size=eval_batch_size, buffer_size=eval_batch_size)
         
         collect_driver.setup(collect_policy, [replay_buffer.add_batch])
+        eval_driver.setup(eval_policy, [avg_return_metric])
     
         # Create a checkpointer and load the saved agent 
         train_checkpointer = common.Checkpointer(
@@ -231,10 +230,12 @@ def train_eval(
             eval_policy, train_step=global_step)
     
         # Evaluate policy once before training
-        avg_return = compute_avg_return(eval_env, tf_agent.policy)
+        eval_driver.run(eval_episode_length)
+        avg_return = avg_return_metric.result().numpy()
+        avg_return_metric.reset()
         log = {
             'returns' : [avg_return],
-            'epochs' : [global_step.numpy()/num_policy_epochs],
+            'epochs' : [global_step.numpy()/num_policy_updates],
             'policy_steps' : [global_step.numpy()],
             'experience_time' : [0.0],
             'train_time' : [0.0]
@@ -248,7 +249,7 @@ def train_eval(
         # Training loop
         train_timer = timer.Timer()
         experience_timer = timer.Timer()
-        for epoch in range(num_iterations):
+        for epoch in range(num_epochs):
             # Collect new experience
             experience_timer.start()
             collect_driver.run(train_episode_length(epoch))
@@ -263,23 +264,26 @@ def train_eval(
             # Log and evaluate everything
             global_step_val = global_step.numpy()
             
-            if global_step_val % (eval_interval*num_policy_epochs) == 0:
+            if global_step_val % (eval_interval*num_policy_updates) == 0:
                 # Evaluate the policy
-                avg_return = compute_avg_return(eval_env, eval_policy)
+                eval_driver.run(eval_episode_length)
+                avg_return = avg_return_metric.result().numpy()
+                avg_return_metric.reset()
+                
                 # Print out and log all metrics
                 print('-------------------')
-                print('Epoch %d' %(global_step_val/num_policy_epochs))
+                print('Epoch %d' %(global_step_val/num_policy_updates))
                 print('  Policy steps: %d' %global_step_val)
                 print('  Experience time: %.2f mins' %(experience_timer.value()/60))
                 print('  Policy train time: %.2f mins' %(train_timer.value()/60))
                 print('  Average return: %.2f' %avg_return)
-                log['epochs'].append(global_step_val/num_policy_epochs)
+                log['epochs'].append(global_step_val/num_policy_updates)
                 log['policy_steps'].append(global_step_val)
                 log['returns'].append(avg_return)
                 log['experience_time'].append(experience_timer.value())
                 log['train_time'].append(train_timer.value())
                 
-            if global_step_val % (save_interval*num_policy_epochs) == 0:
+            if global_step_val % (save_interval*num_policy_updates) == 0:
                 # Save deterministic policy
                 path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
                 saved_model.save(path)
@@ -287,7 +291,6 @@ def train_eval(
                 save_log(log, logfile, ('%d' % global_step_val).zfill(9))
             
             if checkpoint_interval is not None and \
-                global_step_val % (checkpoint_interval*num_policy_epochs) == 0:
+                global_step_val % (checkpoint_interval*num_policy_updates) == 0:
                     # Save training checkpoint
                     train_checkpointer.save(global_step)
-                    
