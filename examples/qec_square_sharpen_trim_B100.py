@@ -72,14 +72,14 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_iterations = 10000,
+        num_epochs = 10000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
         lr = 1e-3,
         lr_schedule = None,
-        num_policy_epochs = 20,
+        num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.1,
