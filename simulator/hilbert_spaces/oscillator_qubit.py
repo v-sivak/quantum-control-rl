@@ -124,13 +124,13 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         return self.P[0] @ U0 + self.P[1] @ U1
 
     @tf.function  # TODO: add losses in phase estimation?
-    def phase_estimation(self, psi, beta, angle, sample=False):
+    def phase_estimation(self, psi, U, angle, sample=False):
         """
         One round of phase estimation.
 
         Input:
             psi -- batch of state vectors; shape=[batch_size,2N]
-            beta -- translation amplitude. shape=(batch_size,)
+            U -- unitary on which to do phase estimation. shape=(batch_size,N,N)
             angle -- angle along which to measure qubit. shape=(batch_size,)
             sample -- bool flag to sample or return expectation value
 
@@ -142,7 +142,7 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
 
         """
         I = tf.stack([self.I]*self.batch_size)
-        CT = self.ctrl(I, self.translate(beta))
+        CT = self.ctrl(I, U)
         Phase = self.rotate_qb(angle, axis='z')
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
 

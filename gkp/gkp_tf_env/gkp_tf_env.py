@@ -446,7 +446,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
                 
                 # measure characteristic function in one phase space point
-                _, msmt = self.phase_estimation(psi, points,
+                translations = self.translate(points)
+                _, msmt = self.phase_estimation(psi, translations,
                                 angle=tf.zeros(self.batch_size), sample=True)
                 
                 # this would work only for symmetric states (GKP, Fock states)
@@ -488,6 +489,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                          for i in range(self.batch_size)]
             pauli = tf.convert_to_tensor(pauli, dtype=c64)
             phi = tf.zeros(self.batch_size)
+            pauli = self.translate(pauli)
             _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
                                          angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
@@ -515,6 +517,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             stabilizers = [stabilizer_translations[int(m)] for m in mask]
             stabilizers = tf.convert_to_tensor(stabilizers, dtype=c64)
             phi = tf.zeros(self.batch_size)
+            stabilizers = self.translate(stabilizers)
             _, z = self.phase_estimation(self.info['psi_cached'], stabilizers, 
                                          angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
@@ -541,6 +544,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                      for i in range(self.batch_size)]
         pauli = tf.convert_to_tensor(pauli, dtype=c64)
         phi = tf.zeros(self.batch_size)
+        pauli = self.translate(pauli)
         _, z = self.phase_estimation(self.info['psi_cached'], pauli, 
                                      angle=phi, sample=False)
         z = tf.cast(z, dtype=tf.float32)

@@ -9,7 +9,8 @@ from numpy import pi
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
-from simulator.operators import identity, destroy, create, position, momentum, num
+from simulator.operators import identity, destroy, create, position, momentum, \
+    num, parity
 from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
 
@@ -59,13 +60,13 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         return [photon_loss]
 
     @tf.function
-    def phase_estimation(self, psi, beta, angle, sample=False):
+    def phase_estimation(self, psi, U, angle, sample=False):
         """
         One round of phase estimation.
 
         Input:
             psi -- batch of state vectors; shape=[batch_size,N]
-            beta -- translation amplitude. shape=(batch_size,)
+            U -- unitary on which to do phase estimation. shape=(batch_size,N,N)
             angle -- angle along which to measure qubit. shape=(batch_size,)
             sample -- bool flag to sample or return expectation value
 
@@ -78,9 +79,8 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         """
         Kraus = {}
         I = tf.stack([self.I]*self.batch_size)
-        T_b = self.translate(beta)
-        Kraus[0] = 1/2*(I + self.phase(angle)*T_b)
-        Kraus[1] = 1/2*(I - self.phase(angle)*T_b)
+        Kraus[0] = 1/2*(I + self.phase(angle)*U)
+        Kraus[1] = 1/2*(I - self.phase(angle)*U)
 
         psi = normalize(psi)
         return self.measure(psi, Kraus, sample)

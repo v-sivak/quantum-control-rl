@@ -95,8 +95,9 @@ for name, stabilizer, phi in zip(names, stabilizers, angles):
     for i, psi in enumerate(cache):
         stabilizer_batch = tf.stack([stabilizer]*env.batch_size)
         stabilizer_batch = tf.cast(stabilizer_batch, tf.complex64)
+        stabilizer_unitary = env.translate(stabilizer_batch)
         phi_batch = tf.stack([phi]*env.batch_size)
-        _, z = env.phase_estimation(psi, stabilizer_batch, phi_batch)
+        _, z = env.phase_estimation(psi, stabilizer_unitary, phi_batch)
         results[name][i] = np.mean(z)
 
 # Plot stabilizers Re and Im
