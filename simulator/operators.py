@@ -8,6 +8,7 @@ Created on Sun Jul 26 20:55:36 2020
 from distutils.version import LooseVersion
 
 import tensorflow as tf
+from math import pi
 
 if LooseVersion(tf.__version__) >= "2.2":
     diag = tf.linalg.diag
@@ -102,3 +103,17 @@ def momentum(N, dtype=tf.complex64):
     a_dag = create(N, dtype=tf.complex128)
     a = destroy(N, dtype=tf.complex128)
     return tf.cast(1j * (a_dag - a) / sqrt2, dtype=dtype)
+
+
+def parity(N, dtype=tf.complex64):
+    """Returns the photon number parity operator in the Fock basis.
+
+    Args:
+        N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
+
+    Returns:
+        Tensor([N, N], dtype): NxN photon number parity operator
+    """
+    diag = tf.where(tf.math.floormod(tf.range(N),2)==1, -1, 1)
+    return tf.linalg.diag(tf.cast(diag, tf.complex64))

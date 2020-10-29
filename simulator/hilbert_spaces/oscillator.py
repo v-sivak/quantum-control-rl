@@ -43,6 +43,7 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         self.q = position(N)
         self.p = momentum(N)
         self.n = num(N)
+        self.parity = parity(N)
 
     @property
     def _hamiltonian(self):

@@ -54,6 +54,7 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         q = (a.dag() + a) / sqrt(2)
         p = 1j * (a.dag() - a) / sqrt(2)
         n = qt.tensor(qt.identity(2), qt.num(N))
+        parity = qt.tensor(qt.identity(2), (1j*pi*qt.num(N)).expm())
 
         sx = qt.tensor(qt.sigmax(), qt.identity(N))
         sy = qt.tensor(qt.sigmay(), qt.identity(N))
@@ -83,6 +84,7 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         self.rxp = tf.constant(rxp.full(), dtype=c64)
         self.rxm = tf.constant(rxm.full(), dtype=c64)
         self.hadamard = tf.constant(hadamard.full(), dtype=c64)
+        self.parity = tf.constant(parity.full(), dtype=c64)
 
         self.P = {i: tf.constant(P[i].full(), dtype=c64) for i in [0, 1]}
 
