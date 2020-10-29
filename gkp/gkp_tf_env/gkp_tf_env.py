@@ -426,9 +426,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
             
             z = tf.zeros(self.batch_size)
-            M = tf.zeros(self.batch_size) + 1e-12
             
-            reps = 100
+            reps = 10
             for i in range(reps):
                 # shitty rejection sampling, need to vectorize
                 cond = True
@@ -455,8 +454,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 
                 # mask out trajectories where qubit was measured in |e>
                 z += Z * mask
-                M += mask
-            z = z / M
+            z = z / reps
         return z
 
 

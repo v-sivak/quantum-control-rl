@@ -8,6 +8,7 @@ Qubit is included in the Hilbert space. Simulation is done with a gate-based
 approach to quantum circuits.
 """
 import tensorflow as tf
+from numpy import pi
 from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
@@ -33,7 +34,6 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             t_gate (float): Gate time in seconds.
-            t_read (float): Readout time in seconds.
         """
         self.t_gate = tf.constant(t_gate, dtype=tf.float32)
         self.step_duration = self.t_gate
@@ -41,7 +41,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
+        spec = {'alpha' : specs.TensorSpec(shape=[1,2], dtype=tf.float32),
+                'beta'  : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[1,2], dtype=tf.float32)}
         return spec
 
@@ -50,28 +51,37 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'beta'  : Tensor([batch_size,1,2], tf.float32),
+            action (dict, 'alpha' : Tensor([batch_size,1,2], tf.float32),
+                          'beta'  : Tensor([batch_size,1,2], tf.float32),
                           'phi'   : Tensor([batch_size,1,2], tf.float32))
 
         Returns: see parent class docs
 
         """
         # Extract parameters
+        alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
         phi = action['phi'][:,0]
         theta = action['phi'][:,1]
 
         # Construct gates
         T, CT, R = {}, {}, {}
+        T['a'] = self.translate(alpha)
         T['b'] = self.translate(beta/4.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
         R = self.rotate_qb_xy(phi, theta)
+        Pi_pulse = self.rotate_qb_xy(tf.zeros_like(phi), pi*tf.ones_like(phi))
 
         # Qubit rotation
         psi = batch_dot(R, psi)
+        # Oscillator translation
+        psi = batch_dot(T['a'], psi)
         # Conditional translation
         psi = batch_dot(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
         psi = batch_dot(CT['b'], psi)
+        # Qubit flip
+        psi = batch_dot(Pi_pulse, psi)
+
 
         return psi, psi, tf.ones((self.batch_size,1))
