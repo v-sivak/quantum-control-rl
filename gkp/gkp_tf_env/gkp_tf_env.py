@@ -19,6 +19,7 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import expectation
 from gkp.gkp_tf_env import helper_functions as hf
+from tensorflow.keras.backend import batch_dot
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -53,7 +54,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         batch_size=50,
         init="vac",
         reward_kwargs={'reward_mode' : 'zero'},
-        encoding="square",
+        encoding='square',
+        phase_space_rep='wigner',
         **kwargs):
         """
         Args:
@@ -70,6 +72,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             reward_kwargs (dict, optional): optional dictionary of parameters 
                 for the reward function of RL agent.
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
+            phase_space_rep (str, optional): phase space representation to use
+                for rendering ('wigner' or 'characteristic_fn')
             
         """
         # Default simulation parameters
@@ -79,6 +83,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self.episode_length = episode_length
         self.batch_size = batch_size
         self.init = init
+        self.phase_space_rep = phase_space_rep
         
         self.setup_reward(reward_kwargs)
         self.define_stabilizer_code(encoding)
@@ -201,11 +206,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         of the cached state).
         
         """
-        # hf.plot_wigner_tf_wrapper(self._state, tensorstate=self.tensorstate)
-        
-        x = np.linspace(-10,10,101)
-        y = np.linspace(-10,10,101)
         state = self.info['psi_cached']
+        
+        # Generate a grid of phase space points
+        lim, pts = 4, 101
+        x = np.linspace(-lim, lim, pts)
+        y = np.linspace(-lim, lim, pts)
 
         x = tf.squeeze(tf.constant(x, dtype=c64))
         y = tf.squeeze(tf.constant(y, dtype=c64))
@@ -216,19 +222,33 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
         grid_flat = tf.reshape(grid, [-1])
         
-        C = expectation(state, self.translate(grid_flat))
-        C_grid = tf.reshape(C, grid.shape)
+        # Calculate and plot the phase space representation
+        if self.phase_space_rep == 'wigner':
+            state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
+            state_translated = batch_dot(self.translate(-grid_flat), state)
+            W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
+            W_grid = tf.reshape(W, grid.shape)
+    
+            fig, ax = plt.subplots(1,1)
+            fig.suptitle('Wigner, step %d' %self._elapsed_steps)
+            ax.pcolormesh(x, y, np.transpose(W_grid.numpy().real), 
+                               cmap='RdBu_r', vmin=-1/pi, vmax=1/pi)
+            ax.set_aspect('equal')
         
-        fig, axes = plt.subplots(1,2, sharey=True)
-        fig.suptitle('step %d' %self._elapsed_steps)
-        axes[0].pcolormesh(x, y, np.transpose(C_grid.numpy().real), 
-                           cmap='RdBu_r', vmin=-1, vmax=1)
-        axes[1].pcolormesh(x, y, np.transpose(C_grid.numpy().imag), 
-                           cmap='RdBu_r', vmin=-1, vmax=1)
-        axes[0].set_title('Re')
-        axes[1].set_title('Im')
-        axes[0].set_aspect('equal')
-        axes[1].set_aspect('equal')
+        if self.phase_space_rep == 'characteristic_fn':
+            C = expectation(state, self.translate(grid_flat))
+            C_grid = tf.reshape(C, grid.shape)
+            
+            fig, axes = plt.subplots(1,2, sharey=True)
+            fig.suptitle('step %d' %self._elapsed_steps)
+            axes[0].pcolormesh(x, y, np.transpose(C_grid.numpy().real), 
+                                cmap='RdBu_r', vmin=-1, vmax=1)
+            axes[1].pcolormesh(x, y, np.transpose(C_grid.numpy().imag), 
+                                cmap='RdBu_r', vmin=-1, vmax=1)
+            axes[0].set_title('Re')
+            axes[1].set_title('Im')
+            axes[0].set_aspect('equal')
+            axes[1].set_aspect('equal')
 
 
     def _current_time_step(self):
@@ -414,7 +434,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         oscillator to make sure that the oscillator and qubit are disentangled.
         The agent can learn to arrange things so that this measurement doesn't
         matter (i.e. if they are already disentangled before the measurement). 
-
         """        
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
