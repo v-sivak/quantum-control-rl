@@ -157,3 +157,21 @@ class BatchOperatorMixinBCH:
         return tf.cast(
             U @ exp_eig @ tf.linalg.adjoint(U), dtype=c64,
         )
+    
+    @tf.function
+    def SNAP(self, theta):
+        """Batch Selective Number-dependent Arbitrary Phase (SNAP) gate.
+
+        Args:
+            theta (Tensor([batch_size, S], c64)): batch of SNAP parameters,
+                where S is the largest involved Fock state, S < N.
+
+        Returns:
+            Tensor([batch_size, N, N], c64): A batch of SNAP(theta)
+        """
+        theta = tf.cast(theta, dtype=c64)
+        theta = tf.pad(theta, tf.constant([[0,0],[0,self.N-theta.shape[1]]]))
+        theta_exp_diag = tf.math.exp(theta)
+        snap_osc = tf.linalg.diag(theta_exp_diag)
+        snap = self.ctrl(snap_osc, snap_osc) if self.tensorstate else snap_osc
+        return snap
