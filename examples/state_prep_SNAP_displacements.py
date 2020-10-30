@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 21 17:07:18 2020
+Created on Fri Oct 30 18:13:41 2020
 
 @author: Vladimir Sivak
 """
@@ -23,36 +23,37 @@ from gkp.agents import actor_distribution_network_gkp
 from gkp.gkp_tf_env import helper_functions as hf
 
 """
-Train PPO agent to do Fock state N=2 preparation with universal gate sequence.
+Train PPO agent to do Fock state N=3 preparation with universal gate sequence
+consisting of SNAP gates and oscillator displacements.
 
-The episodes start from vacuum, and characteristic function tomography 
-measurements are performed in the end to assign reward.
+The episodes start from vacuum, and Wigner function tomography measurements 
+are performed in the end to assign reward.
 
 """
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
-root_dir = os.path.join(root_dir,'state_prep_universal_gate_set')
+root_dir = os.path.join(root_dir,'state_prep_snap_displacements')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'Alec_universal_gate_set',
+    'simulate' : 'snap_and_displacement',
     'init' : 'vac',
     'H' : 1,
-    'T' : 6, 
+    'T' : 3, 
     'attn_step' : 1,
     'N' : 40}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(40,2))
+target_state = qt.tensor(qt.basis(2,0), qt.basis(40,3))
 reward_kwargs = {'reward_mode' : 'tomography',
-                 'tomography' : 'characteristic_fn',
+                 'tomography' : 'wigner',
                  'target_state' : target_state,
-                 'window_size' : 12}
+                 'window_size' : 10}
 
 # Params for action wrapper
-action_script = 'Alec_universal_gate_set_6round'
-action_scale = {'alpha':1, 'beta':3, 'phi':pi}
-to_learn = {'alpha':True, 'beta':True, 'phi':True}
+action_script = 'snap_and_displacements_3round'
+action_scale = {'alpha':3, 'theta':pi}
+to_learn = {'alpha':True, 'theta':True}
 
 train_batch_size = 100
 eval_batch_size = 1000
@@ -94,8 +95,8 @@ PPO.train_eval(
         eval_batch_size = eval_batch_size,
         collect_driver = collect_driver,
         eval_driver = eval_driver,
-        train_episode_length = lambda x: 6,
-        eval_episode_length = 6,
+        train_episode_length = lambda x: 3,
+        eval_episode_length = 3,
         replay_buffer_capacity = 15000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
