@@ -385,12 +385,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             assert 'target_state' in reward_kwargs.keys()
             assert 'window_size' in reward_kwargs.keys()
+            assert 'tomography' in reward_kwargs.keys()
             window_size = reward_kwargs['window_size']
+            tomography = reward_kwargs['tomography']
             target_state = reward_kwargs['target_state']
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
             self.calculate_reward = \
-                lambda args: self.reward_tomography(target_state, window_size, args)
+                lambda args: self.reward_tomography(target_state, window_size, 
+                                                    tomography, args)
 
         if mode == 'stabilizers':
             """
@@ -424,7 +427,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
 
 
-    def reward_tomography(self, target_state, window_size, *args):
+    def reward_tomography(self, target_state, window_size, tomography, *args):
         """
         Reward only on last time step using the empirical approximation of the 
         overlap of the prepared state with the target state. This overlap is
@@ -434,47 +437,59 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         oscillator to make sure that the oscillator and qubit are disentangled.
         The agent can learn to arrange things so that this measurement doesn't
         matter (i.e. if they are already disentangled before the measurement). 
-        """        
+
+        """
+        # return 0 on all intermediate steps of the episode
         if self._elapsed_steps < self.episode_length:
-            z = tf.zeros(self.batch_size, dtype=tf.float32)
-        else:
-            L = window_size/2
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+
+        # Distributions for rejection sampling
+        L = window_size/2
+        P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
+        P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
+        
+        # rejection sampling of phase space point for tomography
+        cond = True
+        while cond:
+            point = hf.vec_to_complex(P.sample())
             
-            # Distributions for rejection sampling
-            P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
-            P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
+            if tomography == 'wigner':
+                target_state_translated = batch_dot(
+                    self.translate(-point), target_state)
+                W_target = expectation(target_state_translated, self.parity)
+                target = tf.math.real(tf.squeeze(W_target))
+            if tomography == 'characteristic_fn':
+                C_target = expectation(target_state, self.translate(-point_c))
+                target = tf.math.real(tf.squeeze(C_target))
             
-            z = tf.zeros(self.batch_size)
-            
-            reps = 10
-            for i in range(reps):
-                # shitty rejection sampling, need to vectorize
-                cond = True
-                while cond:
-                    point = P.sample()
-                    point_c = hf.vec_to_complex(point)
-                    C_target = expectation(target_state, self.translate(-point_c))
-                    C_target = tf.math.real(tf.squeeze(C_target))
-                    v = P_v.sample()
-                    if v < tf.math.abs(C_target): cond = False
-                        
-                points = tf.broadcast_to(point_c, [self.batch_size])
+            if P_v.sample() < tf.math.abs(target): cond = False
                 
-                # measure the qubit to disentangle from oscillator
-                psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
-                mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
-                
-                # measure characteristic function in one phase space point
-                translations = self.translate(points)
-                _, msmt = self.phase_estimation(psi, translations,
-                                angle=tf.zeros(self.batch_size), sample=True)
-                
-                # this would work only for symmetric states (GKP, Fock states)
-                Z = (tf.squeeze(msmt) - C_target) * tf.math.sign(C_target)
-                
-                # mask out trajectories where qubit was measured in |e>
-                z += Z * mask
-            z = z / reps
+        points = tf.broadcast_to(point, [self.batch_size])
+        
+        # measure the qubit to disentangle from oscillator
+        psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
+        mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+        
+        # do tomography in one phase space point
+        if tomography == 'wigner':
+            translations = self.translate(-points)
+            psi = batch_dot(translations, psi)
+            _, msmt = self.phase_estimation(psi, self.parity,
+                            angle=tf.zeros(self.batch_size), sample=True)
+        if tomography == 'characteristic_fn':
+            translations = self.translate(points)
+            _, msmt = self.phase_estimation(psi, translations,
+                            angle=tf.zeros(self.batch_size), sample=True)                
+        
+        # Make a noisy Monte Carlo estimate of the overlap integral.
+        # If using characteristic_fn, this would work only for symmetric 
+        # states (GKP, Fock etc)
+        z = tf.squeeze(msmt) * tf.math.sign(target)
+        
+        # Mask out trajectories where qubit was measured in |e> 
+        # Subtract baseline to improve (???) convergence
+        z = (z * mask) - tf.math.abs(target)
+
         return z
 
 
