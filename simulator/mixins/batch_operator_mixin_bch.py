@@ -173,5 +173,12 @@ class BatchOperatorMixinBCH:
         theta = tf.pad(theta, tf.constant([[0,0],[0,self.N-theta.shape[1]]]))
         theta_exp_diag = tf.math.exp(theta)
         snap_osc = tf.linalg.diag(theta_exp_diag)
-        snap = self.ctrl(snap_osc, snap_osc) if self.tensorstate else snap_osc
-        return snap
+        
+        if self.tensorstate:
+            zeros = tf.zeros_like(snap_osc)
+            s1 = tf.concat([snap_osc,zeros], axis=1)
+            s2 = tf.concat([zeros,snap_osc], axis=1)
+            snap = tf.concat([s1, s2], axis=2)
+            return snap
+        else:
+            return snap_osc
