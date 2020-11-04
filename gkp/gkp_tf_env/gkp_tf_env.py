@@ -459,7 +459,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 W_target = expectation(target_state_translated, self.parity)
                 target = tf.math.real(tf.squeeze(W_target))
             if tomography == 'characteristic_fn':
-                C_target = expectation(target_state, self.translate(-point_c))
+                C_target = expectation(target_state, self.translate(-point))
                 target = tf.math.real(tf.squeeze(C_target))
             
             if P_v.sample() < tf.math.abs(target): cond = False
