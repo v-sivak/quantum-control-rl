@@ -15,11 +15,11 @@ class readout_spec_generator_sweep(FPGAExperiment):
     """
     Fast readout spectroscopy with generator triggering.
     Can modify <subsequence>, <initialize> and <finalize> if needed.
-    
+
     Before running:
-        1) To use the generator in sweep mode, make sure the driver has 
+        1) To use the generator in sweep mode, make sure the driver has
            modulation option and it is enabled.
-        2) FPGA 2V marker output needs to be shifted to 5V for triggering 
+        2) FPGA 2V marker output needs to be shifted to 5V for triggering
            Agilent generator.
     """
     delay = IntParameter(1e6)
@@ -65,6 +65,8 @@ class readout_spec_generator_sweep(FPGAExperiment):
         ag.set_sweep_n_points(self.n_blocks)
         ag.set_sweep_trigger('IMM')
         ag.set_sweep_point_trigger('EXT')
+
+        self.results.create('freq', np.linspace(self.start_f, self.stop_f, self.n_blocks))
 
     def finalize(self):
         instruments = get_instruments()
