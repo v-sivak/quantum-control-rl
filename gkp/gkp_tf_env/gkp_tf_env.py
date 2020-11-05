@@ -93,8 +93,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         action_spec = self._quantum_circuit_spec
 
         observation_spec = {
-            'msmt'  : specs.TensorSpec(shape=[self.H,1], dtype=tf.float32),
-            'clock' : specs.TensorSpec(shape=[1,self.T], dtype=tf.float32),
+            'msmt'  : specs.TensorSpec(shape=[self.H], dtype=tf.float32),
+            'clock' : specs.TensorSpec(shape=[self.T], dtype=tf.float32),
             'const' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
@@ -123,17 +123,17 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         # Add dummy time dimension to tensors and append them to history
         for a in action.keys():
-            self.history[a].append(tf.expand_dims(action[a], axis=1))
-        self.history['msmt'].append(tf.expand_dims(obs, axis=1))
+            self.history[a].append(action[a])
+        self.history['msmt'].append(obs)
         
-        # Make observations of 'msmt' of horizon H, shape=[batch_size,H,1]
+        # Make observations of 'msmt' of horizon H, shape=[batch_size,H]
         # measurements are selected with hard-coded attention step.
-        # Also add clock of period 'T' to observations, shape=[batch_size,1,T]
+        # Also add clock of period 'T' to observations, shape=[batch_size,T]
         observation = {}
         H = [self.history['msmt'][-self.attn_step*i-1] for i in range(self.H)]
         H.reverse() # to keep chronological order of measurements
         observation['msmt'] = tf.concat(H, axis=1)
-        C = tf.one_hot([[self._elapsed_steps%self.T]]*self.batch_size, self.T)
+        C = tf.one_hot([self._elapsed_steps%self.T]*self.batch_size, self.T)
         observation['clock'] = C
         observation['const'] = tf.ones(shape=[self.batch_size,1])
 
@@ -187,17 +187,17 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         for key in self.history.keys():
             self.history[key] = [self.history[key]]*self.H
         # Initialize history of horizon H*attn_step with measurements=1 
-        m = tf.ones(shape=[self.batch_size,1,1])
+        m = tf.ones(shape=[self.batch_size,1])
         self.history['msmt'] = [m]*self.H*self.attn_step
         
-        # Make observation of horizon H, shape=[batch_size,H,dim] of each
+        # Make observation of horizon H
         observation = {
             'msmt'  : tf.concat(self.history['msmt'][-self.H:], axis=1), 
-            'clock' : tf.zeros(shape=[self.batch_size,1,self.T]),
+            'clock' : tf.zeros(shape=[self.batch_size,self.T]),
             'const'   : tf.ones(shape=[self.batch_size,1])}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
-        return self.current_time_step()    
+        return self.current_time_step()
 
 
     def render(self):

@@ -198,6 +198,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         """
         action = self.wrap(action)
         if 'alpha' in action.keys():
-            m = self._env.current_time_step().observation['msmt'][:,-1,:]
+            m = self._env.current_time_step().observation['msmt'][:,-1,None]
             action['alpha'] *= m
         return self._env.step(action)

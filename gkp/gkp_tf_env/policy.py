@@ -80,7 +80,7 @@ class ScriptedPolicy(TFPolicy):
         for a in self.script:
             A = common.replicate(self.script[a][i], out_shape)
             if a == 'alpha': # do Markovian feedback
-                A *= time_step.observation['msmt'][:,-1,:]
+                A *= time_step.observation['msmt'][:,-1,None]
                 if policy_state[0] == 0: A *= 0
             action[a] = A
 
