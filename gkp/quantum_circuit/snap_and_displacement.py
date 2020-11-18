@@ -64,13 +64,13 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         # Build gates
         displace = self.displace(alpha)
-        snap = self.SNAP(theta/2)
+        snap = self.SNAP(theta)
 
         # Apply gates
         psi = batch_dot(displace, psi)
         
-        psi = batch_dot(snap, psi)
-        psi = self.simulate(psi, self.t_gate)
+        # psi = batch_dot(snap, psi)
+        # psi = self.simulate(psi, self.t_gate)
         psi = batch_dot(snap, psi)
 
         return psi, psi, tf.ones((self.batch_size,1))

@@ -31,8 +31,8 @@ are performed in the end to assign reward.
 
 """
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
-root_dir = os.path.join(root_dir,'state_prep_snap_displacements')
+root_dir = r'E:\data\gkp_sims\PPO\examples\bin0_state_prep_lr3e-4'
+root_dir = os.path.join(root_dir,'0bin_state_prep_snap_displacements_0')
 
 # Params for environment
 env_kwargs = {
@@ -41,21 +41,23 @@ env_kwargs = {
     'H' : 1,
     'T' : 3, 
     'attn_step' : 1,
-    'N' : 40}
+    'N' : 100}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(40,3))
+# target_state = qt.tensor(qt.basis(2,0),(qt.basis(100,0)+qt.basis(100,4)).unit())
+# target_state = qt.tensor(qt.basis(2,0),(qt.coherent(100,2)+qt.coherent(100,-2)).unit())
+target_state = qt.tensor(qt.basis(2,0),qt.basis(100,2))
 reward_kwargs = {'reward_mode' : 'tomography',
                  'tomography' : 'wigner',
                  'target_state' : target_state,
-                 'window_size' : 10}
+                 'window_size' : 12}
 
 # Params for action wrapper
 action_script = 'snap_and_displacements_3round'
-action_scale = {'alpha':3, 'theta':pi}
+action_scale = {'alpha':4, 'theta':pi}
 to_learn = {'alpha':True, 'theta':True}
 
-train_batch_size = 100
+train_batch_size = 1000
 eval_batch_size = 1000
 
 # Create drivers for data collection
@@ -73,23 +75,23 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 100000,
+        num_epochs = 200,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 3e-4,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.1,
+        importance_ratio_clipping = 0.3,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 100,
-        checkpoint_interval = 1000,
-        summary_interval = 100,
+        save_interval = 10,
+        checkpoint_interval = 100000,
+        summary_interval = 1000,
         # Params for data collection
         train_batch_size = train_batch_size,
         eval_batch_size = eval_batch_size,
@@ -97,7 +99,7 @@ PPO.train_eval(
         eval_driver = eval_driver,
         train_episode_length = lambda x: 3,
         eval_episode_length = 3,
-        replay_buffer_capacity = 15000,
+        replay_buffer_capacity = 5000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (),
