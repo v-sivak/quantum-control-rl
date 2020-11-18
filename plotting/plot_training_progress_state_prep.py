@@ -7,7 +7,11 @@ Created on Thu Oct  1 19:55:57 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
+# append parent 'gkp-rl' directory to path 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 import numpy as np
 from numpy import sqrt, pi
@@ -21,13 +25,12 @@ from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 from gkp.gkp_tf_env import gkp_init
 from gkp.gkp_tf_env import policy as plc
 import gkp.action_script as action_scripts
-
+from tensorflow.keras.backend import batch_dot
+from simulator.utils import expectation
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### Setup matplotlib
-figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\train' # where to save
-
 fontsize = 9
 fontsize_tick = 8
 linewidth = 0.75
@@ -92,8 +95,8 @@ env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
 
 root_dir = {
-    'bin0' : r'E:\data\gkp_sims\PPO\examples\bin0_state_prep_lr1e-4',
-    'bin1' : r'E:\data\gkp_sims\PPO\examples\bin1_state_prep_lr1e-3'
+    'bin0' : r'E:\data\gkp_sims\PPO\examples\bin0_state_prep_lr3e-4',
+    'bin1' : r'E:\data\gkp_sims\PPO\examples\bin1_state_prep_lr3e-4'
     }
 
 target_state_qt_vector = {
@@ -111,6 +114,7 @@ epochs = {
 #-----------------------------------------------------------------------------
 
 rewards = {'bin0' : {}, 'bin1' : {}}
+final_states = {'bin0' : {}, 'bin1' : {}}
 
 for state in ['bin0', 'bin1']:
     # setup overlap reward for this state
@@ -122,6 +126,7 @@ for state in ['bin0', 'bin1']:
     for sim_name in os.listdir(root_dir[state]):
         print(sim_name)
         rewards[state][sim_name] = []
+        final_states[state][sim_name] = []
         sim_dir = os.path.join(root_dir[state], sim_name)    
         for policy_name in os.listdir(os.path.join(sim_dir, 'policy')):
             policy_dir = os.path.join(sim_dir, 'policy', policy_name)
@@ -137,12 +142,14 @@ for state in ['bin0', 'bin1']:
                 time_step = env.step(action_step.action)
             
             rewards[state][sim_name].append(np.mean(time_step.reward))
+            final_states[state][sim_name].append(env.info['psi_cached'])
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-# Plot everything
-
+# Plot training progress
+            
+figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\train' # where to save
 fig, ax = plt.subplots(1,1, figsize=(3.375, 2), dpi=300)
 plt.grid(True)
 ax.set_ylabel(r'$1-\cal F$')
@@ -163,3 +170,59 @@ for state in ['bin0', 'bin1']:
 
 fig.tight_layout()
 fig.savefig(figname)
+
+
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Plot Wigners
+
+figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\wigner.png' # where to save
+fig, axes = plt.subplots(1,2, figsize=(3.6, 1.70), dpi=300, sharey=True, sharex=True)
+
+for ax in axes: ax.set_aspect('equal')
+axes[0].set_ylabel(r'${\rm Im}(\alpha)$')
+for ax in axes: ax.set_xlabel(r'${\rm Re}(\alpha)$')
+
+# Generate a grid of phase space points
+lim, pts = 4, 101
+x = np.linspace(-lim, lim, pts)
+y = np.linspace(-lim, lim, pts)
+
+x = tf.squeeze(tf.constant(x, dtype=tf.complex64))
+y = tf.squeeze(tf.constant(y, dtype=tf.complex64))
+
+one = tf.constant([1]*len(y), dtype=tf.complex64)
+onej = tf.constant([1j]*len(x), dtype=tf.complex64)
+
+grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
+grid_flat = tf.reshape(grid, [-1])
+
+# TODO: select a simulation corresponding to a median
+for s in [0, 1]:
+    sim_name = os.listdir(root_dir['bin'+str(s)])[0] # select the first simulation with random_seed=0
+    state = final_states['bin'+str(s)][sim_name][-1] # select the last policy in this training
+    F = rewards['bin'+str(s)][sim_name][-1]
+    state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
+    state_translated = batch_dot(env.translate(-grid_flat), state)
+    W = expectation(state_translated, env.parity, reduce_batch=False) # need to multiply by 1/pi
+    W_grid = tf.reshape(W, grid.shape).numpy().real
+    
+    # W_grid = 2*np.random.random([x.shape[0],y.shape[0]])-1
+    p = axes[s].pcolormesh(x, y, np.transpose(W_grid), cmap='RdBu_r', vmin=-1, vmax=1)
+    axes[s].text(0.8, -3.5, '%.4f' %F, fontsize=7.5)
+
+cbar = plt.colorbar(p, ax=None, fraction=0.05, pad=0.1, aspect=10,
+                    ticks=[-1, 0, 1], )
+cbar.ax.set_yticklabels([r'$-1$', r'$0$', r'$+1$'])
+
+fig.tight_layout()
+
+fig.savefig(figname)   
+
+
+
+
+
+
+
