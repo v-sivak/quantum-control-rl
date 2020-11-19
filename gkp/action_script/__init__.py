@@ -6,4 +6,4 @@ from gkp.action_script import v2_phase_estimation_with_trim_4round
 from gkp.action_script import v2_hexagonal_phase_estimation_6round
 from gkp.action_script import v4_Baptiste_feedback_2round
 from gkp.action_script import Alec_universal_gate_set_6round
-from gkp.action_script import snap_and_displacements_3round
+from gkp.action_script import snap_and_displacements

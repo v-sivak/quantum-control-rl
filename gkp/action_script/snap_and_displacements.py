@@ -5,13 +5,14 @@ Created on Fri Oct 30 13:27:55 2020
 @author: Vladimir Sivak
 """
 
-period = 3
+period = 4
+snap_levels = 14
 
 # Script of actions
 
 script = {
     'alpha' : [[0.0, 0.0]]*period,
-    'theta'  : [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]*period
+    'theta'  : [[0.0]*snap_levels]*period
     }
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on

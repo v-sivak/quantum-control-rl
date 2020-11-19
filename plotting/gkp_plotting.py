@@ -17,10 +17,10 @@ from numpy import sqrt,pi
 
 #from gkp.gkp_tf_env import helper_functions as hf
 
-fontsize = 14 #6 #1.5
-fontsize_tick = 12 #6 #4 #15
+fontsize = 9 #6 #1.5
+fontsize_tick = 8 #6 #4 #15
 linewidth = 1.5 #0.5 #0.25
-spinewidth = 0.5 #0.1
+spinewidth = 1.0 #0.1
 markersize = linewidth*6
 tick_size = 3.0 #0.5 #3
 pad = 2 #0.05 #2
@@ -240,88 +240,3 @@ def plot_wigner_all_states():
     # axes[1,0].set_ylabel(r'$p/\sqrt{\pi}$')
     plt.tight_layout()
     # plt.savefig(r'E:\VladGoogleDrive\Qulab\GKP\Notes\wigners2.pdf')
-    
-    
-def characteristic_func_qt(state, x, y):
-    """
-    Compute symmetric characteristion function using qutip. 
-    It is defined as C(beta) = <T(beta)> 
-    
-    """
-    N = state.shape[0] # Hilbert space size
-    L = len(x)         # grid size
-    C = np.zeros((L,L), dtype=complex)
-    for i in range(L):
-        for j in range(L):
-            beta = x[i] + 1j*y[j]
-            T = qt.displace(N, beta/sqrt(2))
-            C[i,j] = qt.expect(T,state)
-    return C
-
-
-def characteristic_func_tf(state, x, y):
-    """
-    Compute symmetric characteristion function using TensorFlow. 
-    It is defined as C(beta) = <T(beta)> 
-    
-    """    
-    N = state.shape[0] # Hilbert space size
-    L = len(x)         # grid size
-    
-    state = tf.constant(state.full(), dtype=tf.complex64, shape=[N])
-    x = tf.constant(x, dtype=tf.complex64)
-    y = tf.constant(y, dtype=tf.complex64)
-    
-    a = [[0 if j!=i+1 else sqrt(j) for j in range(N)] for i in range(N)]
-    a = tf.constant(a, dtype=tf.complex64, shape = [N,N])
-    a_dag = tf.linalg.adjoint(a)
-    
-    def expect(beta, psi):       
-        to_exp = ( beta * a_dag - tf.math.conj(beta) * a ) / sqrt(2)
-        T = tf.linalg.expm(to_exp)
-        Tpsi = tf.tensordot(T, psi, axes=[[1],[0]])
-        res = tf.tensordot(tf.math.conj(psi), Tpsi, axes=[[0],[0]])
-        return res
-    
-    def loop(state, x, y):
-        C = [[expect(x[i] + 1j*y[j], state) 
-              for i in range(L)] for j in range(L)]
-        return C
-    
-    C = loop(state, x, y)
-    return np.array(C)
-    
-
-
-def plot_characteristic_func():
-    
-    stabilizers, paulis, states, displacements = \
-        hf.GKP_state(False,100, np.array([[1,0],[0,1]]))
-    
-    fig, axes = plt.subplots(2,3, sharex=True, sharey=True, figsize=(6,6))
-    for i, s1 in zip([0,1],['+','-']):
-        for j, s2 in zip([0,1,2],['X','Y','Z']):            
-            state = states[s2+s1]
-            xvec = np.linspace(-7,7,201)
-
-            C = characteristic_func_tf(state, xvec, xvec)
-            C = C.real
-            
-            ax = axes[i,j]
-            ax.grid(linestyle='--',zorder=2)
-            lim = 3.5
-            ax.set_xlim(-lim,lim)
-            ax.set_ylim(-lim,lim)
-            ticks = [-2,-1,0,1,2]
-            ax.set_xticks(ticks)
-            ax.set_yticks(ticks)
-            ax.set_title(s2+s1)
-            ax.set_aspect('equal')
-            p = ax.pcolormesh(xvec/sqrt(pi), xvec/sqrt(pi), C, 
-                              cmap='RdBu_r', vmin=-1, vmax=1)
-    # cbar = fig.colorbar(p, ax=ax, ticks=[-1,0,1])
-    # cbar.ax.set_yticklabels([r'$-1$','0',r'$+1$'])
-    # axes[1,1].set_xlabel(r'$q/\sqrt{\pi}$')
-    # axes[1,0].set_ylabel(r'$p/\sqrt{\pi}$')
-    plt.tight_layout()
-    # plt.savefig(r'E:\VladGoogleDrive\Qulab\GKP\Notes\characteristic_fn1.pdf')
