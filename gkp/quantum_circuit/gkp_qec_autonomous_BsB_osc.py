@@ -22,8 +22,8 @@ class QuantumCircuit(Oscillator, GKP):
     """    
     This is a protocol proposed by Baptiste https://arxiv.org/abs/2009.07941
     It essentially combines trimming and sharpening in a single round.
-    Autonomous version (no feedback required, but measurements still
-    needed to evacuate entropy).
+    This is an autonomous version (no feedback required, but measurements are
+    needed to evacuate entropy) of the Big-small-Big protocol.
     
     """
     def __init__(
@@ -32,7 +32,6 @@ class QuantumCircuit(Oscillator, GKP):
         # Required kwargs
         t_gate,
         t_read,
-        t_feedback,
         t_idle,
         # Optional kwargs
         **kwargs):
@@ -40,21 +39,18 @@ class QuantumCircuit(Oscillator, GKP):
         Args:
             t_gate (float): Gate time in seconds.
             t_read (float): Readout time in seconds.
-            t_feedback (float): Feedback delay in seconds.
             t_idle (float): Wait time between rounds in seconds.
         """
         self.t_round = tf.constant(t_gate + t_read, dtype=tf.float32)
-        self.t_feedback = tf.constant(t_feedback, dtype=tf.float32)
         self.t_idle = tf.constant(t_idle, dtype=tf.float32)
-        self.step_duration = tf.constant(t_gate + t_read + t_feedback + t_idle)
+        self.step_duration = tf.constant(t_gate + t_read + t_idle)
         super().__init__(*args, **kwargs)
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha'   : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'beta'    : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'epsilon' : specs.TensorSpec(shape=[1,2], dtype=tf.float32),
-                'phi'     : specs.TensorSpec(shape=[1,1], dtype=tf.float32)}
+        spec = {'beta'    : specs.TensorSpec(shape=[2], dtype=tf.float32), 
+                'epsilon' : specs.TensorSpec(shape=[2], dtype=tf.float32),
+                'phi'     : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -62,23 +58,20 @@ class QuantumCircuit(Oscillator, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha'   : Tensor([batch_size,1,2], tf.float32),
-                          'beta'    : Tensor([batch_size,1,2], tf.float32),
-                          'epsilon' : Tensor([batch_size,1,2], tf.float32,
-                          'phi'     : Tensor([batch_size,1,1])))
+            action (dict, 'beta'    : Tensor([batch_size,2], tf.float32),
+                          'epsilon' : Tensor([batch_size,2], tf.float32,
+                          'phi'     : Tensor([batch_size,1])))
 
         Returns: see parent class docs
 
         """
         # extract parameters
-        alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
         epsilon = hf.vec_to_complex(action['epsilon'])
         phi = action['phi']
 
         Kraus = {}
         T = {}
-        T['a'] = self.translate(alpha)
         T['+b'] = self.translate(beta/2.0)
         T['-b'] = tf.linalg.adjoint(T['+b'])
         T['+e'] = self.translate(epsilon/2.0)
@@ -98,10 +91,7 @@ class QuantumCircuit(Oscillator, GKP):
         Kraus[0] = 1/4*(chunk1 + self.phase(phi)*chunk2)
         Kraus[1] = 1/4*(chunk1 - self.phase(phi)*chunk2)
 
-        psi = self.simulate(psi, self.t_feedback)
-        psi_cached = batch_dot(T['a'], psi)
-        psi = self.simulate(psi_cached, self.t_round + self.t_idle)
-        psi = normalize(psi)
-        psi_final, msmt = self.measure(psi, Kraus)
+        psi = self.simulate(psi, self.t_round + self.t_idle)
+        psi_final, msmt = self.measure(normalize(psi), Kraus)
 
-        return psi_final, psi_cached, msmt
+        return psi_final, psi_final, msmt

@@ -50,9 +50,9 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha'   : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'beta'    : specs.TensorSpec(shape=[1,2], dtype=tf.float32), 
-                'epsilon' : specs.TensorSpec(shape=[1,2], dtype=tf.float32)}
+        spec = {'alpha'   : specs.TensorSpec(shape=[2], dtype=tf.float32), 
+                'beta'    : specs.TensorSpec(shape=[2], dtype=tf.float32), 
+                'epsilon' : specs.TensorSpec(shape=[2], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -60,9 +60,9 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha'   : Tensor([batch_size,1,2], tf.float32),
-                          'beta'    : Tensor([batch_size,1,2], tf.float32),
-                          'epsilon' : Tensor([batch_size,1,2], tf.float32))
+            action (dict, 'alpha'   : Tensor([batch_size,2], tf.float32),
+                          'beta'    : Tensor([batch_size,2], tf.float32),
+                          'epsilon' : Tensor([batch_size,2], tf.float32))
 
         Returns: see parent class docs
 

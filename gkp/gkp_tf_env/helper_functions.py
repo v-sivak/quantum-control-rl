@@ -138,11 +138,11 @@ def plot_wigner_tf_wrapper(state, tensorstate=False, *args, **kwargs):
 
 def vec_to_complex(a):
     """
-    Convert vectorized action of shape [batch_sized,2] to complex-valued
-    action of shape (batch_sized,)
+    Convert vectorized action of shape [batch_size,2] to complex-valued
+    action of shape (batch_size,)
     
     """
-    return tf.complex(a[:, 0], a[:, 1])
+    return tf.complex(a[:,0], a[:,1])
 
 
 def fit_logical_lifetime(env, policy, plot=True, save_dir=None, 
