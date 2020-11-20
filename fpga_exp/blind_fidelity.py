@@ -13,7 +13,6 @@ class blind_fidelity(FPGAExperiment):
 
     delay_time = IntParameter(5e3)
     loop_delay= IntParameter(1e6)
-    flip_qubit = BoolParameter(False)
     threshold = FloatParameter(0)
 
     def sequence(self):
