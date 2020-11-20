@@ -235,21 +235,20 @@ def train_eval(
         avg_return_metric.reset()
         log = {
             'returns' : [avg_return],
-            'epochs' : [global_step.numpy()/num_policy_updates],
-            'policy_steps' : [global_step.numpy()],
+            'epochs' : [0],
+            'policy_steps' : [0],
             'experience_time' : [0.0],
             'train_time' : [0.0]
             }
         
         # Save initial random policy
-        global_step_val = global_step.numpy()
-        path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
+        path = os.path.join(policy_dir,('0').zfill(6))
         saved_model.save(path)
     
         # Training loop
         train_timer = timer.Timer()
         experience_timer = timer.Timer()
-        for epoch in range(num_epochs):
+        for epoch in range(1,num_epochs+1):
             # Collect new experience
             experience_timer.start()
             collect_driver.run(train_episode_length(epoch))
@@ -261,10 +260,7 @@ def train_eval(
             replay_buffer.clear()
             train_timer.stop()
             
-            # Log and evaluate everything
-            global_step_val = global_step.numpy()
-            
-            if global_step_val % (eval_interval*num_policy_updates) == 0:
+            if epoch % eval_interval == 0:
                 # Evaluate the policy
                 eval_driver.run(eval_episode_length)
                 avg_return = avg_return_metric.result().numpy()
@@ -272,25 +268,25 @@ def train_eval(
                 
                 # Print out and log all metrics
                 print('-------------------')
-                print('Epoch %d' %(global_step_val/num_policy_updates))
-                print('  Policy steps: %d' %global_step_val)
+                print('Epoch %d' %epoch)
+                print('  Policy steps: %d' %(epoch*num_policy_updates))
                 print('  Experience time: %.2f mins' %(experience_timer.value()/60))
                 print('  Policy train time: %.2f mins' %(train_timer.value()/60))
                 print('  Average return: %.2f' %avg_return)
-                log['epochs'].append(global_step_val/num_policy_updates)
-                log['policy_steps'].append(global_step_val)
+                log['epochs'].append(epoch)
+                log['policy_steps'].append(epoch*num_policy_updates)
                 log['returns'].append(avg_return)
                 log['experience_time'].append(experience_timer.value())
                 log['train_time'].append(train_timer.value())
                 
-            if global_step_val % (save_interval*num_policy_updates) == 0:
+            if epoch % save_interval == 0:
                 # Save deterministic policy
-                path = os.path.join(policy_dir,('%d' % global_step_val).zfill(9))
+                path = os.path.join(policy_dir,('%d' % epoch).zfill(6))
                 saved_model.save(path)
                 # Save updated log
-                save_log(log, logfile, ('%d' % global_step_val).zfill(9))
+                save_log(log, logfile, ('%d' % epoch).zfill(6))
             
             if checkpoint_interval is not None and \
-                global_step_val % (checkpoint_interval*num_policy_updates) == 0:
+                epoch % checkpoint_interval == 0:
                     # Save training checkpoint
                     train_checkpointer.save(global_step)
