@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Oct  1 19:55:57 2020
+Created on Thu Nov 19 20:55:17 2020
 
-@author: qulab
+@author: Vladimir Sivak
 """
 
 import os
@@ -80,11 +80,9 @@ mpl.rcParams['legend.markerscale'] = 2.0
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### Initialize the environment and simulation/training parameters
-N=40
-
 env = gkp_init(simulate='snap_and_displacement', channel='quantum_jumps',
-               init='vac', H=1, T=3, attn_step=1, batch_size=1, N=N,
-               episode_length=3, phase_space_rep='wigner')
+               init='vac', H=1, T=4, attn_step=1, batch_size=1, N=40,
+               episode_length=4, phase_space_rep='wigner')
 
 action_script = 'snap_and_displacements'
 action_scale = {'alpha':4, 'theta':pi}
@@ -94,40 +92,35 @@ action_script = action_scripts.__getattribute__(action_script)
 env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
 
-root_dir = {
-    'bin0' : r'E:\data\gkp_sims\PPO\examples\bin0_state_prep_lr3e-4',
-    'bin1' : r'E:\data\gkp_sims\PPO\examples\bin1_state_prep_lr3e-4'
-    }
+root_dir = r'E:\data\gkp_sims\PPO\examples\Fock_states_sweep'
+fock_states = [1,2,3,4,5,6,7,8,9,10]
 
-target_state_qt_vector = {
-    'bin0' : qt.tensor(qt.basis(2,0), qt.basis(N,2)),
-    'bin1' : qt.tensor(qt.basis(2,0),(qt.basis(N,0)+qt.basis(N,4)).unit())
-    }
-
-epochs = {
-    'bin0' : np.arange(0, 200 + 1e-10, 10),
-    'bin1' : np.arange(0, 2000 + 1e-10, 100)
-    }
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
+### Collect episodes for each policy
 
-rewards = {'bin0' : {}, 'bin1' : {}}
-final_states = {'bin0' : {}, 'bin1' : {}}
+rewards, final_states, epochs = {}, {}, {}
 
-for state in ['bin0', 'bin1']:
-    # setup overlap reward for this state
+for fock in fock_states:
+    state = 'fock' + str(fock)
+    print('='*5 + '  ' + state + '  ' + '='*5)
+    fock_dir = os.path.join(root_dir, state)
+    rewards[state], final_states[state], epochs[state] = {}, {}, {}
+    
+    #setup overlap reward for this Fock state
     reward_kwargs = {'reward_mode'  : 'overlap', 
-                     'target_state' : target_state_qt_vector[state]}
+                     'target_state' : qt.tensor(qt.basis(2,0),qt.basis(env.N,fock))}
     env.setup_reward(reward_kwargs)
     
     # collect episodes with different policies
-    for sim_name in os.listdir(root_dir[state]):
+    for sim_name in os.listdir(fock_dir):
         print(sim_name)
+        sim_dir = os.path.join(fock_dir, sim_name)    
         rewards[state][sim_name] = []
+        epochs[state][sim_name] = []
         final_states[state][sim_name] = []
-        sim_dir = os.path.join(root_dir[state], sim_name)    
         for policy_name in os.listdir(os.path.join(sim_dir, 'policy')):
             policy_dir = os.path.join(sim_dir, 'policy', policy_name)
             policy = tf.compat.v2.saved_model.load(policy_dir)
@@ -142,31 +135,49 @@ for state in ['bin0', 'bin1']:
                 time_step = env.step(action_step.action)
             
             rewards[state][sim_name].append(np.mean(time_step.reward))
+            epochs[state][sim_name].append(int(policy_name))
             final_states[state][sim_name].append(env.info['psi_cached'])
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-# Plot training progress
-            
-figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\train' # where to save
-fig, ax = plt.subplots(1,1, figsize=(3.375, 2), dpi=300)
+### save evaluation data
+with open(os.path.join(root_dir, 'eval.pickle'), 'wb') as f:
+    pickle.dump(dict(rewards=rewards, final_states=final_states,epochs=epochs), f)
+
+
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+### Plot training progress
+figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\Fock_prep_sweep' # where to save
+fig, ax = plt.subplots(1,1, figsize=(3.375, 2.85), dpi=300)
 plt.grid(True)
 ax.set_ylabel(r'$1-\cal F$')
 ax.set_xlabel('Epoch')
 ax.set_yscale('log')
-ax.set_xscale('log')
-ax.set_xlim(8,2200)
-ax.set_ylim(1e-4,1)
+# ax.set_xscale('log')
+ax.set_xlim(-50,2050)
+ax.set_ylim(6e-5,1)
+palette = plt.get_cmap('tab10')
 
-for state in ['bin0', 'bin1']:
+for fock in fock_states:
+    state = 'fock' + str(fock)
     # plot training progress of each policy in the background
     for sim_name in rewards[state].keys():
-        ax.plot(epochs[state], 1-np.array(rewards[state][sim_name]), linestyle='--', alpha=0.4)
+        ax.plot(epochs[state][sim_name], 1-np.array(rewards[state][sim_name]), 
+                linestyle='--', alpha=0.1, color=palette(fock))
     
     # calculate and plot the meadian (less sensitive to outliers)
-    avg_reward = np.median(list(rewards[state][i] for i in rewards[state].keys()), axis=0)
-    ax.plot(epochs[state], 1-avg_reward, color='black', linewidth=1.0)
+    all_seeds = np.array([rewards[state][seed] for seed in rewards[state].keys()])
+    median_reward = np.median(all_seeds, axis=0)
+    train_epochs = np.array(epochs[state]['seed0'])
+    
+    ind = [i for i in range(len(median_reward)) if i%5==0]
+    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0)
+    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0,
+            label=fock, linestyle = 'none', marker='.')
+ax.legend(ncol=2)
 
 fig.tight_layout()
 fig.savefig(figname)
@@ -175,90 +186,54 @@ fig.savefig(figname)
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-# Plot Wigners in one figure with 2 subplots
+# Plot Wigners
 
-figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\wigner.png' # where to save
-fig, axes = plt.subplots(1,2, figsize=(3.6, 1.70), dpi=300, sharey=True, sharex=True)
+# figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\wigner.png' # where to save
+# fig, axes = plt.subplots(1,2, figsize=(3.6, 1.70), dpi=300, sharey=True, sharex=True)
 
-for ax in axes: ax.set_aspect('equal')
-axes[0].set_ylabel(r'${\rm Im}(\alpha)$')
-for ax in axes: ax.set_xlabel(r'${\rm Re}(\alpha)$')
+# for ax in axes: ax.set_aspect('equal')
+# axes[0].set_ylabel(r'${\rm Im}(\alpha)$')
+# for ax in axes: ax.set_xlabel(r'${\rm Re}(\alpha)$')
 
-# Generate a grid of phase space points
-lim, pts = 4, 101
-x = np.linspace(-lim, lim, pts)
-y = np.linspace(-lim, lim, pts)
+# # Generate a grid of phase space points
+# lim, pts = 4, 101
+# x = np.linspace(-lim, lim, pts)
+# y = np.linspace(-lim, lim, pts)
 
-x = tf.squeeze(tf.constant(x, dtype=tf.complex64))
-y = tf.squeeze(tf.constant(y, dtype=tf.complex64))
+# x = tf.squeeze(tf.constant(x, dtype=tf.complex64))
+# y = tf.squeeze(tf.constant(y, dtype=tf.complex64))
 
-one = tf.constant([1]*len(y), dtype=tf.complex64)
-onej = tf.constant([1j]*len(x), dtype=tf.complex64)
+# one = tf.constant([1]*len(y), dtype=tf.complex64)
+# onej = tf.constant([1j]*len(x), dtype=tf.complex64)
 
-grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
-grid_flat = tf.reshape(grid, [-1])
+# grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
+# grid_flat = tf.reshape(grid, [-1])
 
-# TODO: select a simulation corresponding to a median
-for s in [0, 1]:
-    sim_name = os.listdir(root_dir['bin'+str(s)])[0] # select the first simulation with random_seed=0
-    state = final_states['bin'+str(s)][sim_name][-1] # select the last policy in this training
-    F = rewards['bin'+str(s)][sim_name][-1]
-    state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-    state_translated = batch_dot(env.translate(-grid_flat), state)
-    W = expectation(state_translated, env.parity, reduce_batch=False) # need to multiply by 1/pi
-    W_grid = tf.reshape(W, grid.shape).numpy().real
+# # TODO: select a simulation corresponding to a median
+# for s in [0, 1]:
+#     sim_name = os.listdir(root_dir['bin'+str(s)])[0] # select the first simulation with random_seed=0
+#     state = final_states['bin'+str(s)][sim_name][-1] # select the last policy in this training
+#     F = rewards['bin'+str(s)][sim_name][-1]
+#     state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
+#     state_translated = batch_dot(env.translate(-grid_flat), state)
+#     W = expectation(state_translated, env.parity, reduce_batch=False) # need to multiply by 1/pi
+#     W_grid = tf.reshape(W, grid.shape).numpy().real
     
-    # W_grid = 2*np.random.random([x.shape[0],y.shape[0]])-1
-    p = axes[s].pcolormesh(x, y, np.transpose(W_grid), cmap='RdBu_r', vmin=-1, vmax=1)
-    axes[s].text(0.8, -3.5, '%.4f' %F, fontsize=7.5)
+#     # W_grid = 2*np.random.random([x.shape[0],y.shape[0]])-1
+#     p = axes[s].pcolormesh(x, y, np.transpose(W_grid), cmap='RdBu_r', vmin=-1, vmax=1)
+#     axes[s].text(0.8, -3.5, '%.4f' %F, fontsize=7.5)
 
-cbar = plt.colorbar(p, ax=None, fraction=0.05, pad=0.1, aspect=10,
-                    ticks=[-1, 0, 1], )
-cbar.ax.set_yticklabels([r'$-1$', r'$0$', r'$+1$'])
+# cbar = plt.colorbar(p, ax=None, fraction=0.05, pad=0.1, aspect=10,
+#                     ticks=[-1, 0, 1], )
+# cbar.ax.set_yticklabels([r'$-1$', r'$0$', r'$+1$'])
 
-fig.tight_layout()
+# fig.tight_layout()
 
-fig.savefig(figname)
-
-
-
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
-# Plot Wigners separate figures
+# fig.savefig(figname)   
 
 
-for s in [0, 1]:
 
-    figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\wigner_bin' + str(s)
-    fig, ax = plt.subplots(1,1, figsize=(0.8, 0.8), dpi=300)
-    plt.axis('off') # remove all axis formatting (ticks, labels, frame, etc)
 
-    # Generate a grid of phase space points
-    lim, pts = 4, 101
-    x = np.linspace(-lim, lim, pts)
-    y = np.linspace(-lim, lim, pts)
-    
-    x = tf.squeeze(tf.constant(x, dtype=tf.complex64))
-    y = tf.squeeze(tf.constant(y, dtype=tf.complex64))
-    
-    one = tf.constant([1]*len(y), dtype=tf.complex64)
-    onej = tf.constant([1j]*len(x), dtype=tf.complex64)
-    
-    grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
-    grid_flat = tf.reshape(grid, [-1])
-    
-    sim_name = os.listdir(root_dir['bin'+str(s)])[0] # select the first simulation with random_seed=0
-    state = final_states['bin'+str(s)][sim_name][-1] # select the last policy in this training
-    F = rewards['bin'+str(s)][sim_name][-1]
-    state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-    state_translated = batch_dot(env.translate(-grid_flat), state)
-    W = expectation(state_translated, env.parity, reduce_batch=False) # need to multiply by 1/pi
-    W_grid = tf.reshape(W, grid.shape).numpy().real
-    
-    p = ax.pcolormesh(x, y, np.transpose(W_grid), cmap='RdBu_r', vmin=-1, vmax=1)
-    
-    fig.savefig(figname)
 
 
 
