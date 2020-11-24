@@ -21,7 +21,7 @@ class T2_software_det(FPGAExperiment):
         scale = 2 if self.echo else 1
         max_delay = self.t_max / scale
         phase_scale = 0.5*self.detune*self.t_max*1e-9
-        delta_phase = -self.detune*(self.t_max*1e-9/(self.points-1))/phase_scale
+        delta_phase = -2.0/(self.points-1)
         phase_reg = FloatRegister()
         phase_reg <<= 0.0
 

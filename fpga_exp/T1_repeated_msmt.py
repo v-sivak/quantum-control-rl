@@ -13,11 +13,11 @@ from time import time
 import pickle
 import os
 
-savepath = r'D:\DATA\exp\2020-11-18_cooldown\qubit_T1_T2_2'
+savepath = r'D:\DATA\exp\2020-11-18_cooldown\qubit_T1_T2_3'
 
 experiments = [
         'gkp_exp.fpga_exp.T1',
-        'exp_code.from_nick_fpga.T2_software_det'
+        'gkp_exp.fpga_exp.T2_software_det'
         ]
 
 tau = {exp : [] for exp in experiments}

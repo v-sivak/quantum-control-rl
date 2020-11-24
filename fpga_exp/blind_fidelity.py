@@ -14,10 +14,11 @@ class blind_fidelity(FPGAExperiment):
     delay_time = IntParameter(5e3)
     loop_delay= IntParameter(1e6)
     threshold = FloatParameter(0)
+    selective = BoolParameter(False)
 
     def sequence(self):
 
-        qubit.flip()
+        qubit.flip(selective=self.selective)
         readout(traj_e='rel', state_e='se0')
         delay(self.delay_time)
         readout(traj_e='rel', state_e='se0')
@@ -30,7 +31,7 @@ class blind_fidelity(FPGAExperiment):
         delay(self.loop_delay)
 
     def update(self):
-        readout.set_envelope(envelope0=self.results['opt_env'].data, 
+        readout.set_envelope(envelope0=self.results['opt_env'].data,
                              thresh0=self.threshold)
 
     def plot(self, fig, data):
