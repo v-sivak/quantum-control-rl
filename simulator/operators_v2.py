@@ -200,10 +200,9 @@ class TranslationOperator():
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
 
-
     @batch_operator
     @tf.function
-    def compute_BCH(self, amplitude, *args, **kwargs):
+    def compute(self, amplitude, *args, **kwargs):
         """Calculates T(amplitude) for a batch of amplitudes using BCH.
 
         Args:
@@ -237,7 +236,7 @@ class TranslationOperator():
         )
     
     def __call__(self, amplitude):
-        return self.compute_BCH(amplitude, name='TranslationOperator')
+        return self.compute(amplitude, name='TranslationOperator')
 
 
 class DisplacementOperator(TranslationOperator):
@@ -247,9 +246,78 @@ class DisplacementOperator(TranslationOperator):
     """
     def __call__(self, amplitude):
         sqrt2 = tf.math.sqrt(tf.constant(2, dtype=c64))
-        return self.compute_BCH(amplitude*sqrt2, name='DisplacementOperator')
+        return self.compute(amplitude*sqrt2, name='DisplacementOperator')
 
 
+class RotationOperator():
+    """
+    Batch rotation in phase space operator.
+    """    
+    def __init__(self, N):
+        """
+        Args:
+            N (int): Dimension of Hilbert space
+        
+        """
+        self.N = N    
+    
+    @batch_operator
+    @tf.function    
+    def compute(self, phase, *args, **kwargs):
+        """Calculates R(phase) = e^{-i*phase*n} for a batch of phases.
+
+        Args:
+            phase (Tensor([B1, ..., Bb], c64)): A batch of phases
+
+        Returns:
+            Tensor([B1, ..., Bb, N, N], c64): A batch of R(phase)
+        """
+        phase = tf.cast(tf.expand_dims(phase, -1), dtype=c64)
+        exp_diag = tf.math.exp(phase * tf.cast(tf.range(self.N), c64))
+        return tf.linalg.diag(exp_diag)
+    
+    def __call__(self, phase):
+        return self.compute(phase, name='RotationOperator')
+
+
+class SNAP():
+    """
+    Batch Selective Number-dependent Arbitrary Phase (SNAP) gate.
+    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
+    
+    """    
+    def __init__(self, N, S):
+        """
+        Args:
+            N (int): Dimension of Hilbert space
+            S (int): truncation of SNAP
+        
+        """
+        self.N = N
+        self.S = S
+
+    @batch_operator
+    @tf.function        
+    def compute(self, theta, *args, **kwargs):
+        """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
+
+        Args:
+            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
+
+        Returns:
+            Tensor([B1, ..., Bb, N, N], c64): A batch of SNAP(theta)
+        """
+        assert theta.shape[-1] == self.S
+        D = len(theta.shape)-1
+        paddings = tf.constant([[0,0]]*D + [[0,self.N-self.S]])
+        theta = tf.cast(theta, dtype=c64)
+        theta = tf.pad(theta, paddings)
+        exp_diag = tf.math.exp(1j*theta)
+        return tf.linalg.diag(exp_diag)
+
+    def __call__(self, theta):
+        return self.compute(theta, name='SNAP')
+    
 
 ### Quantum states
 
