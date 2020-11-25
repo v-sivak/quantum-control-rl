@@ -171,7 +171,7 @@ class BatchOperatorMixinBCH:
         """
         theta = tf.cast(theta, dtype=c64)
         theta = tf.pad(theta, tf.constant([[0,0],[0,self.N-theta.shape[1]]]))
-        theta_exp_diag = tf.math.exp(theta)
+        theta_exp_diag = tf.math.exp(1j*theta)
         snap_osc = tf.linalg.diag(theta_exp_diag)
         
         if self.tensorstate:
