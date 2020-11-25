@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow import complex64 as c64
 from distutils.version import LooseVersion
 from math import pi
+import inspect
 
 if LooseVersion(tf.__version__) >= "2.2":
     diag = tf.linalg.diag
@@ -35,7 +36,6 @@ Example 1:
 """
 
 # TODO: maybe re-define matvec to include explicit normalization
-# TODO: fix the naming, for example __call__ method will have this name...
 # TODO: have different decorators for batched and un-batched operators
 def batch_operator(func):
     """
@@ -43,9 +43,10 @@ def batch_operator(func):
     
     """
     def wrapper(*args, **kwargs):
+        name = kwargs['name'] if 'name' in kwargs.keys() else func.__name__
         operator_matrix = func(*args, **kwargs)
         return tf.linalg.LinearOperatorFullMatrix(
-            operator_matrix, is_square=True, name=func.__name__)
+            operator_matrix, is_square=True, name=name)
     return wrapper
 
 
@@ -186,6 +187,9 @@ class TranslationOperator():
         """
         Pre-diagonalize position and momentum operators.
         
+        Args:
+            N (int): Dimension of Hilbert space
+        
         """
         self.N = N
         p = momentum(N).to_dense()
@@ -199,8 +203,8 @@ class TranslationOperator():
 
     @batch_operator
     @tf.function
-    def __call__(self, amplitude):
-        """Calculates T(amplitude) for a batch of amplitudes.
+    def compute_BCH(self, amplitude, *args, **kwargs):
+        """Calculates T(amplitude) for a batch of amplitudes using BCH.
 
         Args:
             amplitude (Tensor([B1, ..., Bb], c64)): A batch of amplitudes
@@ -231,6 +235,21 @@ class TranslationOperator():
             @ expm_c,
             dtype=c64,
         )
+    
+    def __call__(self, amplitude):
+        return self.compute_BCH(amplitude, name='TranslationOperator')
+
+
+class DisplacementOperator(TranslationOperator):
+    """ 
+    Batch displacement operator D(amplitude) = T(amplitude * sqrt(2)).
+    
+    """
+    def __call__(self, amplitude):
+        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=c64))
+        return self.compute_BCH(amplitude*sqrt2, name='DisplacementOperator')
+
+
 
 ### Quantum states
 
