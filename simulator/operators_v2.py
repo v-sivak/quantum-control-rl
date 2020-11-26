@@ -9,6 +9,7 @@ from tensorflow import complex64 as c64
 from distutils.version import LooseVersion
 from math import pi
 import inspect
+import abc
 
 if LooseVersion(tf.__version__) >= "2.2":
     diag = tf.linalg.diag
@@ -170,12 +171,34 @@ def parity(N):
 
 ### Parametrized operators
 
-# TODO: generalize to arbitrary generators 
-# (i.e. phase space rotations, Hamiltonian evolution etc)
+class ParametrizedOperator():
     
-class TranslationOperator():
+    def __init__(self, N, name=None):
+        """
+        Args:
+            N (int): dimension of Hilbert space
+            name (str, optional): name of LinearOperator instance
+
+        """
+        self.N = N
+        self.name = name if name else self.__class__.__name__
+
+    def __call__(self, *args, **kwargs):
+        kwargs['name'] = self.name
+        return self.compute(*args, **kwargs)
+
+    @batch_operator
+    @tf.function  
+    def compute(self, *args, **kwargs):
+        return self._compute(*args, **kwargs)
+    
+    def _compute(self):
+        """Subclasses need to implement this."""
+
+
+class TranslationOperator(ParametrizedOperator):
     """ 
-    Batch translation operator. 
+    Translation in phase space.
     
     Example:
         T = TranslationOperator(100)
@@ -191,7 +214,6 @@ class TranslationOperator():
             N (int): Dimension of Hilbert space
         
         """
-        self.N = N
         p = momentum(N).to_dense()
         q = position(N).to_dense()
         
@@ -199,10 +221,9 @@ class TranslationOperator():
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
+        super().__init__(N=N)
 
-    @batch_operator
-    @tf.function
-    def compute(self, amplitude, *args, **kwargs):
+    def _compute(self, amplitude, *args, **kwargs):
         """Calculates T(amplitude) for a batch of amplitudes using BCH.
 
         Args:
@@ -234,36 +255,22 @@ class TranslationOperator():
             @ expm_c,
             dtype=c64,
         )
-    
-    def __call__(self, amplitude):
-        return self.compute(amplitude, name='TranslationOperator')
 
 
 class DisplacementOperator(TranslationOperator):
     """ 
-    Batch displacement operator D(amplitude) = T(amplitude * sqrt(2)).
+    Displacement in phase space D(amplitude) = T(amplitude * sqrt(2)).
     
-    """
-    def __call__(self, amplitude):
-        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=c64))
-        return self.compute(amplitude*sqrt2, name='DisplacementOperator')
-
-
-class RotationOperator():
-    """
-    Batch rotation in phase space operator.
     """    
-    def __init__(self, N):
-        """
-        Args:
-            N (int): Dimension of Hilbert space
-        
-        """
-        self.N = N    
-    
-    @batch_operator
-    @tf.function    
-    def compute(self, phase, *args, **kwargs):
+    def __call__(self, amplitude):
+        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=amplitude.dtype))
+        return super().__call__(amplitude*sqrt2)
+
+
+class RotationOperator(ParametrizedOperator):
+    """ Rotation in phase space."""    
+
+    def _compute(self, phase, *args, **kwargs):
         """Calculates R(phase) = e^{-i*phase*n} for a batch of phases.
 
         Args:
@@ -275,30 +282,15 @@ class RotationOperator():
         phase = tf.cast(tf.expand_dims(phase, -1), dtype=c64)
         exp_diag = tf.math.exp(phase * tf.cast(tf.range(self.N), c64))
         return tf.linalg.diag(exp_diag)
-    
-    def __call__(self, phase):
-        return self.compute(phase, name='RotationOperator')
 
 
-class SNAP():
+class SNAP(ParametrizedOperator):
     """
-    Batch Selective Number-dependent Arbitrary Phase (SNAP) gate.
+    Selective Number-dependent Arbitrary Phase (SNAP) gate.
     SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
     
-    """    
-    def __init__(self, N, S):
-        """
-        Args:
-            N (int): Dimension of Hilbert space
-            S (int): truncation of SNAP
-        
-        """
-        self.N = N
-        self.S = S
-
-    @batch_operator
-    @tf.function        
-    def compute(self, theta, *args, **kwargs):
+    """          
+    def _compute(self, theta, *args, **kwargs):
         """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
 
         Args:
@@ -307,17 +299,68 @@ class SNAP():
         Returns:
             Tensor([B1, ..., Bb, N, N], c64): A batch of SNAP(theta)
         """
-        assert theta.shape[-1] == self.S
+        S = theta.shape[-1] # SNAP truncation
         D = len(theta.shape)-1
-        paddings = tf.constant([[0,0]]*D + [[0,self.N-self.S]])
+        paddings = tf.constant([[0,0]]*D + [[0,self.N-S]])
         theta = tf.cast(theta, dtype=c64)
         theta = tf.pad(theta, paddings)
         exp_diag = tf.math.exp(1j*theta)
         return tf.linalg.diag(exp_diag)
-
-    def __call__(self, theta):
-        return self.compute(theta, name='SNAP')
     
+
+class QubitRotationXY(ParametrizedOperator):
+    """
+    Qubit rotation in xy plane.
+    R(angle, phase) = e^(-i*angle/2*[cos(phase)*sx + sin(phase*sy]))
+    
+    """
+    def __init__(self):
+        super().__init__(N=2)
+
+    def _compute(self, angle, phase, *args, **kwargs):
+        """Calculates rotation matrix for a batch of rotation angles.
+
+        Args:
+            angle (Tensor([B1, ..., Bb], float32)): batched angle of rotation
+                in radians, i.e. angle=pi corresponds to full qubit flip.
+            phase (Tensor([B1, ..., Bb], float32)): batched axis of rotation
+                in radians, where by convention 0 is x axis.
+
+        Returns:
+            Tensor([B1, ..., Bb, 2, 2], c64): A batch of R(angle, phase)
+        """
+        assert angle.shape == phase.shape
+        angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
+        phase = tf.cast(tf.reshape(phase, phase.shape+[1,1]), c64)
+        
+        sx = sigma_x().to_dense()
+        sy = sigma_y().to_dense()
+        I = identity(2).to_dense()
+        
+        R = tf.math.cos(angle/2) * I - 1j*tf.math.sin(angle/2) * \
+            (tf.math.cos(phase)*sx + tf.math.sin(phase)*sy)
+        return R
+
+
+class Phase(ParametrizedOperator):
+    """ Simple phase factor."""
+   
+    def _compute(self, angle, *args, **kwargs):
+        """
+        Calculates batch phase factor e^(i*angle)
+
+        Args:
+            angle (Tensor([B1, ..., Bb], float32)): batch of angles in radians
+            
+        Returns:
+            Tensor([B1, ..., Bb, N, N], c64): A batch of phase factors
+        """
+        angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
+        return tf.math.exp(1j*angle) * tf.eye(self.N, dtype=c64)
+
+
+
+
 
 ### Quantum states
 
