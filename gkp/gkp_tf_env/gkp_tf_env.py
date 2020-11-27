@@ -209,7 +209,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         state = self.info['psi_cached']
         
         # Generate a grid of phase space points
-        lim, pts = 4, 101
+        lim, pts = 4, 41
         x = np.linspace(-lim, lim, pts)
         y = np.linspace(-lim, lim, pts)
 
@@ -318,7 +318,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                             'stabilizers', 
                             'pauli', 
                             'fidelity',
-                            'overlap', 
+                            'overlap',
+                            'Fock',
                             'tomography']
             self.reward_mode = mode
         except: 
@@ -375,6 +376,19 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             self.calculate_reward = \
                 lambda args: self.reward_overlap(target_projector, args)
 
+        if mode == 'Fock':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'Fock'
+                target_state (Qobj, type=ket): Qutip object
+                
+            """
+            assert 'target_state' in reward_kwargs.keys()
+            target_projector = qt.ket2dm(reward_kwargs['target_state'])
+            target_projector = tf.constant(target_projector.full(), dtype=c64)
+            self.calculate_reward = \
+                lambda args: self.reward_Fock(target_projector, args)        
+
         if mode == 'tomography':
             """
             Required reward_kwargs:
@@ -408,6 +422,24 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 lambda args: self.reward_stabilizers(stabilizer_translations, args)
 
 
+    def reward_Fock(self, target_projector, *args):
+        """
+        Reward only on last time step using the measurement of a given Fock 
+        state of the oscillator.
+
+        """
+        if self._elapsed_steps < self.episode_length:
+            z = tf.zeros(self.batch_size, dtype=tf.float32)
+        else:            
+            overlap = expectation(self._state, target_projector, reduce_batch=False)
+            z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
+
+            obs = tfp.distributions.Bernoulli(probs=z).sample()
+            obs = 2*obs -1 # convert to {-1,1}
+            z = tf.cast(obs, dtype=tf.float32)
+        return z
+    
+
     def reward_overlap(self, target_projector, *args):
         """
         Reward only on last time step using the overlap of the cached state 
@@ -420,7 +452,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
-            psi, _ = self.measure(self._state, self.P, sample=True)
+            if self.tensorstate:
+                psi, _ = self.measure(self._state, self.P, sample=True)
+            else:
+                psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
             z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
             self.info['psi_cached'] = psi
