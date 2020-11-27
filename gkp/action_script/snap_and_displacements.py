@@ -5,7 +5,7 @@ Created on Fri Oct 30 13:27:55 2020
 @author: Vladimir Sivak
 """
 
-period = 4
+period = 5
 snap_levels = 14
 
 # Script of actions

@@ -13,10 +13,10 @@ from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
-from simulator.hilbert_spaces import OscillatorQubit
+from simulator.hilbert_spaces import Oscillator
 from simulator.utils import normalize
 
-class QuantumCircuit(OscillatorQubit, GKP):
+class QuantumCircuit(Oscillator, GKP):
     """
     Universal gate sequence for open-loop unitary control of the oscillator
     in the large-chi regime. 
@@ -53,7 +53,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'alpha' : Tensor([batch_size,2], tf.float32),
-                          'theta' : Tensor([batch_size,6], tf.float32))
+                          'theta' : Tensor([batch_size,14], tf.float32))
 
         Returns: see parent class docs
 
@@ -68,10 +68,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         # Apply gates
         psi = batch_dot(displace, psi)
-        
-        # psi = batch_dot(snap, psi)
-        # psi = self.simulate(psi, self.t_gate)
         psi = batch_dot(snap, psi)
+        psi = batch_dot(tf.linalg.adjoint(displace), psi) 
 
         return psi, psi, tf.ones((self.batch_size,1))
 

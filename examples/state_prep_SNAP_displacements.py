@@ -23,37 +23,38 @@ from gkp.agents import actor_distribution_network_gkp
 from gkp.gkp_tf_env import helper_functions as hf
 
 """
-Train PPO agent to do Fock state N=3 preparation with universal gate sequence
+Train PPO agent to do Fock state N=10 preparation with universal gate sequence
 consisting of SNAP gates and oscillator displacements.
 
-The episodes start from vacuum, and Wigner function tomography measurements 
-are performed in the end to assign reward.
+The episodes start from vacuum, and photon number measurements are performed 
+in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\bin0_state_prep_lr3e-4'
-root_dir = os.path.join(root_dir,'0bin_state_prep_snap_displacements_0')
+root_dir = r'E:\data\gkp_sims\PPO\examples'
+root_dir = os.path.join(root_dir,'fock10')
 
 # Params for environment
 env_kwargs = {
     'simulate' : 'snap_and_displacement',
     'init' : 'vac',
     'H' : 1,
-    'T' : 3, 
+    'T' : 5, 
     'attn_step' : 1,
     'N' : 100}
 
 # Params for reward function
-# target_state = qt.tensor(qt.basis(2,0),(qt.basis(100,0)+qt.basis(100,4)).unit())
-# target_state = qt.tensor(qt.basis(2,0),(qt.coherent(100,2)+qt.coherent(100,-2)).unit())
-target_state = qt.tensor(qt.basis(2,0),qt.basis(100,2))
-reward_kwargs = {'reward_mode' : 'tomography',
-                 'tomography' : 'wigner',
-                 'target_state' : target_state,
-                 'window_size' : 12}
+target_state = qt.basis(100,10)
+reward_kwargs = {'reward_mode' : 'Fock',
+                 'target_state' : target_state}
+
+# reward_kwargs = {'reward_mode' : 'tomography',
+#                  'tomography' : 'wigner',
+#                  'target_state' : target_state,
+#                  'window_size' : 12}
 
 # Params for action wrapper
-action_script = 'snap_and_displacements_3round'
+action_script = 'snap_and_displacements'
 action_scale = {'alpha':4, 'theta':pi}
 to_learn = {'alpha':True, 'theta':True}
 
@@ -71,17 +72,17 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, eval_batch_size, 
     action_script, action_scale, to_learn)
 
-
+    
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 200,
+        num_epochs = 2000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 3e-4,
-        lr_schedule = None,
+        lr = 1e-4,
+        lr_schedule = lambda x: 1e-3 if x<500 else 1e-4,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
@@ -89,16 +90,16 @@ PPO.train_eval(
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 10,
-        checkpoint_interval = 100000,
-        summary_interval = 1000,
+        save_interval = 100,
+        checkpoint_interval = 10000,
+        summary_interval = 100,
         # Params for data collection
         train_batch_size = train_batch_size,
         eval_batch_size = eval_batch_size,
         collect_driver = collect_driver,
         eval_driver = eval_driver,
-        train_episode_length = lambda x: 3,
-        eval_episode_length = 3,
+        train_episode_length = lambda x: 5,
+        eval_episode_length = 5,
         replay_buffer_capacity = 5000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,

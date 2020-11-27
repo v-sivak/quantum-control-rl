@@ -23,11 +23,11 @@ from gkp.agents import actor_distribution_network_gkp
 from gkp.gkp_tf_env import helper_functions as hf
 
 """
-Train PPO agent to do Fock state N=3 preparation with universal gate sequence
-consisting of SNAP gates and oscillator displacements.
+Train PPO agent to do Fock state N=1...10 preparation with universal gate 
+sequence consisting of SNAP gates and oscillator displacements.
 
-The episodes start from vacuum, and Wigner function tomography measurements 
-are performed in the end to assign reward.
+The episodes start from vacuum, and photon number measurements are performed 
+in the end to assign reward.
 
 """
 
@@ -47,16 +47,14 @@ for fock in states:
             'simulate' : 'snap_and_displacement',
             'init' : 'vac',
             'H' : 1,
-            'T' : 4, 
+            'T' : 5, 
             'attn_step' : 1,
-            'N' : 120}
+            'N' : 100}
         
         # Params for reward function
-        target_state = qt.tensor(qt.basis(2,0),qt.basis(120,fock))
-        reward_kwargs = {'reward_mode' : 'tomography',
-                         'tomography' : 'wigner',
-                         'target_state' : target_state,
-                         'window_size' : 12}
+        target_state = qt.basis(100,fock)
+        reward_kwargs = {'reward_mode' : 'Fock',
+                         'target_state' : target_state}
         
         # Params for action wrapper
         action_script = 'snap_and_displacements'
@@ -86,15 +84,15 @@ for fock in states:
                 normalize_observations = True,
                 normalize_rewards = False,
                 discount_factor = 1.0,
-                lr = 3e-4,
-                lr_schedule = None,
+                lr = 1e-4,
+                lr_schedule = lambda x: 1e-3 if x<500 else 1e-4,
                 num_policy_updates = 20,
                 initial_adaptive_kl_beta = 0.0,
                 kl_cutoff_factor = 0,
                 importance_ratio_clipping = 0.3,
                 value_pred_loss_coef = 0.005,
                 # Params for log, eval, save
-                eval_interval = 10000,
+                eval_interval = 50,
                 save_interval = 50,
                 checkpoint_interval = 10000,
                 summary_interval = 10000,
@@ -103,8 +101,8 @@ for fock in states:
                 eval_batch_size = eval_batch_size,
                 collect_driver = collect_driver,
                 eval_driver = eval_driver,
-                train_episode_length = lambda x: 4,
-                eval_episode_length = 4,
+                train_episode_length = lambda x: 5,
+                eval_episode_length = 5,
                 replay_buffer_capacity = 6000,
                 # Policy and value networks
                 ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
@@ -114,4 +112,5 @@ for fock in states:
                 actor_lstm_size = (12,),
                 value_lstm_size = (12,)
                 )
+        
         print('Fock %d, random seed %d' %(fock,seed))
