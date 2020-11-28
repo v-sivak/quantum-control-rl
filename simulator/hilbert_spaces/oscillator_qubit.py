@@ -12,9 +12,8 @@ from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
 from .base import SimulatorHilbertSpace
-from simulator.mixins import BatchOperatorMixinBCH
 
-class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
+class OscillatorQubit(SimulatorHilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.
@@ -153,30 +152,6 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         psi = normalize(psi)
         return self.measure(psi, self.P, sample)
 
-    @tf.function
-    def rotate_qb_xy(self, phi, theta):
-        """Calculate qubit rotation matrix for rotation axis in xy-plane.
-
-        Args:
-            phi (Tensor([batch_size], c64)): angle between rotation axis and 
-                x-axis of the Bloch sphere.
-            theta (Tensor([batch_size], c64)): rotation angle.
-
-        Returns:
-            Tensor([batch_size, N, N], c64): A batch of R_phi(theta)
-        """
-        # ensure correct shapes for 'phi' and 'theta'
-        phi = tf.cast(tf.reshape(phi, [phi.shape[0], 1, 1]), dtype=c64)
-        theta = tf.cast(tf.reshape(phi, [theta.shape[0], 1, 1]), dtype=c64)
-        
-        I = tf.expand_dims(self.I, axis=0)
-        sx = tf.expand_dims(self.sx, axis=0)
-        sy = tf.expand_dims(self.sy, axis=0)
-        
-        R = tf.math.cos(theta/2)*I - 1j*tf.math.sin(theta/2) * \
-            (tf.math.cos(phi)*sx + tf.math.sin(phi)*sy)
-        return R
-
     @property
     def N(self):
         return self._N
@@ -184,3 +159,4 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
     @property
     def tensorstate(self):
         return True
+    

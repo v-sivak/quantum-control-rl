@@ -15,6 +15,7 @@ from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
 from simulator.utils import normalize
+from simulator import operators
 
 class QuantumCircuit(Oscillator, GKP):
     """
@@ -40,6 +41,10 @@ class QuantumCircuit(Oscillator, GKP):
         self.t_gate = tf.constant(t_gate, dtype=tf.float32)
         self.step_duration = self.t_gate
         super().__init__(*args, **kwargs)
+        
+        self.displace = operators.DisplacementOperator(self.N)
+        self.translate = operators.TranslationOperator(self.N)
+        self.snap = operators.SNAP(self.N)
 
     @property
     def _quantum_circuit_spec(self):
@@ -64,12 +69,12 @@ class QuantumCircuit(Oscillator, GKP):
 
         # Build gates
         displace = self.displace(alpha)
-        snap = self.SNAP(theta)
+        snap = self.snap(theta)
 
         # Apply gates
-        psi = batch_dot(displace, psi)
-        psi = batch_dot(snap, psi)
-        psi = batch_dot(tf.linalg.adjoint(displace), psi) 
+        psi = displace.matvec(psi)
+        psi = snap.matvec(psi)
+        psi = displace.adjoint().matvec(psi)
 
         return psi, psi, tf.ones((self.batch_size,1))
 

@@ -12,9 +12,8 @@ from simulator.utils import normalize
 from simulator.operators import identity, destroy, create, position, momentum, \
     num, parity
 from .base import SimulatorHilbertSpace
-from simulator.mixins import BatchOperatorMixinBCH
 
-class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
+class Oscillator(SimulatorHilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [N,N].
     Methods need to take care of batch dimension explicitly.
@@ -48,13 +47,13 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
 
     @property
     def _hamiltonian(self):
-        return -1 / 2 * (2 * pi) * self._K_osc * self.n * self.n  # Kerr
+        return -1 / 2 * (2 * pi) * self._K_osc * self.n.to_dense() * self.n.to_dense()  # Kerr
 
     @property
     def _collapse_operators(self):
         photon_loss = (
             tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
-            * self.a
+            * self.a.to_dense()
         )
 
         return [photon_loss]

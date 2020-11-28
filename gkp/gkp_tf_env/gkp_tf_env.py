@@ -225,7 +225,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Calculate and plot the phase space representation
         if self.phase_space_rep == 'wigner':
             state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-            state_translated = batch_dot(self.translate(-grid_flat), state)
+            state_translated = self.translate(-grid_flat).matvec(state)
             W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
             W_grid = tf.reshape(W, grid.shape)
     
@@ -367,12 +367,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'overlap'
-                target_state (Qobj, type=ket): Qutip object
+                target_projector (LinearOperator): projector onto target state
                 
             """
-            assert 'target_state' in reward_kwargs.keys()
-            target_projector = qt.ket2dm(reward_kwargs['target_state'])
-            target_projector = tf.constant(target_projector.full(), dtype=c64)
+            assert 'target_projector' in reward_kwargs.keys()
+            target_projector = reward_kwargs['target_projector']
             self.calculate_reward = \
                 lambda args: self.reward_overlap(target_projector, args)
 
@@ -380,14 +379,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'Fock'
-                target_state (Qobj, type=ket): Qutip object
+                target_projector (LinearOperator): projector onto target Fock
                 
             """
-            assert 'target_state' in reward_kwargs.keys()
-            target_projector = qt.ket2dm(reward_kwargs['target_state'])
-            target_projector = tf.constant(target_projector.full(), dtype=c64)
+            assert 'target_projector' in reward_kwargs.keys()
+            target_projector = reward_kwargs['target_projector']
             self.calculate_reward = \
-                lambda args: self.reward_Fock(target_projector, args)        
+                lambda args: self.reward_Fock(target_projector, args)
 
         if mode == 'tomography':
             """
