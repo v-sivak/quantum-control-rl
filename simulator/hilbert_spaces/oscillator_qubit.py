@@ -11,9 +11,9 @@ from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
-from .base import SimulatorHilbertSpace
+from .base import HilbertSpace
 
-class OscillatorQubit(SimulatorHilbertSpace):
+class OscillatorQubit(HilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.
@@ -43,7 +43,7 @@ class OscillatorQubit(SimulatorHilbertSpace):
         self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
         super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
-    def _define_fixed_operators(self, N):
+    def _define_operators(self, N):
         # TODO: Convert this to TensorFlow? #
 
         # Create qutip tensor ops acting on oscillator Hilbert space
@@ -92,7 +92,7 @@ class OscillatorQubit(SimulatorHilbertSpace):
         return -1 / 2 * (2 * pi) * self._K_osc * self.n * self.n  # Kerr
 
     @property
-    def _collapse_operators(self):
+    def _dissipator(self):
         photon_loss = (
             tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
             * self.a

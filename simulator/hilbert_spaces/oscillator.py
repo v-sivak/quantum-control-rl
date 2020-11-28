@@ -9,11 +9,10 @@ from numpy import pi
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
-from simulator.operators import identity, destroy, create, position, momentum, \
-    num, parity
-from .base import SimulatorHilbertSpace
+from simulator import operators
+from .base import HilbertSpace
 
-class Oscillator(SimulatorHilbertSpace):
+class Oscillator(HilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [N,N].
     Methods need to take care of batch dimension explicitly.
@@ -34,23 +33,26 @@ class Oscillator(SimulatorHilbertSpace):
         self._N = N
         self._K_osc = K_osc
         self._T1_osc = T1_osc
-        super().__init__(self, *args, N=N, channel=channel, **kwargs)
+        super().__init__(self, *args, channel=channel, **kwargs)
 
-    def _define_fixed_operators(self, N):
-        self.I = identity(N)
-        self.a = destroy(N)
-        self.a_dag = create(N)
-        self.q = position(N)
-        self.p = momentum(N)
-        self.n = num(N)
-        self.parity = parity(N)
+    def _define_operators(self):
+        N = self.N
+        self.I = operators.identity(N)
+        self.a = operators.destroy(N)
+        self.q = operators.position(N)
+        self.p = operators.momentum(N)
+        self.n = operators.num(N)
+        self.parity = operators.parity(N)
+        self.displace = operators.DisplacementOperator(N)
+        self.translate = operators.TranslationOperator(N)
+        self.snap = operators.SNAP(N)
 
     @property
     def _hamiltonian(self):
         return -1 / 2 * (2 * pi) * self._K_osc * self.n.to_dense() * self.n.to_dense()  # Kerr
 
     @property
-    def _collapse_operators(self):
+    def _dissipator(self):
         photon_loss = (
             tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
             * self.a.to_dense()

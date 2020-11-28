@@ -8,14 +8,10 @@ Qubit is included in the Hilbert space. Simulation is done with a gate-based
 approach to quantum circuits.
 """
 import tensorflow as tf
-from numpy import pi
-from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
-from simulator.utils import normalize
-from simulator import operators
 
 class QuantumCircuit(Oscillator, GKP):
     """
@@ -41,10 +37,6 @@ class QuantumCircuit(Oscillator, GKP):
         self.t_gate = tf.constant(t_gate, dtype=tf.float32)
         self.step_duration = self.t_gate
         super().__init__(*args, **kwargs)
-        
-        self.displace = operators.DisplacementOperator(self.N)
-        self.translate = operators.TranslationOperator(self.N)
-        self.snap = operators.SNAP(self.N)
 
     @property
     def _quantum_circuit_spec(self):
