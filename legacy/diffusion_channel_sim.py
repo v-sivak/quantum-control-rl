@@ -10,6 +10,15 @@ from simulator.utils import normalize
 from tensorflow.keras.backend import batch_dot
 
 
+# # Not compatible with new simulator API. 
+# # Can set it up like so (in HilbertSpace __init__ method, for instance)
+# if channel == 'diffusion':
+#     self.mcsim = DiffusionChannelSim(self.translate)
+#     def simulate(psi, time):
+#         diffusion_sigma = tf.math.sqrt(diffusion_rate * time)
+#         return self.mcsim.run(psi, diffusion_sigma)
+#     self.simulate = tf.function(simulate)
+    
 class DiffusionChannelSim:
     
     def __init__(self, translate_op):
