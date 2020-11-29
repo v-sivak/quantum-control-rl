@@ -5,22 +5,21 @@ Created on Tue Aug 04 16:08:01 2020
 
 @author: Henry Liu
 """
-import qutip as qt
 import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize
+from simulator.utils import normalize, tensor
+import simulator.operators as ops
 from .base import HilbertSpace
 
 class OscillatorQubit(HilbertSpace):
     """
-    Define all relevant operators as tensorflow tensors of shape [2N,2N].
-    We adopt the notation in which qt.basis(2,0) is a qubit ground state.
-    Methods need to take care of batch dimension explicitly.
+    Hilbert space of an oscillator coupled to a qubit. 
+    Oscillator is truncated at <N> levels, qubit is 2 levels.
+    We adopt the notation in which basis(0,2) is a qubit ground state.
+    Qubit goes first in the tensor products.
 
-    Initialize tensorflow quantum trajectory simulator. This is used to
-    simulate decoherence, dephasing, Kerr etc using quantum jumps.
     """
 
     def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, **kwargs):
@@ -33,76 +32,60 @@ class OscillatorQubit(HilbertSpace):
             N (int, optional): Size of oscillator Hilbert space.
         """
         self._N = N
-        self._K_osc = K_osc
-        self._T1_osc = T1_osc
-        self._T1_qb = T1_qb
-        self._T2_qb = T2_qb
+        self.K_osc = K_osc
+        self.T1_osc = T1_osc
+        self.T1_qb = T1_qb
+        self.T2_qb = T2_qb
+        self.T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))
+        
+        super().__init__(self, *args, N=N, **kwargs)
 
-        self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
-        super().__init__(self, *args, N=N, channel=channel, **kwargs)
+    def _define_operators(self):
+        N = self.N
+        # Create tensor-product ops acting on the combined Hilbert space
+        self.I = tensor([ops.identity(2), ops.identity(N)])
+        self.a = tensor([ops.identity(2), ops.destroy(N)])
+        self.n = tensor([ops.identity(2), ops.num(N)])
+        self.parity = tensor([ops.identity(2), ops.parity(N)])
 
-    def _define_operators(self, N):
-        # TODO: Convert this to TensorFlow? #
+        self.sx = tensor([ops.sigma_x(), ops.identity(N)])
+        self.sy = tensor([ops.sigma_x(), ops.identity(N)])
+        self.sz = tensor([ops.sigma_x(), ops.identity(N)])
+        self.sm = tensor([ops.sigma_m(), ops.identity(N)])
+        self.hadamard = tensor([ops.hadamard(), ops.identity(N)])
 
-        # Create qutip tensor ops acting on oscillator Hilbert space
-        I = qt.tensor(qt.identity(2), qt.identity(N))
-        a = qt.tensor(qt.identity(2), qt.destroy(N))
-        a_dag = qt.tensor(qt.identity(2), qt.create(N))
-        q = (a.dag() + a) / sqrt(2)
-        p = 1j * (a.dag() - a) / sqrt(2)
-        n = qt.tensor(qt.identity(2), qt.num(N))
-        parity = qt.tensor(qt.identity(2), (1j*pi*qt.num(N)).expm())
+        snap = ops.SNAP(N) 
+        displace = ops.DisplacementOperator(N)
+        translate = ops.TranslationOperator(N)
+        self.snap = lambda a: tensor([ops.identity(2), snap(a)])
+        self.displace = lambda a: tensor([ops.identity(2), displace(a)])
+        self.translate = lambda a: tensor([ops.identity(2), translate(a)])
 
-        sx = qt.tensor(qt.sigmax(), qt.identity(N))
-        sy = qt.tensor(qt.sigmay(), qt.identity(N))
-        sz = qt.tensor(qt.sigmaz(), qt.identity(N))
-        sm = qt.tensor(qt.sigmap(), qt.identity(N))
-        rxp = qt.tensor(qt.qip.operations.rx(+pi / 2), qt.identity(N))
-        rxm = qt.tensor(qt.qip.operations.rx(-pi / 2), qt.identity(N))
-        hadamard = qt.tensor(qt.qip.operations.snot(), qt.identity(N))
-
-        # measurement projector
-        P = {
-            0: qt.tensor(qt.ket2dm(qt.basis(2, 0)), qt.identity(N)),
-            1: qt.tensor(qt.ket2dm(qt.basis(2, 1)), qt.identity(N)),
-        }
-
-        # Convert to tensorflow tensors
-        self.I = tf.constant(I.full(), dtype=c64)
-        self.a = tf.constant(a.full(), dtype=c64)
-        self.a_dag = tf.constant(a_dag.full(), dtype=c64)
-        self.q = tf.constant(q.full(), dtype=c64)
-        self.p = tf.constant(p.full(), dtype=c64)
-        self.n = tf.constant(n.full(), dtype=c64)
-        self.sx = tf.constant(sx.full(), dtype=c64)
-        self.sy = tf.constant(sy.full(), dtype=c64)
-        self.sz = tf.constant(sz.full(), dtype=c64)
-        self.sm = tf.constant(sm.full(), dtype=c64)
-        self.rxp = tf.constant(rxp.full(), dtype=c64)
-        self.rxm = tf.constant(rxm.full(), dtype=c64)
-        self.hadamard = tf.constant(hadamard.full(), dtype=c64)
-        self.parity = tf.constant(parity.full(), dtype=c64)
-
-        self.P = {i: tf.constant(P[i].full(), dtype=c64) for i in [0, 1]}
+        # qubit sigma_z measurement projector
+        self.P = {i : tensor([ops.projector(i,2), ops.identity(N)]) 
+                  for i in [0, 1]}
 
     @property
     def _hamiltonian(self):
-        return -1 / 2 * (2 * pi) * self._K_osc * self.n * self.n  # Kerr
+        n = self.n.to_dense()                
+        Kerr = -0.5*(2*pi)*self.K_osc * n * n # valid because n is diagonal
+        H = tf.linalg.LinearOperatorFullMatrix(Kerr, name='Hamiltonian')
+        return H
 
     @property
     def _dissipator(self):
-        photon_loss = (
-            tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
-            * self.a
-        )
-        qubit_decay = (
-            tf.cast(tf.sqrt(1/self._T1_qb), dtype=tf.complex64)
-            * self.sm
-        )
-        qubit_dephasing = (
-            tf.cast(tf.sqrt(1/(2*self._T2_star_qb)), dtype=tf.complex64)
-            * self.sz
-        )
+        a = self.a.to_dense()
+        sm = self.sm.to_dense()
+        sz = self.sz.to_dense()
+        
+        photon_loss = tf.linalg.LinearOperatorFullMatrix(
+            sqrt(1/self.T1_osc) * a, name='photon_loss')
+        
+        qubit_decay = tf.linalg.LinearOperatorFullMatrix(
+            sqrt(1/self.T1_qb) * sm, name='qubit_decay')
+        
+        qubit_dephasing = tf.linalg.LinearOperatorFullMatrix(
+            sqrt(1/(2*self.T2_star_qb)) * sz, name='qubit_dephasing')
 
         return [photon_loss, qubit_decay, qubit_dephasing]
 

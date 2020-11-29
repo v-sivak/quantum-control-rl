@@ -7,40 +7,33 @@ Created on Thu Feb 20 14:58:30 2020
 
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow.keras.backend import batch_dot
-
 from simulator.utils import normalize
 
 
 class QuantumTrajectorySim:
     """
-    Tensorflow implementation of the Monte Carlo quantum trajectory simulator.
+    TensorFlow implementation of the Monte Carlo quantum trajectory simulator.
+    
     """
-
-    def __init__(self, Kraus):
+    def __init__(self, Kraus_operators):
         """
-        Input:
-            Kraus -- dictionary of Tensor([N, N], c64) Kraus operators.
-                     K[0] is no-jump operator, K[i] with i>0 is jump operator.
+        Args:
+            Kraus_operators (dict: LinearOperator): dictionary of Kraus operators. 
+                By convention, K[0] is no-jump operator, K[i>0] are jump operators.
         """
-        self.Kraus = Kraus
+        self.Kraus_operators = Kraus_operators
 
     def _step(self, j, psi, steps):
-        """
-        One step in the Markov chain.
-        """
+        """ Single Monte Carlo step. """
         traj, p, norm = {}, {}, {}
         cumulant = tf.zeros([psi.shape[0], 1])
         prob = tf.random.uniform([psi.shape[0], 1])
         state = psi
-        for i in self.Kraus.keys():
+        for i, Kraus in self.Kraus_operators.items():
             # Compute a trajectory for this Kraus operator
-            traj[i] = tf.linalg.matvec(self.Kraus[i], psi)  # shape = [b,N]
-            p[i] = batch_dot(tf.math.conj(traj[i]), traj[i])  # shape = [b,1]
-            p[i] = tf.math.real(p[i])
-            norm[i] = tf.math.sqrt(p[i]) + 1e-15  # shape = [b,1]
-            norm[i] = tf.cast(norm[i], tf.complex64)
-            traj[i] = traj[i] / norm[i]
+            traj[i] = Kraus.matvec(psi) # shape = [b,N]
+            traj[i], p[i] = normalize(traj[i])
+            p[i] = tf.math.real(p[i]) # shape = [b,1]
             # Select this trajectory depending on sampled 'prob'
             mask = tf.math.logical_and(prob > cumulant, prob < cumulant + p[i])
             state = tf.where(mask, traj[i], state)
@@ -55,12 +48,12 @@ class QuantumTrajectorySim:
         """
         Simulate a batch of trajectories for a number of steps.
 
-        Input:
-            psi -- batch of state vectors; shape=[b,NH]
-            steps -- number of steps to run the trajectory
+        Args:
+            psi (Tensor([B1,...Bb,N], c64)): batch of quantum states.
+            steps (int): number of steps to run the trajectory
 
         """
-        psi = normalize(psi)
+        psi, _ = normalize(psi)
         j = tf.constant(0)
         _, psi_new, steps = tf.while_loop(
             self._cond, self._step, loop_vars=[j, psi, steps]

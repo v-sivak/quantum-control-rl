@@ -20,7 +20,7 @@ from tf_agents.specs import tensor_spec
 from simulator.utils import expectation
 from gkp.gkp_tf_env import helper_functions as hf
 from tensorflow.keras.backend import batch_dot
-
+from simulator.utils import measurement
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     """
@@ -451,7 +451,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             if self.tensorstate:
-                psi, _ = self.measure(self._state, self.P, sample=True)
+                psi, _ = measurement(self._state, self.P, sample=True)
             else:
                 psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
@@ -500,7 +500,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         points = tf.broadcast_to(point, [self.batch_size])
         
         # measure the qubit to disentangle from oscillator
-        psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
+        psi, m = measurement(self.info['psi_cached'], self.P, sample=True)
         mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
         
         # do tomography in one phase space point

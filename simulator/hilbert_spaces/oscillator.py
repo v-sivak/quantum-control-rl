@@ -5,57 +5,52 @@ Created on Tue Aug 04 16:08:01 2020
 
 @author: Henry Liu
 """
-from numpy import pi
+from math import pi, sqrt
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
-from simulator import operators
+from simulator import operators as ops
 from .base import HilbertSpace
 
 class Oscillator(HilbertSpace):
-    """
-    Define all relevant operators as tensorflow tensors of shape [N,N].
-    Methods need to take care of batch dimension explicitly.
-
-    Initialize tensorflow quantum trajectory simulator. This is used to
-    simulate decoherence, dephasing, Kerr etc using quantum jumps.
-    """
-
+    """ Hilbert space of a single oscillator truncated at <N> levels."""
+    
     def __init__(self, *args, K_osc, T1_osc, N=100, **kwargs):
         """
         Args:
-            K_osc (float): Kerr of oscillator.
-            T1_osc (float): T1 relaxation time of oscillator (seconds).
+            K_osc (float): Kerr of the oscillator [Hz].
+            T1_osc (float): T1 relaxation time of oscillator [seconds].
             N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
         """
         self._N = N
-        self._K_osc = K_osc
-        self._T1_osc = T1_osc
+        self.K_osc = K_osc
+        self.T1_osc = T1_osc
         super().__init__(self, *args, **kwargs)
 
     def _define_operators(self):
         N = self.N
-        self.I = operators.identity(N)
-        self.a = operators.destroy(N)
-        self.q = operators.position(N)
-        self.p = operators.momentum(N)
-        self.n = operators.num(N)
-        self.parity = operators.parity(N)
-        self.displace = operators.DisplacementOperator(N)
-        self.translate = operators.TranslationOperator(N)
-        self.snap = operators.SNAP(N)
+        self.I = ops.identity(N)
+        self.a = ops.destroy(N)
+        self.q = ops.position(N)
+        self.p = ops.momentum(N)
+        self.n = ops.num(N)
+        self.parity = ops.parity(N)
+        self.snap = ops.SNAP(N)
+        self.displace = ops.DisplacementOperator(N)
+        self.translate = ops.TranslationOperator(N)
 
     @property
     def _hamiltonian(self):
-        return -1 / 2 * (2 * pi) * self._K_osc * self.n.to_dense() * self.n.to_dense()  # Kerr
+        n = self.n.to_dense()
+        Kerr = -0.5*(2*pi)*self.K_osc * n * n # valid because n is diagonal
+        H = tf.linalg.LinearOperatorFullMatrix(Kerr, name='Hamiltonian')
+        return H
 
     @property
     def _dissipator(self):
-        photon_loss = (
-            tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
-            * self.a.to_dense()
-        )
-
+        a = self.a.to_dense()
+        photon_loss = tf.linalg.LinearOperatorFullMatrix(
+            sqrt(1/self.T1_osc) * a, name='photon_loss')
         return [photon_loss]
 
     @tf.function
