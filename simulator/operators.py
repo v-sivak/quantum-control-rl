@@ -6,6 +6,7 @@ Created on Mon Nov 23 22:38:34 2020
 """
 import tensorflow as tf
 from tensorflow import complex64 as c64
+from math import sqrt
 
 from distutils.version import LooseVersion
 if LooseVersion(tf.__version__) >= "2.2":
@@ -55,6 +56,8 @@ def linear_operator(func):
             operator_matrix, is_square=True, name=name)
     return wrapper
 
+def composition(operators):
+    return tf.linalg.LinearOperatorComposition(operators)
 
 ### Constant operators
 
@@ -71,6 +74,16 @@ def sigma_y():
 @linear_operator
 def sigma_z():
     return tf.constant([[1., 0.], [0., -1.]], dtype=c64)
+
+
+@linear_operator
+def sigma_m():
+    return tf.constant([[0., 1.], [0., 0.]], dtype=c64)
+
+
+@linear_operator
+def hadamard():
+    return 1/sqrt(2) * tf.constant([[1., 1.], [1., -1.]], dtype=c64)
 
 
 @linear_operator
@@ -359,7 +372,6 @@ class QubitRotationXY(ParametrizedOperator):
 
 class Phase(ParametrizedOperator):
     """ Simple phase factor."""
-   
     def _compute(self, angle, *args, **kwargs):
         """
         Calculates batch phase factor e^(i*angle)
@@ -373,3 +385,9 @@ class Phase(ParametrizedOperator):
         angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
         return tf.math.exp(1j*angle) * tf.eye(self.N, dtype=c64)
 
+
+class NumericalCoefficient(ParametrizedOperator):
+    """ Simple numerical coefficient."""
+    def _compute(self, coef, *args, **kwargs):
+        return tf.cast(coef, c64) * tf.eye(self.N, dtype=c64)
+    

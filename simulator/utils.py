@@ -7,7 +7,7 @@ Created on Sat Nov 28 11:45:55 2020
 
 import tensorflow as tf
 from tensorflow import complex64 as c64
-
+import tensorflow_probability as tfp
 
 def normalize(state):
     """
@@ -18,7 +18,10 @@ def normalize(state):
         state_normalized (Tensor([B1,...Bb,N], c64)): normalized quantum state
         norm (Tensor([B1,...Bb,1], c64)): norm of the batch of states
     """
-    return tf.linalg.normalize(state, axis=-1)
+    normalized, norm = tf.linalg.normalize(state, axis=-1)
+    mask = tf.math.is_nan(tf.math.real(normalized))
+    state_normalized = tf.where(mask, tf.zeros_like(normalized), normalized)
+    return state_normalized, norm
 
 def basis(n, N, batch_shape=[1]):
     """
@@ -57,8 +60,7 @@ def Kronecker_product(states):
     operators = list(map(tf.linalg.LinearOperatorFullMatrix, states))
     tensor_state = tf.linalg.LinearOperatorKronecker(operators).to_dense()
     return tf.squeeze(tensor_state, axis=-1)
-    
-import tensorflow_probability as tfp
+
 
 @tf.function
 def measurement(state, M_ops, sample=True):
@@ -149,3 +151,14 @@ def expectation(state, operator, reduce_batch=True):
         return expect_batch_reduced
 
     return expect_batch
+
+
+def tensor(operators):
+    """
+    Tensor product of operators acting on different Hilbert spaces.
+
+    """
+    return tf.linalg.LinearOperatorKronecker(
+        operators, name = '-'.join([op.name for op in operators]))
+    
+    
