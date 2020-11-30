@@ -21,6 +21,7 @@ from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
 from gkp.gkp_tf_env import helper_functions as hf
+from simulator.utils import basis, Kronecker_product, normalize
 
 """
 Train PPO agent to do Fock state N=10 preparation with universal gate sequence
@@ -32,7 +33,7 @@ in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'fock10')
+root_dir = os.path.join(root_dir,'0000')
 
 # Params for environment
 env_kwargs = {
@@ -44,21 +45,21 @@ env_kwargs = {
     'N' : 100}
 
 # Params for reward function
-target_state = qt.basis(100,10)
-reward_kwargs = {'reward_mode' : 'Fock',
-                 'target_state' : target_state}
+# target_state = qt.basis(100,10)
+# reward_kwargs = {'reward_mode' : 'Fock',
+#                  'target_state' : target_state}
 
-# reward_kwargs = {'reward_mode' : 'tomography',
-#                  'tomography' : 'wigner',
-#                  'target_state' : target_state,
-#                  'window_size' : 12}
+reward_kwargs = dict(reward_mode='tomography',
+                     tomography='wigner',
+                     target_state=normalize(basis(4,100)+basis(0,100))[0],
+                     window_size=12)
 
 # Params for action wrapper
 action_script = 'snap_and_displacements'
 action_scale = {'alpha':4, 'theta':pi}
 to_learn = {'alpha':True, 'theta':True}
 
-train_batch_size = 1000
+train_batch_size = 100
 eval_batch_size = 1000
 
 # Create drivers for data collection
@@ -76,13 +77,13 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 2000,
+        num_epochs = 20000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
         lr = 1e-4,
-        lr_schedule = lambda x: 1e-3 if x<500 else 1e-4,
+        lr_schedule = None,#lambda x: 1e-3 if x<500 else 1e-4,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,

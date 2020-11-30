@@ -224,7 +224,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Calculate and plot the phase space representation
         if self.phase_space_rep == 'wigner':
             state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-            state_translated = self.translate(-grid_flat).matvec(state)
+            state_translated = tf.linalg.matvec(self.translate(-grid_flat), state)
             W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
             W_grid = tf.reshape(W, grid.shape)
     
@@ -565,6 +565,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             if code_flips: 
                 z *= self.undo_code_flips()
                 self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
+        
+        print(z)
+        
         return z
 
 

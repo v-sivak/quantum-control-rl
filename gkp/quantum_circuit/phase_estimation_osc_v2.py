@@ -14,7 +14,7 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
-from simulator.utils import normalize
+from simulator.utils import measurement
 
 
 class QuantumCircuit(Oscillator, GKP):
@@ -71,8 +71,8 @@ class QuantumCircuit(Oscillator, GKP):
         # extract parameters
         alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
-        phi = action['phi']
-        Rotation = self.rotate(action['theta'])
+        phi = tf.squeeze(action['phi'])
+        Rotation = self.rotate(tf.squeeze(action['theta']))
 
         Kraus = {}
         T = {'a' : self.translate(alpha),
@@ -81,10 +81,9 @@ class QuantumCircuit(Oscillator, GKP):
         Kraus[1] = 1/2*(tf.linalg.adjoint(T['b']) - self.phase(phi)*T['b'])
 
         psi = self.simulate(psi, self.t_feedback)
-        psi = batch_dot(T['a'], psi)
-        psi_cached = batch_dot(Rotation, psi)
+        psi_cached = tf.linalg.matvec(T['a'], psi)
+        # psi_cached = tf.linalg.matvec(Rotation, psi)
         psi = self.simulate(psi_cached, self.t_round + self.t_idle)
-        psi = normalize(psi)
-        psi_final, msmt = self.measure(psi, Kraus)
+        psi_final, msmt = measurement(psi, Kraus)
 
         return psi_final, psi_cached, msmt

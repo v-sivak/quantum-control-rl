@@ -18,7 +18,7 @@ class QuantumTrajectorySim:
     def __init__(self, Kraus_operators):
         """
         Args:
-            Kraus_operators (dict: LinearOperator): dictionary of Kraus operators. 
+            Kraus_operators (dict: Tensor(c64)): dictionary of Kraus operators. 
                 By convention, K[0] is no-jump operator, K[i>0] are jump operators.
         """
         self.Kraus_operators = Kraus_operators
@@ -31,7 +31,7 @@ class QuantumTrajectorySim:
         state = psi
         for i, Kraus in self.Kraus_operators.items():
             # Compute a trajectory for this Kraus operator
-            traj[i] = Kraus.matvec(psi) # shape = [b,N]
+            traj[i] = tf.linalg.matvec(Kraus, psi) # shape = [b,N]
             traj[i], p[i] = normalize(traj[i])
             p[i] = tf.math.real(p[i]) # shape = [b,1]
             # Select this trajectory depending on sampled 'prob'

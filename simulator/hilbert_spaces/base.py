@@ -56,7 +56,7 @@ class HilbertSpace(ABC):
     @abstractmethod
     def _hamiltonian(self):
         """
-        System Hamiltonian (LinearOperator). To be defined by the subclass.
+        System Hamiltonian (Tensor(c64)). To be defined by the subclass.
         """
         pass
 
@@ -64,7 +64,7 @@ class HilbertSpace(ABC):
     @abstractmethod
     def _dissipator(self):
         """
-        List of collapse operators (LinearOperator). To be defined by the subclass.
+        List of collapse operators (Tensor(c64)). To be defined by the subclass.
         """
         pass
 
@@ -75,16 +75,10 @@ class HilbertSpace(ABC):
         Args:
             dt (float): Discretized time step of simulator
         """
-        # it's easier to convert everything to simple tensors here
-        I = self.I.to_dense()
-        Hamiltonian = self._hamiltonian.to_dense()
-        dissipator = [D.to_dense() for D  in self._dissipator]
-        
         Kraus = {}
-        Kraus[0] = I - 1j * Hamiltonian * dt
-        for i, c in enumerate(dissipator):
-            Kraus[i+1] = sqrt(dt) * c
-            Kraus[0] -= 1/2*tf.linalg.matmul(c, c, adjoint_a=True) * dt
-        Kraus = {i : tf.linalg.LinearOperatorFullMatrix(K) 
-                 for i, K in Kraus.items()}
+        Kraus[0] = self.I - 1j * self._hamiltonian * dt
+        for i, c in enumerate(self._dissipator):
+            Kraus[i + 1] = sqrt(dt) * c
+            Kraus[0] -= 1 / 2 * tf.linalg.matmul(c, c, adjoint_a=True) * dt
+            
         return Kraus

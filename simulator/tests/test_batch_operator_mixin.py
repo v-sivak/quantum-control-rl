@@ -9,9 +9,9 @@ import unittest
 
 import tensorflow as tf
 
-from simulator.operators import destroy, create
-from simulator.mixins import BatchOperatorMixin
-from simulator.tests.utils import coeff_err, random_alphas
+from operators import destroy, create
+from mixins import BatchOperatorMixin
+from tests.utils import coeff_err, random_alphas
 
 
 class TestHarnessClass(BatchOperatorMixin):

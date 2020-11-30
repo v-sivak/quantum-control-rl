@@ -9,7 +9,7 @@ import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize, tensor, measurement, composition
+from simulator.utils import normalize, tensor, measurement
 import simulator.operators as ops
 from .base import HilbertSpace
 
@@ -66,29 +66,17 @@ class OscillatorQubit(HilbertSpace):
 
     @property
     def _hamiltonian(self):
-        n = self.n.to_dense()                
-        Kerr = -0.5*(2*pi)*self.K_osc * n * n # valid because n is diagonal
-        H = tf.linalg.LinearOperatorFullMatrix(Kerr, name='Hamiltonian')
-        return H
+        Kerr = -0.5*(2*pi)*self.K_osc*self.n*self.n # valid because n is diagonal
+        return Kerr
 
     @property
     def _dissipator(self):
-        a = self.a.to_dense()
-        sm = self.sm.to_dense()
-        sz = self.sz.to_dense()
-        
-        photon_loss = tf.linalg.LinearOperatorFullMatrix(
-            sqrt(1/self.T1_osc) * a, name='photon_loss')
-        
-        qubit_decay = tf.linalg.LinearOperatorFullMatrix(
-            sqrt(1/self.T1_qb) * sm, name='qubit_decay')
-        
-        qubit_dephasing = tf.linalg.LinearOperatorFullMatrix(
-            sqrt(1/(2*self.T2_star_qb)) * sz, name='qubit_dephasing')
-
+        photon_loss = sqrt(1/self.T1_osc) * self.a
+        qubit_decay = sqrt(1/self.T1_qb) * self.sm
+        qubit_dephasing = sqrt(1/(2*self.T2_star_qb)) * self.sz
         return [photon_loss, qubit_decay, qubit_dephasing]
 
-    @ops.linear_operator
+
     @tf.function
     def ctrl(self, U):
         """
@@ -100,9 +88,7 @@ class OscillatorQubit(HilbertSpace):
                 Unitaries are given in combined Hilbert space, but it is 
                 assumed that they act only on the oscillator subspace.
         """
-        # C = sum([composition([self.P[i], U[i]]).to_dense() for i in [0,1]])
-        C = sum([self.P[i].to_dense() @ U[i].to_dense() for i in [0,1]])
-        return C
+        return self.P[0] @ U[0] + self.P[1] @ U[1]
 
     @tf.function  # TODO: add losses in phase estimation?
     def phase_estimation(self, state, U, angle, sample=False):

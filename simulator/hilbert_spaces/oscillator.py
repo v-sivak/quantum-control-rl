@@ -39,19 +39,16 @@ class Oscillator(HilbertSpace):
         self.snap = ops.SNAP(N)
         self.displace = ops.DisplacementOperator(N)
         self.translate = ops.TranslationOperator(N)
+        self.rotate = ops.RotationOperator(N)
 
     @property
     def _hamiltonian(self):
-        n = self.n.to_dense()
-        Kerr = -0.5*(2*pi)*self.K_osc * n * n # valid because n is diagonal
-        H = tf.linalg.LinearOperatorFullMatrix(Kerr, name='Hamiltonian')
-        return H
+        Kerr = -0.5*(2*pi)*self.K_osc*self.n*self.n # valid because n is diagonal
+        return Kerr
 
     @property
     def _dissipator(self):
-        a = self.a.to_dense()
-        photon_loss = tf.linalg.LinearOperatorFullMatrix(
-            sqrt(1/self.T1_osc) * a, name='photon_loss')
+        photon_loss = sqrt(1/self.T1_osc) * self.a
         return [photon_loss]
 
     @tf.function
@@ -72,16 +69,9 @@ class Oscillator(HilbertSpace):
             z (Tensor([B1,...Bb,1], c64)): batch of measurement outcomes if 
                 sample=True; expectation of qubit sigma_z is sample=false
         """
-        I = self.I.to_dense()
-        U = U.to_dense()
-        phase = self.phase(angle).to_dense()
-        
         Kraus = {}
-        Kraus[0] = 1/2*(I + phase * U)
-        Kraus[1] = 1/2*(I - phase * U)
-
-        Kraus = {i : tf.linalg.LinearOperatorFullMatrix(K)
-                 for i, K in Kraus.items()}
+        Kraus[0] = 1/2*(self.I + self.phase(angle) * U)
+        Kraus[1] = 1/2*(self.I - self.phase(angle) * U)
 
         return measurement(state, Kraus, sample)
 

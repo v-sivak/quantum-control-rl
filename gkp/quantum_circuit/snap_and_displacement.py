@@ -10,7 +10,7 @@ from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator, OscillatorQubit
 
-class QuantumCircuit(Oscillator, GKP):
+class QuantumCircuit(OscillatorQubit, GKP):
     """
     Universal gate sequence for open-loop unitary control of the oscillator
     in the large-chi regime. 
@@ -62,9 +62,10 @@ class QuantumCircuit(Oscillator, GKP):
         snap = self.snap(theta)
 
         # Apply gates
-        psi = displace.matvec(psi)
-        psi = snap.matvec(psi)
-        psi = displace.adjoint().matvec(psi)
+        psi = tf.linalg.matvec(displace, psi)
+        psi = tf.linalg.matvec(snap, psi)
+        # psi = self.simulate(psi, self.t_gate)
+        psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi)
 
         return psi, psi, tf.ones((self.batch_size,1))
 

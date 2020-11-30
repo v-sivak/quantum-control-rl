@@ -32,8 +32,8 @@ Using batched of B=100, but another option that works well is B=1000.
 
 """
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
-root_dir = os.path.join(root_dir,'qec_square_sharpen_trim_B100')
+root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_square_qec_ST_B100_lr3e-4'
+root_dir = os.path.join(root_dir,'4')
 
 # Params for environment
 env_kwargs = {
@@ -71,13 +71,13 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 
 PPO.train_eval(
         root_dir = root_dir,
-        random_seed = 0,
-        num_epochs = 10000,
+        random_seed = 4,
+        num_epochs = 2000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 3e-4,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -86,7 +86,7 @@ PPO.train_eval(
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 500,
+        save_interval = 100,
         checkpoint_interval = 1000,
         summary_interval = 100,
         # Params for data collection
