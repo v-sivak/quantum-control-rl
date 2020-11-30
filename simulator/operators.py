@@ -7,6 +7,7 @@ Created on Mon Nov 23 22:38:34 2020
 import tensorflow as tf
 from tensorflow import complex64 as c64
 from math import sqrt
+from simulator.utils import tensor
 
 from distutils.version import LooseVersion
 if LooseVersion(tf.__version__) >= "2.2":
@@ -55,9 +56,6 @@ def linear_operator(func):
         return tf.linalg.LinearOperatorFullMatrix(
             operator_matrix, is_square=True, name=name)
     return wrapper
-
-def composition(operators):
-    return tf.linalg.LinearOperatorComposition(operators)
 
 ### Constant operators
 
@@ -206,19 +204,30 @@ def projector(n, N):
 
 class ParametrizedOperator():
     
-    def __init__(self, N, name=None):
+    def __init__(self, N, tensor_with=None, name=None):
         """
         Args:
             N (int): dimension of Hilbert space
+            tensor_with (list, LinearOperator): a list of operators to compute
+                tensor product. By convention, <None> should be used in place
+                of this operator in the list. For example, [identity(2), None] 
+                will create operator in the Hilbert space of size 2*N acting
+                trivially on the first component in the tensor product.
             name (str, optional): name of LinearOperator instance
 
         """
         self.N = N
+        self.tensor_with = tensor_with
         self.name = name if name else self.__class__.__name__
 
     def __call__(self, *args, **kwargs):
         kwargs['name'] = self.name
-        return self.compute(*args, **kwargs)
+        this_op = self.compute(*args, **kwargs)
+        if self.tensor_with is not None:
+            ops = [T if T is not None else this_op for T in self.tensor_with]
+            return tensor(ops)
+        else:
+            return this_op
 
     @linear_operator
     @tf.function  
@@ -240,7 +249,7 @@ class TranslationOperator(ParametrizedOperator):
         state = T(alpha).matvec(state)
     """
     
-    def __init__(self, N):
+    def __init__(self, N, *args, **kwargs):
         """ Pre-diagonalize position and momentum operators."""
         p = momentum(N).to_dense()
         q = position(N).to_dense()
@@ -249,7 +258,7 @@ class TranslationOperator(ParametrizedOperator):
         (self._eig_q, self._U_q) = tf.linalg.eigh(q)
         (self._eig_p, self._U_p) = tf.linalg.eigh(p)
         self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
-        super().__init__(N=N)
+        super().__init__(N=N, *args, **kwargs)
 
     def _compute(self, amplitude, *args, **kwargs):
         """Calculates T(amplitude) for a batch of amplitudes using BCH.
@@ -290,9 +299,9 @@ class DisplacementOperator(TranslationOperator):
     Displacement in phase space D(amplitude) = T(amplitude * sqrt(2)).
     
     """    
-    def __call__(self, amplitude):
+    def __call__(self, amplitude, *args, **kwargs):
         sqrt2 = tf.math.sqrt(tf.constant(2, dtype=amplitude.dtype))
-        return super().__call__(amplitude*sqrt2)
+        return super().__call__(amplitude*sqrt2, *args, **kwargs)
 
 
 class RotationOperator(ParametrizedOperator):

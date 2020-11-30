@@ -3,15 +3,12 @@
 Created on Wed Oct 28 20:19:56 2020
 
 @author: Vladimir Sivak
-
-Qubit is included in the Hilbert space. Simulation is done with a gate-based 
-approach to quantum circuits.
 """
 import tensorflow as tf
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
-from simulator.hilbert_spaces import Oscillator
+from simulator.hilbert_spaces import Oscillator, OscillatorQubit
 
 class QuantumCircuit(Oscillator, GKP):
     """
@@ -21,6 +18,7 @@ class QuantumCircuit(Oscillator, GKP):
     The gate sequence consists of 
         1) oscillator displacement
         2) selective number-dependent arbitrary phase (SNAP) gate
+        3) reverse oscillator displacement
     
     """
     def __init__(

@@ -8,7 +8,7 @@ Created on Tue Aug 04 16:08:01 2020
 from math import pi, sqrt
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize
+from simulator.utils import normalize, measurement
 from simulator import operators as ops
 from .base import HilbertSpace
 
@@ -35,6 +35,7 @@ class Oscillator(HilbertSpace):
         self.p = ops.momentum(N)
         self.n = ops.num(N)
         self.parity = ops.parity(N)
+        self.phase = ops.Phase(N)
         self.snap = ops.SNAP(N)
         self.displace = ops.DisplacementOperator(N)
         self.translate = ops.TranslationOperator(N)
@@ -54,30 +55,35 @@ class Oscillator(HilbertSpace):
         return [photon_loss]
 
     @tf.function
-    def phase_estimation(self, psi, U, angle, sample=False):
+    def phase_estimation(self, state, U, angle, sample=False):
         """
-        One round of phase estimation.
+        Batch phase estimation of unitary operator <U> using ancilla qubit.
+        Corresponds to <sigma_z> = Re(U) * cos(angle) - Im(U) * sin(angle).
 
-        Input:
-            psi -- batch of state vectors; shape=[batch_size,N]
-            U -- unitary on which to do phase estimation. shape=(batch_size,N,N)
-            angle -- angle along which to measure qubit. shape=(batch_size,)
-            sample -- bool flag to sample or return expectation value
+        Args:
+            state (Tensor([B1,...Bb,N], c64)): batch of states
+            U (LinearOperator): unitary on which to do phase estimation.
+            angle (Tensor([B1,...Bb], c64)): angle in radians
+            sample (bool): flag to sample or return expectation value
 
-        Output:
-            psi -- batch of collapsed states if sample==True, otherwise same
-                   as input psi; shape=[batch_size,N]
-            z -- batch of measurement outcomes if sample==True, otherwise
-                 batch of expectation values of qubit sigma_z.
-
+        Returns:
+            state (Tensor([B1,...Bb,N], c64)): batch of collapsed states if 
+                sample=true; duplicate input <state> is sample=false
+            z (Tensor([B1,...Bb,1], c64)): batch of measurement outcomes if 
+                sample=True; expectation of qubit sigma_z is sample=false
         """
+        I = self.I.to_dense()
+        U = U.to_dense()
+        phase = self.phase(angle).to_dense()
+        
         Kraus = {}
-        I = tf.stack([self.I]*self.batch_size)
-        Kraus[0] = 1/2*(I + self.phase(angle)*U)
-        Kraus[1] = 1/2*(I - self.phase(angle)*U)
+        Kraus[0] = 1/2*(I + phase * U)
+        Kraus[1] = 1/2*(I - phase * U)
 
-        psi = normalize(psi)
-        return self.measure(psi, Kraus, sample)
+        Kraus = {i : tf.linalg.LinearOperatorFullMatrix(K)
+                 for i, K in Kraus.items()}
+
+        return measurement(state, Kraus, sample)
 
     @property
     def N(self):

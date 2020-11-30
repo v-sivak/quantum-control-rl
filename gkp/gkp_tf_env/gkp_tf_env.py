@@ -19,7 +19,6 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import expectation
 from gkp.gkp_tf_env import helper_functions as hf
-from tensorflow.keras.backend import batch_dot
 from simulator.utils import measurement
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -393,6 +392,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 reward_mode (str): 'tomography'
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of window for uniform distribution
+                tomography (str): type of tomo ('wigner' or 'characteristic_fn')
                 
             """
             assert 'target_state' in reward_kwargs.keys()
@@ -401,8 +401,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             window_size = reward_kwargs['window_size']
             tomography = reward_kwargs['tomography']
             target_state = reward_kwargs['target_state']
-            target_state = tf.constant(target_state.full(), dtype=c64)
-            target_state = tf.transpose(target_state)
             self.calculate_reward = \
                 lambda args: self.reward_tomography(target_state, window_size, 
                                                     tomography, args)
@@ -487,8 +485,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             point = hf.vec_to_complex(P.sample())
             
             if tomography == 'wigner':
-                target_state_translated = batch_dot(
-                    self.translate(-point), target_state)
+                target_state_translated = self.translate(-point).matvec(target_state)
                 W_target = expectation(target_state_translated, self.parity)
                 target = tf.math.real(tf.squeeze(W_target))
             if tomography == 'characteristic_fn':
@@ -500,13 +497,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         points = tf.broadcast_to(point, [self.batch_size])
         
         # measure the qubit to disentangle from oscillator
-        psi, m = measurement(self.info['psi_cached'], self.P, sample=True)
-        mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+        if self.tensorstate:
+            psi, m = measurement(self.info['psi_cached'], self.P, sample=True)
+            mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+        else:
+            psi = self.info['psi_cached']
+            mask = tf.ones([self.batch_size])
         
         # do tomography in one phase space point
         if tomography == 'wigner':
-            translations = self.translate(-points)
-            psi = batch_dot(translations, psi)
+            psi = self.translate(-points).matvec(psi)
             _, msmt = self.phase_estimation(psi, self.parity,
                             angle=tf.zeros(self.batch_size), sample=True)
         if tomography == 'characteristic_fn':

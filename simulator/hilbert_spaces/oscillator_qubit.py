@@ -9,19 +9,18 @@ import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize, tensor
+from simulator.utils import normalize, tensor, measurement, composition
 import simulator.operators as ops
 from .base import HilbertSpace
 
 class OscillatorQubit(HilbertSpace):
     """
-    Hilbert space of an oscillator coupled to a qubit. 
+    Hilbert space of oscillator coupled to qubit. 
     Oscillator is truncated at <N> levels, qubit is 2 levels.
     We adopt the notation in which basis(0,2) is a qubit ground state.
     Qubit goes first in the tensor products.
 
     """
-
     def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, **kwargs):
         """
         Args:
@@ -54,15 +53,15 @@ class OscillatorQubit(HilbertSpace):
         self.sm = tensor([ops.sigma_m(), ops.identity(N)])
         self.hadamard = tensor([ops.hadamard(), ops.identity(N)])
 
-        snap = ops.SNAP(N) 
-        displace = ops.DisplacementOperator(N)
-        translate = ops.TranslationOperator(N)
-        self.snap = lambda a: tensor([ops.identity(2), snap(a)])
-        self.displace = lambda a: tensor([ops.identity(2), displace(a)])
-        self.translate = lambda a: tensor([ops.identity(2), translate(a)])
+        tensor_with = [ops.identity(2), None]
+        self.snap = ops.SNAP(N, tensor_with=tensor_with)
+        self.phase = ops.Phase(N, tensor_with=tensor_with)
+        self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
+        self.displace = ops.DisplacementOperator(N, tensor_with=tensor_with)
+        self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
 
         # qubit sigma_z measurement projector
-        self.P = {i : tensor([ops.projector(i,2), ops.identity(N)]) 
+        self.P = {i : tensor([ops.projector(i,2), ops.identity(N)])
                   for i in [0, 1]}
 
     @property
@@ -89,49 +88,49 @@ class OscillatorQubit(HilbertSpace):
 
         return [photon_loss, qubit_decay, qubit_dephasing]
 
+    @ops.linear_operator
     @tf.function
-    def ctrl(self, U0, U1):
+    def ctrl(self, U):
         """
-        Batch controlled-U gate. Apply 'U0' if qubit is '0', and 'U1' if
-        qubit is '1'.
+        Batch controlled-U gate: P[0]*U[0] + P[1]*U[1], where P is qubit projector.
 
-        Input:
-            U0 -- unitary on the oscillator subspace written in the combined
-                  qubit-oscillator Hilbert space; shape=[batch_size,2N,2N]
-            U1 -- same as above
-
+        Args:
+            U (dict, LinearOperator): dictionary whose values are unitaries
+                to be applied to oscillator conditioned on the qubit state.
+                Unitaries are given in combined Hilbert space, but it is 
+                assumed that they act only on the oscillator subspace.
         """
-        return self.P[0] @ U0 + self.P[1] @ U1
+        # C = sum([composition([self.P[i], U[i]]).to_dense() for i in [0,1]])
+        C = sum([self.P[i].to_dense() @ U[i].to_dense() for i in [0,1]])
+        return C
 
     @tf.function  # TODO: add losses in phase estimation?
-    def phase_estimation(self, psi, U, angle, sample=False):
+    def phase_estimation(self, state, U, angle, sample=False):
         """
-        One round of phase estimation.
+        Batch phase estimation of unitary operator <U> using ancilla qubit.
+        Corresponds to <sigma_z> = Re(U) * cos(angle) - Im(U) * sin(angle).
 
-        Input:
-            psi -- batch of state vectors; shape=[batch_size,2N]
-            U -- unitary on which to do phase estimation. shape=(batch_size,N,N)
-            angle -- angle along which to measure qubit. shape=(batch_size,)
-            sample -- bool flag to sample or return expectation value
+        Args:
+            state (Tensor([B1,...Bb,2*N], c64)): batch of states
+            U (LinearOperator): unitary on which to do phase estimation.
+            angle (Tensor([B1,...Bb], c64)): angle in radians
+            sample (bool): flag to sample or return expectation value
 
-        Output:
-            psi -- batch of collapsed states if sample==True, otherwise same
-                   as input psi; shape=[batch_size,2N]
-            z -- batch of measurement outcomes if sample==True, otherwise
-                 batch of expectation values of qubit sigma_z.
-
+        Returns:
+            state (Tensor([B1,...Bb,2*N], c64)): batch of collapsed states if 
+                sample=true; duplicate input <state> is sample=false
+            z (Tensor([B1,...Bb,1], c64)): batch of measurement outcomes if 
+                sample=True; expectation of qubit sigma_z is sample=false
         """
-        I = tf.stack([self.I]*self.batch_size)
-        CT = self.ctrl(I, U)
-        Phase = self.rotate_qb(angle, axis='z')
-        Hadamard = tf.stack([self.hadamard]*self.batch_size)
 
-        psi = batch_dot(Hadamard, psi)
-        psi = batch_dot(CT, psi)
-        psi = batch_dot(Phase, psi)
-        psi = batch_dot(Hadamard, psi)
-        psi = normalize(psi)
-        return self.measure(psi, self.P, sample)
+        CT = self.ctrl({0:self.I, 1:U})
+        phase = self.ctrl({0:self.I, 1:self.phase(angle)})
+
+        state = self.hadamard.matvec(state)
+        state = CT.matvec(state)
+        state = phase.matvec(state)
+        state = self.hadamard.matvec(state)
+        return measurement(state, self.P, sample)
 
     @property
     def N(self):

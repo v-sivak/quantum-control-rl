@@ -191,7 +191,7 @@ def fit_logical_lifetime(env, policy, plot=True, save_dir=None,
         
         mean_rewards[s] = rewards[s].mean(axis=1) # average across episodes
         fit_params[s], _ = curve_fit(exp_decay, times, mean_rewards[s],
-                               p0=[1, env._T1_osc])
+                               p0=[1, env.T1_osc])
     
     # Save data
     if save_dir:

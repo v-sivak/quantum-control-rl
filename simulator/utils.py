@@ -86,8 +86,7 @@ def measurement(state, M_ops, sample=True):
     for i in M_ops.keys():
         collapsed[i] = M_ops[i].matvec(state)
         collapsed[i], p[i] = normalize(collapsed[i])
-        p[i] = tf.squeeze(tf.math.real(p[i]), axis=-1)
-
+        p[i] = tf.math.real(p[i]) #tf.squeeze(tf.math.real(p[i]), axis=-1)
 
     if sample:
         obs = tfp.distributions.Bernoulli(probs=p[1]/(p[0]+p[1])).sample()
@@ -151,6 +150,10 @@ def expectation(state, operator, reduce_batch=True):
         return expect_batch_reduced
 
     return expect_batch
+
+
+def composition(operators):
+    return tf.linalg.LinearOperatorComposition(operators)
 
 
 def tensor(operators):
