@@ -272,7 +272,7 @@ def train_eval(
                 print('  Policy steps: %d' %(epoch*num_policy_updates))
                 print('  Experience time: %.2f mins' %(experience_timer.value()/60))
                 print('  Policy train time: %.2f mins' %(train_timer.value()/60))
-                print('  Average return: %.5f' %avg_return)
+                print('  Average return: %.2f' %avg_return)
                 log['epochs'].append(epoch)
                 log['policy_steps'].append(epoch*num_policy_updates)
                 log['returns'].append(avg_return)
