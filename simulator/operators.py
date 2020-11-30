@@ -1,337 +1,119 @@
-# -*- coding: utf-8 -*-
 """
-Created on Mon Nov 23 22:38:34 2020
+Common operators for Quantum Harmonic Oscillator. Function names follow QuTIP.
 
-@author: Vladimir Sivak
+Created on Sun Jul 26 20:55:36 2020
+
+@author: Henry Liu
 """
-import tensorflow as tf
-from tensorflow import complex64 as c64
-from math import sqrt
-from simulator.utils import tensor
-
 from distutils.version import LooseVersion
+
+import tensorflow as tf
+from math import pi
+
 if LooseVersion(tf.__version__) >= "2.2":
     diag = tf.linalg.diag
 else:
     import numpy as np
+
     diag = np.diag  # k=1 option is broken in tf.linalg.diag in TF 2.1 (#35761)
 
 
-
-### Constant operators
-
-def sigma_x():
-    return tf.constant([[0., 1.], [1., 0.]], dtype=c64)
-
-
-def sigma_y():
-    return tf.constant([[0.j, -1.j], [1.j, 0.j]], dtype=c64)
-
-
-def sigma_z():
-    return tf.constant([[1., 0.], [0., -1.]], dtype=c64)
-
-
-def sigma_m():
-    return tf.constant([[0., 1.], [0., 0.]], dtype=c64)
-
-
-def hadamard():
-    return 1/sqrt(2) * tf.constant([[1., 1.], [1., -1.]], dtype=c64)
-
-
-def identity(N):
+def identity(N, dtype=tf.complex64):
     """Returns an identity operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN identity operator
+        Tensor([N, N], dtype): NxN identity operator
     """
-    return tf.eye(N, dtype=c64)
+    return tf.eye(N, dtype=dtype)
 
 
-def destroy(N):
+def destroy(N, dtype=tf.complex64):
     """Returns a destruction (lowering) operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN creation operator
+        Tensor([N, N], dtype): NxN creation operator
     """
-    a = diag(tf.sqrt(tf.range(1, N, dtype=tf.float32)), k=1)
-    return tf.cast(a, dtype=c64)
+    a = diag(tf.sqrt(tf.range(1, N, dtype=tf.float64)), k=1)
+    return tf.cast(a, dtype=dtype)
 
 
-def create(N):
+def create(N, dtype=tf.complex64):
     """Returns a creation (raising) operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN creation operator
+        Tensor([N, N], dtype): NxN creation operator
     """
-    return tf.linalg.adjoint(destroy(N))
+    # Preserve max precision in intermediate calculations until final cast
+    return tf.cast(tf.linalg.adjoint(destroy(N, dtype=tf.complex128)), dtype=dtype)
 
 
-def num(N):
+def num(N, dtype=tf.complex64):
     """Returns the number operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN number operator
+        Tensor([N, N], dtype): NxN number operator
     """
-    return tf.cast(diag(tf.range(0, N)), dtype=c64)
+    return tf.cast(diag(tf.range(0, N)), dtype=dtype)
 
 
-def position(N):
+def position(N, dtype=tf.complex64):
     """Returns the position operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN position operator
+        Tensor([N, N], dtype): NxN position operator
     """
     # Preserve max precision in intermediate calculations until final cast
-    sqrt2 = tf.sqrt(tf.constant(2, dtype=c64))
-    a_dag = create(N)
-    a = destroy(N)
-    return tf.cast((a_dag + a) / sqrt2, dtype=c64)
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
+    return tf.cast((a_dag + a) / sqrt2, dtype=dtype)
 
 
-def momentum(N):
+def momentum(N, dtype=tf.complex64):
     """Returns the momentum operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN momentum operator
+        Tensor([N, N], c64): NxN momentum operator
     """
     # Preserve max precision in intermediate calculations until final cast
-    sqrt2 = tf.sqrt(tf.constant(2, dtype=c64))
-    a_dag = create(N)
-    a = destroy(N)
-    return tf.cast(1j * (a_dag - a) / sqrt2, dtype=c64)
+    sqrt2 = tf.sqrt(tf.constant(2, dtype=tf.complex128))
+    a_dag = create(N, dtype=tf.complex128)
+    a = destroy(N, dtype=tf.complex128)
+    return tf.cast(1j * (a_dag - a) / sqrt2, dtype=dtype)
 
 
-def parity(N):
+def parity(N, dtype=tf.complex64):
     """Returns the photon number parity operator in the Fock basis.
 
     Args:
         N (int): Dimension of Hilbert space
+        dtype (tf.dtypes.DType, optional): Returned dtype. Defaults to c64.
 
     Returns:
-        Tensor([N, N], tf.complex64): NxN photon number parity operator
+        Tensor([N, N], dtype): NxN photon number parity operator
     """
-    pm1 = tf.where(tf.math.floormod(tf.range(N),2)==1, -1, 1)
-    return diag(tf.cast(pm1, dtype=c64))
-
-
-def projector(n, N):
-    """
-    Returns a projector onto n-th basis state in N-dimensional Hilbert space.
-
-    Args:
-        n (int): index of basis vector
-        N (int): Dimension of Hilbert space
-
-    Returns:
-        Tensor([N, N], tf.complex64): NxN photon number parity operator
-    """
-    assert n < N
-    return diag(tf.one_hot(n, N, dtype=c64))
-
-
-### Parametrized operators
-
-class ParametrizedOperator():
-    
-    def __init__(self, N, tensor_with=None):
-        """
-        Args:
-            N (int): dimension of Hilbert space
-            tensor_with (list, LinearOperator): a list of operators to compute
-                tensor product. By convention, <None> should be used in place
-                of this operator in the list. For example, [identity(2), None] 
-                will create operator in the Hilbert space of size 2*N acting
-                trivially on the first component in the tensor product.
-
-        """
-        self.N = N
-        self.tensor_with = tensor_with
-
-    def __call__(self, *args, **kwargs):
-        this_op = self.compute(*args, **kwargs)
-        if self.tensor_with is not None:
-            ops = [T if T is not None else this_op for T in self.tensor_with]
-            return tensor(ops)
-        else:
-            return this_op
-
-    def compute(self):
-        """ To be implemented by the subclass. """
-        pass
-
-
-class TranslationOperator(ParametrizedOperator):
-    """ 
-    Translation in phase space.
-    
-    Example:
-        T = TranslationOperator(100)
-        alpha = tf.constant([1.23+0.j, 3.56j, 2.12+1.2j])
-        T(alpha) # shape=[3,100,100]
-    """
-    
-    def __init__(self, N, *args, **kwargs):
-        """ Pre-diagonalize position and momentum operators."""
-        p = momentum(N)
-        q = position(N)
-        
-        # Pre-diagonalize
-        (self._eig_q, self._U_q) = tf.linalg.eigh(q)
-        (self._eig_p, self._U_p) = tf.linalg.eigh(p)
-        self._qp_comm = tf.linalg.diag_part(q @ p - p @ q)
-        super().__init__(N=N, *args, **kwargs)
-
-    def compute(self, amplitude):
-        """Calculates T(amplitude) for a batch of amplitudes using BCH.
-
-        Args:
-            amplitude (Tensor([B1, ..., Bb], c64)): A batch of amplitudes
-
-        Returns:
-            Tensor([B1, ..., Bb, N, N], c64): A batch of T(amplitude)
-        """
-        # Reshape amplitude for broadcast against diagonals
-        amplitude = tf.cast(tf.expand_dims(amplitude, -1), dtype=c64)
-
-        # Take real/imag of amplitude for the commutator part of the expansion
-        re_a = tf.cast(tf.math.real(amplitude), dtype=c64)
-        im_a = tf.cast(tf.math.imag(amplitude), dtype=c64)
-
-        # Exponentiate diagonal matrices
-        expm_q = tf.linalg.diag(tf.math.exp(1j * im_a * self._eig_q))
-        expm_p = tf.linalg.diag(tf.math.exp(-1j * re_a * self._eig_p))
-        expm_c = tf.linalg.diag(tf.math.exp(-0.5 * re_a * im_a * self._qp_comm))
-
-        # Apply Baker-Campbell-Hausdorff
-        return tf.cast(
-            self._U_q
-            @ expm_q
-            @ tf.linalg.adjoint(self._U_q)
-            @ self._U_p
-            @ expm_p
-            @ tf.linalg.adjoint(self._U_p)
-            @ expm_c,
-            dtype=c64,
-        )
-
-
-class DisplacementOperator(TranslationOperator):
-    """ 
-    Displacement in phase space D(amplitude) = T(amplitude * sqrt(2)).
-    
-    """    
-    def __call__(self, amplitude):
-        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=amplitude.dtype))
-        return super().__call__(amplitude*sqrt2)
-
-
-class RotationOperator(ParametrizedOperator):
-    """ Rotation in phase space."""    
-
-    def compute(self, phase):
-        """Calculates R(phase) = e^{i*phase*n} for a batch of phases.
-
-        Args:
-            phase (Tensor([B1, ..., Bb], c64)): A batch of phases
-
-        Returns:
-            Tensor([B1, ..., Bb, N, N], c64): A batch of R(phase)
-        """
-        phase = tf.cast(tf.expand_dims(phase, -1), dtype=c64)
-        exp_diag = tf.math.exp(1j * phase * tf.cast(tf.range(self.N), c64))
-        return tf.linalg.diag(exp_diag)
-
-
-class SNAP(ParametrizedOperator):
-    """
-    Selective Number-dependent Arbitrary Phase (SNAP) gate.
-    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
-    
-    """          
-    def compute(self, theta):
-        """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
-
-        Args:
-            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
-
-        Returns:
-            Tensor([B1, ..., Bb, N, N], c64): A batch of SNAP(theta)
-        """
-        S = theta.shape[-1] # SNAP truncation
-        D = len(theta.shape)-1
-        paddings = tf.constant([[0,0]]*D + [[0,self.N-S]])
-        theta = tf.cast(theta, dtype=c64)
-        theta = tf.pad(theta, paddings)
-        exp_diag = tf.math.exp(1j*theta)
-        return tf.linalg.diag(exp_diag)
-    
-
-class QubitRotationXY(ParametrizedOperator):
-    """
-    Qubit rotation in xy plane.
-    R(angle, phase) = e^(-i*angle/2*[cos(phase)*sx + sin(phase*sy]))
-    
-    """
-    def __init__(self):
-        super().__init__(N=2)
-
-    def compute(self, angle, phase):
-        """Calculates rotation matrix for a batch of rotation angles.
-
-        Args:
-            angle (Tensor([B1, ..., Bb], float32)): batched angle of rotation
-                in radians, i.e. angle=pi corresponds to full qubit flip.
-            phase (Tensor([B1, ..., Bb], float32)): batched axis of rotation
-                in radians, where by convention 0 is x axis.
-
-        Returns:
-            Tensor([B1, ..., Bb, 2, 2], c64): A batch of R(angle, phase)
-        """
-        assert angle.shape == phase.shape
-        angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
-        phase = tf.cast(tf.reshape(phase, phase.shape+[1,1]), c64)
-        
-        sx = sigma_x()
-        sy = sigma_y()
-        I = identity(2)
-        
-        R = tf.math.cos(angle/2) * I - 1j*tf.math.sin(angle/2) * \
-            (tf.math.cos(phase)*sx + tf.math.sin(phase)*sy)
-        return R
-
-
-class Phase(ParametrizedOperator):
-    """ Simple phase factor."""
-    def compute(self, angle):
-        """
-        Calculates batch phase factor e^(i*angle)
-
-        Args:
-            angle (Tensor([B1, ..., Bb], float32)): batch of angles in radians
-            
-        Returns:
-            Tensor([B1, ..., Bb, N, N], c64): A batch of phase factors
-        """
-        angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
-        return tf.math.exp(1j*angle) * tf.eye(self.N, dtype=c64)
-
+    diag = tf.where(tf.math.floormod(tf.range(N),2)==1, -1, 1)
+    return tf.linalg.diag(tf.cast(diag, tf.complex64))

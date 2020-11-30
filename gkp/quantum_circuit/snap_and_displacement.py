@@ -3,14 +3,20 @@
 Created on Wed Oct 28 20:19:56 2020
 
 @author: Vladimir Sivak
+
+Qubit is included in the Hilbert space. Simulation is done with a gate-based 
+approach to quantum circuits.
 """
 import tensorflow as tf
+from numpy import pi
+from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
-from simulator.hilbert_spaces import Oscillator, OscillatorQubit
+from simulator.hilbert_spaces import Oscillator
+from simulator.utils import normalize
 
-class QuantumCircuit(OscillatorQubit, GKP):
+class QuantumCircuit(Oscillator, GKP):
     """
     Universal gate sequence for open-loop unitary control of the oscillator
     in the large-chi regime. 
@@ -18,7 +24,6 @@ class QuantumCircuit(OscillatorQubit, GKP):
     The gate sequence consists of 
         1) oscillator displacement
         2) selective number-dependent arbitrary phase (SNAP) gate
-        3) reverse oscillator displacement
     
     """
     def __init__(
@@ -59,13 +64,12 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         # Build gates
         displace = self.displace(alpha)
-        snap = self.snap(theta)
+        snap = self.SNAP(theta)
 
         # Apply gates
-        psi = tf.linalg.matvec(displace, psi)
-        psi = tf.linalg.matvec(snap, psi)
-        # psi = self.simulate(psi, self.t_gate)
-        psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi)
+        psi = batch_dot(displace, psi)
+        psi = batch_dot(snap, psi)
+        psi = batch_dot(tf.linalg.adjoint(displace), psi) 
 
         return psi, psi, tf.ones((self.batch_size,1))
 

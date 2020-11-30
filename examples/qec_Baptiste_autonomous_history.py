@@ -30,17 +30,17 @@ History of measurement outcomes is used to find non-Markovian strategy.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_square_qec_BsB_B100_lr3e-4'
-root_dir = os.path.join(root_dir,'4')
+root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
+root_dir = os.path.join(root_dir,'qec_Baptiste_autonomous_history')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'gkp_qec_autonomous_BsB_osc',
+    'simulate' : 'Baptiste_autonomous_osc_qb',
     'encoding' : 'square',
     'init' : 'random',
-    'H' : 1,
+    'H' : 3,
     'T' : 2, 
-    'attn_step' : 1}
+    'attn_step' : 2}
 
 # Params for reward function
 reward_kwargs = {
@@ -49,10 +49,10 @@ reward_kwargs = {
 
 # Params for action wrapper
 action_script = 'v3_Baptiste_autonomous_2round'
-action_scale = {'beta':1, 'phi':pi, 'epsilon':1}
-to_learn = {'beta':False, 'phi':True, 'epsilon':True}
+action_scale = {'alpha':1, 'beta':1, 'phi':pi, 'epsilon':1}
+to_learn = {'alpha':True, 'beta':False, 'phi':False, 'epsilon':True}
 
-train_batch_size = 100
+train_batch_size = 1000
 eval_batch_size = 1000
 
 # Create drivers for data collection
@@ -69,8 +69,8 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 
 PPO.train_eval(
         root_dir = root_dir,
-        random_seed = 4,
-        num_epochs = 1000,
+        random_seed = 0,
+        num_epochs = 10000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -83,8 +83,8 @@ PPO.train_eval(
         importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
-        eval_interval = 50,
-        save_interval = 50,
+        eval_interval = 100,
+        save_interval = 500,
         checkpoint_interval = 1000,
         summary_interval = 100,
         # Params for data collection
@@ -92,8 +92,8 @@ PPO.train_eval(
         eval_batch_size = eval_batch_size,
         collect_driver = collect_driver,
         eval_driver = eval_driver,
-        train_episode_length =  lambda x: 36 if x<500 else 100,
-        eval_episode_length = 64,
+        train_episode_length =  lambda x: 24 if x<1000 else 48,
+        eval_episode_length = 48,
         replay_buffer_capacity = 50000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,

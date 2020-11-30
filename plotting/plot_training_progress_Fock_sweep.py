@@ -27,7 +27,6 @@ from gkp.gkp_tf_env import policy as plc
 import gkp.action_script as action_scripts
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import expectation
-# from simulator.operators import projector
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -81,9 +80,9 @@ mpl.rcParams['legend.markerscale'] = 2.0
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### Initialize the environment and simulation/training parameters
-env = gkp_init(simulate='snap_and_displacement', 
-               init='vac', H=1, T=5, attn_step=1, batch_size=1, N=100,
-               episode_length=5, phase_space_rep='wigner')
+env = gkp_init(simulate='snap_and_displacement', channel='quantum_jumps',
+               init='vac', H=1, T=4, attn_step=1, batch_size=1, N=40,
+               episode_length=4, phase_space_rep='wigner')
 
 action_script = 'snap_and_displacements'
 action_scale = {'alpha':4, 'theta':pi}
@@ -112,7 +111,7 @@ for fock in fock_states:
     
     #setup overlap reward for this Fock state
     reward_kwargs = {'reward_mode'  : 'overlap', 
-                     'target_state' : qt.basis(env.N, fock)}
+                     'target_state' : qt.tensor(qt.basis(2,0),qt.basis(env.N,fock))}
     env.setup_reward(reward_kwargs)
     
     # collect episodes with different policies
@@ -143,7 +142,6 @@ for fock in fock_states:
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### save evaluation data
-import pickle
 with open(os.path.join(root_dir, 'eval.pickle'), 'wb') as f:
     pickle.dump(dict(rewards=rewards, final_states=final_states,epochs=epochs), f)
 
@@ -160,7 +158,7 @@ ax.set_xlabel('Epoch')
 ax.set_yscale('log')
 # ax.set_xscale('log')
 ax.set_xlim(-50,2050)
-ax.set_ylim(8e-4,1)
+ax.set_ylim(6e-5,1)
 palette = plt.get_cmap('tab10')
 
 for fock in fock_states:
@@ -168,23 +166,16 @@ for fock in fock_states:
     # plot training progress of each policy in the background
     for sim_name in rewards[state].keys():
         ax.plot(epochs[state][sim_name], 1-np.array(rewards[state][sim_name]), 
-                linestyle='--', alpha=0.2, color=palette(fock-1))    
-    all_seeds = np.array([rews for seed, rews in rewards[state].items()])
-
-    # calculate mean log infidelity
-    log_infidelity = np.mean(np.log10(1-all_seeds), axis=0)
-    infidelity = 10 ** log_infidelity
+                linestyle='--', alpha=0.1, color=palette(fock))
     
-    # # calculate the best infidelity
-    # ind = np.argmax(all_seeds[:,-1])
-    # infidelity = 1 - all_seeds[ind,:]
-    
+    # calculate and plot the meadian (less sensitive to outliers)
+    all_seeds = np.array([rewards[state][seed] for seed in rewards[state].keys()])
     median_reward = np.median(all_seeds, axis=0)
     train_epochs = np.array(epochs[state]['seed0'])
     
-    ind = [i for i in range(len(median_reward)) if i%1==0]
-    ax.plot(train_epochs[ind], infidelity[ind], color=palette(fock-1), linewidth=1.0)
-    ax.plot(train_epochs[ind], infidelity[ind], color=palette(fock-1), linewidth=1.0,
+    ind = [i for i in range(len(median_reward)) if i%5==0]
+    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0)
+    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0,
             label=fock, linestyle = 'none', marker='.')
 ax.legend(ncol=2)
 

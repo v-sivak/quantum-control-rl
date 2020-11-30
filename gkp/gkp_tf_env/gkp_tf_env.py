@@ -19,7 +19,8 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import expectation
 from gkp.gkp_tf_env import helper_functions as hf
-from simulator.utils import measurement
+from tensorflow.keras.backend import batch_dot
+
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     """
@@ -224,7 +225,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Calculate and plot the phase space representation
         if self.phase_space_rep == 'wigner':
             state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-            state_translated = tf.linalg.matvec(self.translate(-grid_flat), state)
+            state_translated = batch_dot(self.translate(-grid_flat), state)
             W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
             W_grid = tf.reshape(W, grid.shape)
     
@@ -366,11 +367,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'overlap'
-                target_projector (LinearOperator): projector onto target state
+                target_state (Qobj, type=ket): Qutip object
                 
             """
-            assert 'target_projector' in reward_kwargs.keys()
-            target_projector = reward_kwargs['target_projector']
+            assert 'target_state' in reward_kwargs.keys()
+            target_projector = qt.ket2dm(reward_kwargs['target_state'])
+            target_projector = tf.constant(target_projector.full(), dtype=c64)
             self.calculate_reward = \
                 lambda args: self.reward_overlap(target_projector, args)
 
@@ -378,13 +380,14 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'Fock'
-                target_projector (LinearOperator): projector onto target Fock
+                target_state (Qobj, type=ket): Qutip object
                 
             """
-            assert 'target_projector' in reward_kwargs.keys()
-            target_projector = reward_kwargs['target_projector']
+            assert 'target_state' in reward_kwargs.keys()
+            target_projector = qt.ket2dm(reward_kwargs['target_state'])
+            target_projector = tf.constant(target_projector.full(), dtype=c64)
             self.calculate_reward = \
-                lambda args: self.reward_Fock(target_projector, args)
+                lambda args: self.reward_Fock(target_projector, args)        
 
         if mode == 'tomography':
             """
@@ -392,7 +395,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 reward_mode (str): 'tomography'
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of window for uniform distribution
-                tomography (str): type of tomo ('wigner' or 'characteristic_fn')
                 
             """
             assert 'target_state' in reward_kwargs.keys()
@@ -401,6 +403,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             window_size = reward_kwargs['window_size']
             tomography = reward_kwargs['tomography']
             target_state = reward_kwargs['target_state']
+            target_state = tf.constant(target_state.full(), dtype=c64)
+            target_state = tf.transpose(target_state)
             self.calculate_reward = \
                 lambda args: self.reward_tomography(target_state, window_size, 
                                                     tomography, args)
@@ -449,7 +453,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             if self.tensorstate:
-                psi, _ = measurement(self._state, self.P, sample=True)
+                psi, _ = self.measure(self._state, self.P, sample=True)
             else:
                 psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
@@ -485,7 +489,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             point = hf.vec_to_complex(P.sample())
             
             if tomography == 'wigner':
-                target_state_translated = self.translate(-point).matvec(target_state)
+                target_state_translated = batch_dot(
+                    self.translate(-point), target_state)
                 W_target = expectation(target_state_translated, self.parity)
                 target = tf.math.real(tf.squeeze(W_target))
             if tomography == 'characteristic_fn':
@@ -497,16 +502,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         points = tf.broadcast_to(point, [self.batch_size])
         
         # measure the qubit to disentangle from oscillator
-        if self.tensorstate:
-            psi, m = measurement(self.info['psi_cached'], self.P, sample=True)
-            mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
-        else:
-            psi = self.info['psi_cached']
-            mask = tf.ones([self.batch_size])
+        psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
+        mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
         
         # do tomography in one phase space point
         if tomography == 'wigner':
-            psi = self.translate(-points).matvec(psi)
+            translations = self.translate(-points)
+            psi = batch_dot(translations, psi)
             _, msmt = self.phase_estimation(psi, self.parity,
                             angle=tf.zeros(self.batch_size), sample=True)
         if tomography == 'characteristic_fn':
@@ -565,9 +567,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             if code_flips: 
                 z *= self.undo_code_flips()
                 self.flips = {'X' : 0, 'Z' : 0, 'Y' : 0}
-        
-        print(z)
-        
         return z
 
 

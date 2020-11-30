@@ -9,11 +9,6 @@ import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# import logging
-# logging.disable(logging.WARNING)
-# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-from numpy import pi
 import tensorflow as tf
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
@@ -22,33 +17,20 @@ from gkp.gkp_tf_env import gkp_init
 
 
 env = gkp_init(simulate='phase_estimation_osc_v2', 
-                reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
-                init='X+', H=1, T=4, attn_step=1, batch_size=1000, episode_length=50,
-                encoding='square')
+               channel='quantum_jumps',
+               reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
+               init='X+', H=1, T=4, attn_step=1, batch_size=1000, episode_length=50,
+               encoding='square')
 
 # from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
-# action_scale = {'alpha':1, 'beta':1, 'phi':pi, 'theta':0.02}
+# # # from gkp.action_script import Alec_universal_gate_set_12round as action_script
+# # # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 # to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
-# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
+# # # to_learn = {'alpha':True, 'beta':True, 'phi':True}
+# env = wrappers.ActionWrapper(env, action_script, to_learn)
 
-# root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_square_qec_ST_B100_lr3e-4\0'
-# policy_dir = r'policy\000040000'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-# env = gkp_init(simulate='gkp_qec_autonomous_BsB_osc', 
-#                 channel='quantum_jumps',
-#                 reward_kwargs={'reward_mode':'fidelity', 'code_flips':False},
-#                 init='X+', H=1, T=2, attn_step=1, batch_size=1000, episode_length=200,
-#                 encoding='square')
-
-# from gkp.action_script import v3_Baptiste_autonomous_2round as action_script
-# action_scale = {'beta':1, 'phi':pi, 'epsilon':1}
-# to_learn = {'beta':False, 'phi':True, 'epsilon':True}
-# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
-
-# root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_square_qec_BsB_B100_lr3e-4\2'
-# policy_dir = r'policy\000020000'
+# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp2_H3T4A4_steps36_64_qec_4'
+# policy_dir = r'policy\000640000'
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 

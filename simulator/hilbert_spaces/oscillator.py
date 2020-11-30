@@ -5,75 +5,85 @@ Created on Tue Aug 04 16:08:01 2020
 
 @author: Henry Liu
 """
-from math import pi, sqrt
+from numpy import pi
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize, measurement
-from simulator import operators as ops
-from .base import HilbertSpace
+from simulator.utils import normalize
+from simulator.operators import identity, destroy, create, position, momentum, \
+    num, parity
+from .base import SimulatorHilbertSpace
+from simulator.mixins import BatchOperatorMixinBCH
 
-class Oscillator(HilbertSpace):
-    """ Hilbert space of a single oscillator truncated at <N> levels."""
-    
-    def __init__(self, *args, K_osc, T1_osc, N=100, **kwargs):
+class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
+    """
+    Define all relevant operators as tensorflow tensors of shape [N,N].
+    Methods need to take care of batch dimension explicitly.
+
+    Initialize tensorflow quantum trajectory simulator. This is used to
+    simulate decoherence, dephasing, Kerr etc using quantum jumps.
+    """
+
+    def __init__(self, *args, K_osc, T1_osc, N=100, channel='quantum_jumps', **kwargs):
         """
         Args:
-            K_osc (float): Kerr of the oscillator [Hz].
-            T1_osc (float): T1 relaxation time of oscillator [seconds].
+            K_osc (float): Kerr of oscillator.
+            T1_osc (float): T1 relaxation time of oscillator (seconds).
             N (int, optional): Size of oscillator Hilbert space. Defaults to 100.
+            channel (str, optional): model of the error channel, either 'diffusion'
+                     or 'quantum_jumps'.
         """
         self._N = N
-        self.K_osc = K_osc
-        self.T1_osc = T1_osc
-        super().__init__(self, *args, **kwargs)
+        self._K_osc = K_osc
+        self._T1_osc = T1_osc
+        super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
-    def _define_operators(self):
-        N = self.N
-        self.I = ops.identity(N)
-        self.a = ops.destroy(N)
-        self.q = ops.position(N)
-        self.p = ops.momentum(N)
-        self.n = ops.num(N)
-        self.parity = ops.parity(N)
-        self.phase = ops.Phase(N)
-        self.snap = ops.SNAP(N)
-        self.displace = ops.DisplacementOperator(N)
-        self.translate = ops.TranslationOperator(N)
-        self.rotate = ops.RotationOperator(N)
+    def _define_fixed_operators(self, N):
+        self.I = identity(N)
+        self.a = destroy(N)
+        self.a_dag = create(N)
+        self.q = position(N)
+        self.p = momentum(N)
+        self.n = num(N)
+        self.parity = parity(N)
 
     @property
     def _hamiltonian(self):
-        Kerr = -0.5*(2*pi)*self.K_osc*self.n*self.n # valid because n is diagonal
-        return Kerr
+        return -1 / 2 * (2 * pi) * self._K_osc * self.n * self.n  # Kerr
 
     @property
-    def _dissipator(self):
-        photon_loss = sqrt(1/self.T1_osc) * self.a
+    def _collapse_operators(self):
+        photon_loss = (
+            tf.cast(tf.sqrt(1/self._T1_osc), dtype=tf.complex64)
+            * self.a
+        )
+
         return [photon_loss]
 
     @tf.function
-    def phase_estimation(self, state, U, angle, sample=False):
+    def phase_estimation(self, psi, U, angle, sample=False):
         """
-        Batch phase estimation of unitary operator <U> using ancilla qubit.
-        Corresponds to <sigma_z> = Re(U) * cos(angle) - Im(U) * sin(angle).
+        One round of phase estimation.
 
-        Args:
-            state (Tensor([B1,...Bb,N], c64)): batch of states
-            U (LinearOperator): unitary on which to do phase estimation.
-            angle (Tensor([B1,...Bb], c64)): angle in radians
-            sample (bool): flag to sample or return expectation value
+        Input:
+            psi -- batch of state vectors; shape=[batch_size,N]
+            U -- unitary on which to do phase estimation. shape=(batch_size,N,N)
+            angle -- angle along which to measure qubit. shape=(batch_size,)
+            sample -- bool flag to sample or return expectation value
 
-        Returns:
-            state (Tensor([B1,...Bb,N], c64)): batch of collapsed states if 
-                sample=true; duplicate input <state> is sample=false
-            z (Tensor([B1,...Bb,1], c64)): batch of measurement outcomes if 
-                sample=True; expectation of qubit sigma_z is sample=false
+        Output:
+            psi -- batch of collapsed states if sample==True, otherwise same
+                   as input psi; shape=[batch_size,N]
+            z -- batch of measurement outcomes if sample==True, otherwise
+                 batch of expectation values of qubit sigma_z.
+
         """
         Kraus = {}
-        Kraus[0] = 1/2*(self.I + self.phase(angle) * U)
-        Kraus[1] = 1/2*(self.I - self.phase(angle) * U)
+        I = tf.stack([self.I]*self.batch_size)
+        Kraus[0] = 1/2*(I + self.phase(angle)*U)
+        Kraus[1] = 1/2*(I - self.phase(angle)*U)
 
-        return measurement(state, Kraus, sample)
+        psi = normalize(psi)
+        return self.measure(psi, Kraus, sample)
 
     @property
     def N(self):

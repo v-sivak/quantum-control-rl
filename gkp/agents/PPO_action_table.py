@@ -35,7 +35,7 @@ def binary_decoding(x, H):
     return tf.math.reduce_sum(x*z, axis=1)
 
 
-def convert_policy_to_action_table(policy, H, T, batch_size=1):
+def convert_policy_to_action_table(policy, H, T):
     """
     Assumes that observations coming from the environment are wrapped into
     vectors of length T + H, where H is horizon length and T is clock period.
@@ -57,20 +57,18 @@ def convert_policy_to_action_table(policy, H, T, batch_size=1):
         action_table -- tensor of shape=[T*2^H, A], where A is action dim
 
     """
-    # TODO: use action_spec to make the assignment correctly
-    action_table = {a : tf.Variable(batch_size,2)}
+    keys = []
     for t in range(T):
         for m in range(2**H):
-            obs = {'clock' : tf.one_hot(t,T),
-                   'msmt'  : 2*binary_encoding(m, H)-1,
-                   'const' : tf.ones(1)}
-            obs = common.replicate(obs, outer_shape=[batch_size])
-            time_step = ts.transition(obs, tf.zeros(batch_size))
+            obs = tf.concat([tf.one_hot(t,T), 2*binary_encoding(m, H)-1], 0)
+            keys.append(tf.reshape(obs, shape=[1,T+H]))
+    keys = tf.concat(keys, axis=0)  # shape=[T*2^H, T+H]
+    ind = hashfunc(keys, H, T)      # shape=[T*2^H]
+    # It's already sorted correctly due to the loop structure, but anyways
+    keys = tf.gather_nd(keys, ind[:,None])
 
-            action_step = policy.action(time_step, policy_state=())
-            
-            action_table[a][t,m].assign(action_step.action[a])
-
+    time_step = ts.transition(keys, tf.zeros(T*2**H))
+    action_table = policy.action(time_step).action
     return action_table
 
 
@@ -158,12 +156,10 @@ class ActionTableEpisodeDriver(dynamic_episode_driver.DynamicEpisodeDriver):
             env, policy, observers=observers, num_episodes=minibatch_size)
 
     def run(self):
-        """
-        Sample a batch of tables for this epoch (different table for each 
-        episode). Then, collect episodes according to these table-policies.
-        """
-        self.policy.make_tables()
-        super(ActionTableEpisodeDriver, self).run()
+        self.policy.make_table()
+        # Loop to randomize episode durations
+        for i in range(self.I):
+            super(ActionTableEpisodeDriver, self).run()
 
 
 class ActionTableStochasticPolicyWrapper(TFPolicy):
@@ -197,7 +193,7 @@ class ActionTableStochasticPolicyWrapper(TFPolicy):
     def _variables(self):
         return self._wrapped_policy.variables()
 
-    def make_tables(self, policy=None):
+    def make_table(self, policy=None):
         policy = self.wrapped_policy if policy is None else policy
         action_table = convert_policy_to_action_table(policy, self.H, self.T)
         self.table_lookup = lambda key: action_table_lookup(
@@ -226,4 +222,3 @@ class ActionTableStochasticPolicyWrapper(TFPolicy):
         return policy_step.PolicyStep(
             self.deterministic_action_distribution(time_step),
             distribution_step.state, distribution_step.info)
-
