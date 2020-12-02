@@ -10,7 +10,7 @@ import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize
+from simulator.utils_v2 import measurement
 from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
 
@@ -150,8 +150,7 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         psi = batch_dot(CT, psi)
         psi = batch_dot(Phase, psi)
         psi = batch_dot(Hadamard, psi)
-        psi = normalize(psi)
-        return self.measure(psi, self.P, sample)
+        return measurement(psi, self.P, sample)
 
     @tf.function
     def rotate_qb_xy(self, phi, theta):

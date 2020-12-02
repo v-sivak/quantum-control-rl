@@ -9,8 +9,8 @@ from numpy import pi
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
-from simulator.operators import identity, destroy, create, position, momentum, \
-    num, parity
+from simulator import operators_v2 as ops
+from simulator.utils_v2 import measurement
 from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
 
@@ -38,13 +38,14 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
     def _define_fixed_operators(self, N):
-        self.I = identity(N)
-        self.a = destroy(N)
-        self.a_dag = create(N)
-        self.q = position(N)
-        self.p = momentum(N)
-        self.n = num(N)
-        self.parity = parity(N)
+        self.I = ops.identity(N)
+        self.a = ops.destroy(N)
+        self.a_dag = ops.create(N)
+        self.q = ops.position(N)
+        self.p = ops.momentum(N)
+        self.n = ops.num(N)
+        self.parity = ops.parity(N)
+        self.phase = ops.Phase()
 
     @property
     def _hamiltonian(self):
@@ -83,7 +84,7 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         Kraus[1] = 1/2*(I - self.phase(angle)*U)
 
         psi = normalize(psi)
-        return self.measure(psi, Kraus, sample)
+        return measurement(psi, Kraus, sample)
 
     @property
     def N(self):

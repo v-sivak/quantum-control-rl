@@ -15,7 +15,7 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
-from simulator.utils import normalize
+from simulator.utils_v2 import measurement
 
 
 class QuantumCircuit(OscillatorQubit, GKP):
@@ -98,7 +98,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi = batch_dot(Hadamard, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
-        psi, msmt = self.measure(psi, self.P)
+        psi, msmt = measurement(psi, self.P)
         psi = self.simulate(psi, self.t_read)
         # Feedback delay
         psi = self.simulate(psi, self.t_feedback)

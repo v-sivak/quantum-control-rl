@@ -15,7 +15,7 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
-from simulator.utils import normalize
+from simulator.utils_v2 import measurement
 
 
 class QuantumCircuit(Oscillator, GKP):
@@ -92,6 +92,6 @@ class QuantumCircuit(Oscillator, GKP):
         Kraus[1] = 1/4*(chunk1 - self.phase(phi)*chunk2)
 
         psi = self.simulate(psi, self.t_round + self.t_idle)
-        psi_final, msmt = self.measure(normalize(psi), Kraus)
+        psi_final, msmt = measurement(normalize(psi), Kraus)
 
         return psi_final, psi_final, msmt

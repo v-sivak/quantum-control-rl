@@ -18,6 +18,7 @@ from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import expectation
+from simulator.utils_v2 import measurement
 from gkp.gkp_tf_env import helper_functions as hf
 from tensorflow.keras.backend import batch_dot
 
@@ -453,7 +454,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             if self.tensorstate:
-                psi, _ = self.measure(self._state, self.P, sample=True)
+                psi, _ = measurement(self._state, self.P, sample=True)
             else:
                 psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
@@ -502,8 +503,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         points = tf.broadcast_to(point, [self.batch_size])
         
         # measure the qubit to disentangle from oscillator
-        psi, m = self.measure(self.info['psi_cached'], self.P, sample=True)
-        mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+        if self.tensorstate:
+            psi, m = measurement(self.info['psi_cached'], self.P, sample=True)
+            mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+        else:
+            psi = self.info['psi_cached']
+            mask = tf.ones([self.batch_size])
         
         # do tomography in one phase space point
         if tomography == 'wigner':
@@ -523,7 +528,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         # Mask out trajectories where qubit was measured in |e> 
         # Subtract baseline to improve (???) convergence
-        z = (z * mask) - tf.math.abs(target)
+        z = (z * mask) #- tf.math.abs(target)
 
         return z
 
