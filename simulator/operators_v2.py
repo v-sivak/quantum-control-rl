@@ -150,6 +150,7 @@ class ParametrizedOperator():
         self.N = N
         self.tensor_with = tensor_with
 
+    @tf.function
     def __call__(self, *args, **kwargs):
         this_op = self.compute(*args, **kwargs)
         if self.tensor_with is not None:
@@ -237,6 +238,7 @@ class RotationOperator(ParametrizedOperator):
         Returns:
             Tensor([B1, ..., Bb, N, N], c64): A batch of R(phase)
         """
+        phase = tf.squeeze(phase)
         phase = tf.cast(tf.expand_dims(phase, -1), dtype=c64)
         exp_diag = tf.math.exp(1j * phase * tf.cast(tf.range(self.N), c64))
         return tf.linalg.diag(exp_diag)
@@ -312,4 +314,4 @@ class Phase(ParametrizedOperator):
         """
         angle = tf.squeeze(angle) # TODO: get rid of this
         angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
-        return tf.linalg.expm(1j * angle)
+        return tf.math.exp(1j * angle)
