@@ -5,16 +5,15 @@ Created on Tue Aug 04 16:08:01 2020
 
 @author: Henry Liu
 """
-from numpy import pi
+from math import pi, sqrt
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
 from simulator import operators_v2 as ops
 from simulator.utils_v2 import measurement
 from .base import SimulatorHilbertSpace
-from simulator.mixins import BatchOperatorMixinBCH
 
-class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
+class Oscillator(SimulatorHilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [N,N].
     Methods need to take care of batch dimension explicitly.
@@ -46,6 +45,10 @@ class Oscillator(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         self.n = ops.num(N)
         self.parity = ops.parity(N)
         self.phase = ops.Phase()
+        self.SNAP = ops.SNAP(N)
+        self.rotate = ops.RotationOperator(N)
+        self.translate = ops.TranslationOperator(N)
+        self.displace = lambda a: self.translate(sqrt(2)*a)
 
     @property
     def _hamiltonian(self):

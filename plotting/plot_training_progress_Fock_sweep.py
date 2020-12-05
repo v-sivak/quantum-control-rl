@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Nov 19 20:55:17 2020
-
 @author: Vladimir Sivak
 """
 
@@ -27,6 +26,7 @@ from gkp.gkp_tf_env import policy as plc
 import gkp.action_script as action_scripts
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import expectation
+# from simulator.operators import projector
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -80,9 +80,9 @@ mpl.rcParams['legend.markerscale'] = 2.0
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### Initialize the environment and simulation/training parameters
-env = gkp_init(simulate='snap_and_displacement', channel='quantum_jumps',
-               init='vac', H=1, T=4, attn_step=1, batch_size=1, N=40,
-               episode_length=4, phase_space_rep='wigner')
+env = gkp_init(simulate='snap_and_displacement', 
+               init='vac', H=1, T=5, attn_step=1, batch_size=1, N=100,
+               episode_length=5, phase_space_rep='wigner')
 
 action_script = 'snap_and_displacements'
 action_scale = {'alpha':4, 'theta':pi}
@@ -111,7 +111,7 @@ for fock in fock_states:
     
     #setup overlap reward for this Fock state
     reward_kwargs = {'reward_mode'  : 'overlap', 
-                     'target_state' : qt.tensor(qt.basis(2,0),qt.basis(env.N,fock))}
+                     'target_state' : qt.basis(env.N, fock)}
     env.setup_reward(reward_kwargs)
     
     # collect episodes with different policies
@@ -142,6 +142,7 @@ for fock in fock_states:
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### save evaluation data
+import pickle
 with open(os.path.join(root_dir, 'eval.pickle'), 'wb') as f:
     pickle.dump(dict(rewards=rewards, final_states=final_states,epochs=epochs), f)
 
@@ -158,7 +159,7 @@ ax.set_xlabel('Epoch')
 ax.set_yscale('log')
 # ax.set_xscale('log')
 ax.set_xlim(-50,2050)
-ax.set_ylim(6e-5,1)
+ax.set_ylim(8e-4,1)
 palette = plt.get_cmap('tab10')
 
 for fock in fock_states:
@@ -166,74 +167,25 @@ for fock in fock_states:
     # plot training progress of each policy in the background
     for sim_name in rewards[state].keys():
         ax.plot(epochs[state][sim_name], 1-np.array(rewards[state][sim_name]), 
-                linestyle='--', alpha=0.1, color=palette(fock))
+                linestyle='--', alpha=0.2, color=palette(fock-1))    
+    all_seeds = np.array([rews for seed, rews in rewards[state].items()])
+
+    # calculate mean log infidelity
+    log_infidelity = np.mean(np.log10(1-all_seeds), axis=0)
+    infidelity = 10 ** log_infidelity
     
-    # calculate and plot the meadian (less sensitive to outliers)
-    all_seeds = np.array([rewards[state][seed] for seed in rewards[state].keys()])
+    # # calculate the best infidelity
+    # ind = np.argmax(all_seeds[:,-1])
+    # infidelity = 1 - all_seeds[ind,:]
+    
     median_reward = np.median(all_seeds, axis=0)
     train_epochs = np.array(epochs[state]['seed0'])
     
-    ind = [i for i in range(len(median_reward)) if i%5==0]
-    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0)
-    ax.plot(train_epochs[ind], 1-median_reward[ind], color=palette(fock-1), linewidth=1.0,
+    ind = [i for i in range(len(median_reward)) if i%1==0]
+    ax.plot(train_epochs[ind], infidelity[ind], color=palette(fock-1), linewidth=1.0)
+    ax.plot(train_epochs[ind], infidelity[ind], color=palette(fock-1), linewidth=1.0,
             label=fock, linestyle = 'none', marker='.')
 ax.legend(ncol=2)
 
 fig.tight_layout()
 fig.savefig(figname)
-
-
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
-# Plot Wigners
-
-# figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\wigner.png' # where to save
-# fig, axes = plt.subplots(1,2, figsize=(3.6, 1.70), dpi=300, sharey=True, sharex=True)
-
-# for ax in axes: ax.set_aspect('equal')
-# axes[0].set_ylabel(r'${\rm Im}(\alpha)$')
-# for ax in axes: ax.set_xlabel(r'${\rm Re}(\alpha)$')
-
-# # Generate a grid of phase space points
-# lim, pts = 4, 101
-# x = np.linspace(-lim, lim, pts)
-# y = np.linspace(-lim, lim, pts)
-
-# x = tf.squeeze(tf.constant(x, dtype=tf.complex64))
-# y = tf.squeeze(tf.constant(y, dtype=tf.complex64))
-
-# one = tf.constant([1]*len(y), dtype=tf.complex64)
-# onej = tf.constant([1j]*len(x), dtype=tf.complex64)
-
-# grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
-# grid_flat = tf.reshape(grid, [-1])
-
-# # TODO: select a simulation corresponding to a median
-# for s in [0, 1]:
-#     sim_name = os.listdir(root_dir['bin'+str(s)])[0] # select the first simulation with random_seed=0
-#     state = final_states['bin'+str(s)][sim_name][-1] # select the last policy in this training
-#     F = rewards['bin'+str(s)][sim_name][-1]
-#     state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-#     state_translated = batch_dot(env.translate(-grid_flat), state)
-#     W = expectation(state_translated, env.parity, reduce_batch=False) # need to multiply by 1/pi
-#     W_grid = tf.reshape(W, grid.shape).numpy().real
-    
-#     # W_grid = 2*np.random.random([x.shape[0],y.shape[0]])-1
-#     p = axes[s].pcolormesh(x, y, np.transpose(W_grid), cmap='RdBu_r', vmin=-1, vmax=1)
-#     axes[s].text(0.8, -3.5, '%.4f' %F, fontsize=7.5)
-
-# cbar = plt.colorbar(p, ax=None, fraction=0.05, pad=0.1, aspect=10,
-#                     ticks=[-1, 0, 1], )
-# cbar.ax.set_yticklabels([r'$-1$', r'$0$', r'$+1$'])
-
-# fig.tight_layout()
-
-# fig.savefig(figname)   
-
-
-
-
-
-
-
