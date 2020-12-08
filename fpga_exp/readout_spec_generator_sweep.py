@@ -39,6 +39,7 @@ class readout_spec_generator_sweep(FPGAExperiment):
         delay(self.loop_delay)
 
     def subsequence(self):
+        sync()
         qubit.flip()
         readout(re_e='se0', im_e='se1')
         delay(self.delay)

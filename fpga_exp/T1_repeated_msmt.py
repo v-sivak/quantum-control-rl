@@ -13,7 +13,8 @@ from time import time
 import pickle
 import os
 
-savepath = r'D:\DATA\exp\2020-11-18_cooldown\qubit_T1_T2_3'
+savepath = r'D:\DATA\exp\2020-11-28_cooldown\qubit_T1_T2_4'
+os.mkdir(savepath)
 
 experiments = [
         'gkp_exp.fpga_exp.T1',
@@ -24,7 +25,7 @@ tau = {exp : [] for exp in experiments}
 time_start = {exp : [] for exp in experiments}
 time_stop = {exp : [] for exp in experiments}
 
-reps = 500
+reps = 600
 for i in range(reps):
     for exp in experiments:
         e = get_experiment(exp)

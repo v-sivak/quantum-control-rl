@@ -23,8 +23,8 @@ print('Created spec')
 # (Card number, channel number, amplitude)
 modes = [
     (0, 0, 0.33), # qubit g-e
-    (0, 2, 0.70), # readout
-    (1, 0, 0.50)  # storage
+#    (0, 2, 0.20), # readout
+#    (1, 0, 0.50)  # storage
 ]
 
 
