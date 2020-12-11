@@ -10,9 +10,10 @@ import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils_v2 import measurement
+from simulator.utils_v2 import measurement, tensor
 from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
+from simulator import operators_v2 as ops
 
 class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
     """
@@ -45,48 +46,38 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
     def _define_fixed_operators(self, N):
-        # TODO: Convert this to TensorFlow? #
 
         # Create qutip tensor ops acting on oscillator Hilbert space
-        I = qt.tensor(qt.identity(2), qt.identity(N))
-        a = qt.tensor(qt.identity(2), qt.destroy(N))
-        a_dag = qt.tensor(qt.identity(2), qt.create(N))
-        q = (a.dag() + a) / sqrt(2)
-        p = 1j * (a.dag() - a) / sqrt(2)
-        n = qt.tensor(qt.identity(2), qt.num(N))
-        parity = qt.tensor(qt.identity(2), (1j*pi*qt.num(N)).expm())
-
-        sx = qt.tensor(qt.sigmax(), qt.identity(N))
-        sy = qt.tensor(qt.sigmay(), qt.identity(N))
-        sz = qt.tensor(qt.sigmaz(), qt.identity(N))
-        sm = qt.tensor(qt.sigmap(), qt.identity(N))
         rxp = qt.tensor(qt.qip.operations.rx(+pi / 2), qt.identity(N))
         rxm = qt.tensor(qt.qip.operations.rx(-pi / 2), qt.identity(N))
-        hadamard = qt.tensor(qt.qip.operations.snot(), qt.identity(N))
-
-        # measurement projector
-        P = {
-            0: qt.tensor(qt.ket2dm(qt.basis(2, 0)), qt.identity(N)),
-            1: qt.tensor(qt.ket2dm(qt.basis(2, 1)), qt.identity(N)),
-        }
-
-        # Convert to tensorflow tensors
-        self.I = tf.constant(I.full(), dtype=c64)
-        self.a = tf.constant(a.full(), dtype=c64)
-        self.a_dag = tf.constant(a_dag.full(), dtype=c64)
-        self.q = tf.constant(q.full(), dtype=c64)
-        self.p = tf.constant(p.full(), dtype=c64)
-        self.n = tf.constant(n.full(), dtype=c64)
-        self.sx = tf.constant(sx.full(), dtype=c64)
-        self.sy = tf.constant(sy.full(), dtype=c64)
-        self.sz = tf.constant(sz.full(), dtype=c64)
-        self.sm = tf.constant(sm.full(), dtype=c64)
         self.rxp = tf.constant(rxp.full(), dtype=c64)
         self.rxm = tf.constant(rxm.full(), dtype=c64)
-        self.hadamard = tf.constant(hadamard.full(), dtype=c64)
-        self.parity = tf.constant(parity.full(), dtype=c64)
 
-        self.P = {i: tf.constant(P[i].full(), dtype=c64) for i in [0, 1]}
+
+        self.I = tensor([ops.identity(2), ops.identity(N)])
+        self.a = tensor([ops.identity(2), ops.destroy(N)])
+        self.a_dag = tensor([ops.identity(2), ops.create(N)])
+        self.q = tensor([ops.identity(2), ops.position(N)])
+        self.p = tensor([ops.identity(2), ops.momentum(N)])
+        self.n = tensor([ops.identity(2), ops.num(N)])
+        self.parity = tensor([ops.identity(2), ops.parity(N)])
+
+        self.sx = tensor([ops.sigma_x(), ops.identity(N)])
+        self.sy = tensor([ops.sigma_y(), ops.identity(N)])
+        self.sz = tensor([ops.sigma_z(), ops.identity(N)])
+        self.sm = tensor([ops.sigma_m(), ops.identity(N)])
+        self.hadamard = tensor([ops.hadamard(), ops.identity(N)])
+
+        tensor_with = [ops.identity(2), None]
+        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)
+        self.phase = ops.Phase(tensor_with=tensor_with)
+        self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
+        self.displace = lambda a: self.translate(sqrt(2)*a)
+        self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
+        
+        # qubit sigma_z measurement projector
+        self.P = {i : tensor([ops.projector(i,2), ops.identity(N)])
+                  for i in [0, 1]}
 
     @property
     def _hamiltonian(self):
