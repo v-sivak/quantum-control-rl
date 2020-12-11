@@ -8,9 +8,8 @@ Created on Tue Aug 04 16:08:01 2020
 from math import pi, sqrt
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
-from simulator.utils import normalize
-from simulator import operators_v2 as ops
-from simulator.utils_v2 import measurement
+from simulator import operators as ops
+from simulator.utils import measurement
 from .base import HilbertSpace
 
 class Oscillator(HilbertSpace):
@@ -86,7 +85,6 @@ class Oscillator(HilbertSpace):
         Kraus[0] = 1/2*(I + self.phase(angle)*U)
         Kraus[1] = 1/2*(I - self.phase(angle)*U)
 
-        psi = normalize(psi)
         return measurement(psi, Kraus, sample)
 
     @property

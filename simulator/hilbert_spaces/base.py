@@ -12,7 +12,7 @@ import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 from simulator.diffusion_channel_sim import DiffusionChannelSim
-from simulator.utils import normalize
+
 
 class HilbertSpace(ABC):
     """

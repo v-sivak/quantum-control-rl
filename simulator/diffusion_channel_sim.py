@@ -30,7 +30,7 @@ class DiffusionChannelSim:
         re_alpha = tf.cast(P.sample(), tf.complex64)
         im_alpha = tf.cast(P.sample(), tf.complex64)
         T = self.translate(re_alpha + 1j*im_alpha)
-        psi = normalize(psi)
+        psi, _ = normalize(psi)
         psi = batch_dot(T, psi)
-        psi = normalize(psi)
+        psi, _ = normalize(psi)
         return psi

@@ -7,7 +7,7 @@ Created on Mon Nov 23 22:38:34 2020
 import tensorflow as tf
 from tensorflow import complex64 as c64
 from math import sqrt
-from simulator.utils_v2 import tensor
+from simulator.utils import tensor
 
 from distutils.version import LooseVersion
 if LooseVersion(tf.__version__) >= "2.2":

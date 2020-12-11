@@ -14,7 +14,6 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
-from simulator.utils import normalize
 
 class QuantumCircuit(Oscillator, GKP):
     """

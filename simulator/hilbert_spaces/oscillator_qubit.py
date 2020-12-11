@@ -10,9 +10,9 @@ import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
-from simulator.utils_v2 import measurement, tensor
+from simulator.utils import measurement, tensor
 from .base import HilbertSpace
-from simulator import operators_v2 as ops
+from simulator import operators as ops
 
 class OscillatorQubit(HilbertSpace):
     """

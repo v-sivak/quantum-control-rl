@@ -6,7 +6,7 @@ Created on Thu Feb 20 14:58:30 2020
 """
 import tensorflow as tf
 import tensorflow_probability as tfp
-from simulator.utils_v2 import normalize
+from simulator.utils import normalize
 
 
 class QuantumTrajectorySim:
