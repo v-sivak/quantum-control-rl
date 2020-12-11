@@ -7,7 +7,7 @@ Created on Mon Nov 23 22:38:34 2020
 import tensorflow as tf
 from tensorflow import complex64 as c64
 from math import sqrt
-# from simulator.utils import tensor
+from simulator.utils_v2 import tensor
 
 from distutils.version import LooseVersion
 if LooseVersion(tf.__version__) >= "2.2":
@@ -272,8 +272,8 @@ class QubitRotationXY(ParametrizedOperator):
     R(angle, phase) = e^(-i*angle/2*[cos(phase)*sx + sin(phase*sy]))
     
     """
-    def __init__(self):
-        super().__init__(N=2)
+    def __init__(self, *args, **kwargs):
+        super().__init__(N=2,  *args, **kwargs)
 
     def compute(self, angle, phase):
         """Calculates rotation matrix for a batch of rotation angles.
@@ -297,11 +297,32 @@ class QubitRotationXY(ParametrizedOperator):
             (tf.math.cos(phase)*sx + tf.math.sin(phase)*sy)
         return R
 
+class QubitRotationZ(ParametrizedOperator):
+    """ Qubit rotation around z zxis. R(angle) = e^(-i*angle/2*sz)"""
+    def __init__(self,  *args, **kwargs):
+        super().__init__(N=2, *args, **kwargs)
+
+    def compute(self, angle):
+        """Calculates rotation matrix for a batch of rotation angles.
+        Args:
+            angle (Tensor([B1, ..., Bb], float32)): batched angle of rotation
+                in radians, i.e. angle=pi corresponds to full qubit flip.
+        Returns:
+            Tensor([B1, ..., Bb, 2, 2], c64): A batch of R(angle)
+        """
+        angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
+        
+        sz = sigma_z()
+        I = identity(2)
+        
+        R = tf.math.cos(angle/2) * I - 1j*tf.math.sin(angle/2) * sz
+        return R
+
 
 class Phase(ParametrizedOperator):
     """ Simple phase factor."""
-    def __init__(self):
-        super().__init__(N=1)
+    def __init__(self, *args, **kwargs):
+        super().__init__(N=1, *args, **kwargs)
         
     def compute(self, angle):
         """

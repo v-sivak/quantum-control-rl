@@ -81,7 +81,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
         sx = tf.stack([self.sx]*self.batch_size)
         I = tf.stack([self.I]*self.batch_size)
-        Phase = self.rotate_qb(phi, axis='z')
+        Phase = self.rotate_qb_z(tf.squeeze(phi))
         Rxp = tf.stack([self.rxp]*self.batch_size)
         Rxm = tf.stack([self.rxm]*self.batch_size)
         T, CT = {}, {}

@@ -15,7 +15,7 @@ from .base import SimulatorHilbertSpace
 from simulator.mixins import BatchOperatorMixinBCH
 from simulator import operators_v2 as ops
 
-class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
+class OscillatorQubit(SimulatorHilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.
@@ -46,14 +46,6 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         super().__init__(self, *args, N=N, channel=channel, **kwargs)
 
     def _define_fixed_operators(self, N):
-
-        # Create qutip tensor ops acting on oscillator Hilbert space
-        rxp = qt.tensor(qt.qip.operations.rx(+pi / 2), qt.identity(N))
-        rxm = qt.tensor(qt.qip.operations.rx(-pi / 2), qt.identity(N))
-        self.rxp = tf.constant(rxp.full(), dtype=c64)
-        self.rxm = tf.constant(rxm.full(), dtype=c64)
-
-
         self.I = tensor([ops.identity(2), ops.identity(N)])
         self.a = tensor([ops.identity(2), ops.destroy(N)])
         self.a_dag = tensor([ops.identity(2), ops.create(N)])
@@ -74,6 +66,13 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
         self.displace = lambda a: self.translate(sqrt(2)*a)
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
+
+        tensor_with = [None, ops.identity(N)]
+        self.rotate_qb_xy = ops.QubitRotationXY(tensor_with=tensor_with)
+        self.rotate_qb_z = ops.QubitRotationZ(tensor_with=tensor_with)
+
+        self.rxp = self.rotate_qb_xy(tf.constant(pi/2), tf.constant(0))
+        self.rxm = self.rotate_qb_xy(tf.constant(-pi/2), tf.constant(0))
         
         # qubit sigma_z measurement projector
         self.P = {i : tensor([ops.projector(i,2), ops.identity(N)])
@@ -134,7 +133,7 @@ class OscillatorQubit(SimulatorHilbertSpace, BatchOperatorMixinBCH):
         """
         I = tf.stack([self.I]*self.batch_size)
         CT = self.ctrl(I, U)
-        Phase = self.rotate_qb(angle, axis='z')
+        Phase = self.rotate_qb_z(tf.squeeze(angle))
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
 
         psi = batch_dot(Hadamard, psi)
