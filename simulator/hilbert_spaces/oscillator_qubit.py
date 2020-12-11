@@ -11,11 +11,10 @@ from numpy import pi, sqrt
 from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from simulator.utils_v2 import measurement, tensor
-from .base import SimulatorHilbertSpace
-from simulator.mixins import BatchOperatorMixinBCH
+from .base import HilbertSpace
 from simulator import operators_v2 as ops
 
-class OscillatorQubit(SimulatorHilbertSpace):
+class OscillatorQubit(HilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [2N,2N].
     We adopt the notation in which qt.basis(2,0) is a qubit ground state.

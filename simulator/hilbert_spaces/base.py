@@ -14,7 +14,7 @@ from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 from simulator.diffusion_channel_sim import DiffusionChannelSim
 from simulator.utils import normalize
 
-class SimulatorHilbertSpace(ABC):
+class HilbertSpace(ABC):
     """
     Abstract base class which intializes a Monte Carlo simulator for a particular
     Hilbert space. The space is defined by the subclass, which implements a set of

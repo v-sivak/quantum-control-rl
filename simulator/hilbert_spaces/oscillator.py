@@ -11,9 +11,9 @@ from tensorflow.keras.backend import batch_dot
 from simulator.utils import normalize
 from simulator import operators_v2 as ops
 from simulator.utils_v2 import measurement
-from .base import SimulatorHilbertSpace
+from .base import HilbertSpace
 
-class Oscillator(SimulatorHilbertSpace):
+class Oscillator(HilbertSpace):
     """
     Define all relevant operators as tensorflow tensors of shape [N,N].
     Methods need to take care of batch dimension explicitly.
