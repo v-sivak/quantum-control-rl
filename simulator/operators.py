@@ -250,7 +250,17 @@ class SNAP(ParametrizedOperator):
     Selective Number-dependent Arbitrary Phase (SNAP) gate.
     SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
     
-    """          
+    """     
+    def __init__(self, N, phase_offset=None, *args, **kwargs):
+        """
+        Args:
+            N (int): dimension of Hilbert space    
+            phase_offset (Tensor([N], c64)): static offset added to the rota-
+                tion phases to model miscalibrated gate.             
+        """
+        self.phase_offset = 0 if phase_offset is None else phase_offset
+        super().__init__(N=N, *args, **kwargs)
+     
     def compute(self, theta):
         """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
         Args:
@@ -263,6 +273,7 @@ class SNAP(ParametrizedOperator):
         paddings = tf.constant([[0,0]]*D + [[0,self.N-S]])
         theta = tf.cast(theta, dtype=c64)
         theta = tf.pad(theta, paddings)
+        theta -= self.phase_offset
         exp_diag = tf.math.exp(1j*theta)
         return tf.linalg.diag(exp_diag)
     
@@ -346,19 +357,21 @@ class SNAPv2(ParametrizedOperator):
     This implementation allows to create a miscalibrated SNAP.
     
     """
-    def __init__(self, N, noise=None, *args, **kwargs):
+    def __init__(self, N, angle_offset=None, phase_offset=None, *args):
         """
         Args:
             N (int): dimension of Hilbert space    
-            noise (Tensor([N], c64)): static noise added to the phases to 
-                create a miscalibrated gate. 
+            angle_offset (Tensor([N], c64)): static offset added to the rota-
+                tion angles to model miscalibrated gate.
+            phase_offset (Tensor([N], c64)): static offset added to the rota-
+                tion phases to model miscalibrated gate.
         """
         self.rotate_qb = QubitRotationXY()
         self.projectors = tf.stack([projector(i,N) for i in range(N)])
         self.projectors = tf.cast(self.projectors, c64)
-        self.noise = tf.zeros([N], dtype=c64) if noise is None else noise
-        
-        super().__init__(N=N, *args, **kwargs)
+        self.angle_offset = 0 if angle_offset is None else angle_offset
+        self.phase_offset = 0 if phase_offset is None else phase_offset
+        super().__init__(N=N, *args)
     
     def compute(self, theta):
         """Calculates SNAP(theta) using qubit rotation gates. Can simulate
@@ -375,16 +388,17 @@ class SNAPv2(ParametrizedOperator):
         paddings = tf.constant([[0,0]]*len(batch_shape) + [[0,self.N-S]])
         theta = tf.cast(theta, dtype=c64) # shape=[B,S]
         theta = tf.pad(theta, paddings) # shape=[B,N]
-        theta += self.noise 
         
         # unitary corresponding to the first unselective qubit flip
         unselective_rotation = tensor(
             [self.rotate_qb(tf.constant(pi),tf.constant(0)), identity(self.N)])
         
         # construct a unitary corresponding to second selective qubit pulse
-        R = self.rotate_qb(tf.ones_like(theta)*pi, pi-theta) # shape=[B,N,2,2]
+        angle = tf.ones_like(theta) * pi + self.angle_offset
+        phase = pi - theta + self.phase_offset
+        R = self.rotate_qb(angle, phase) # shape=[B,N,2,2]
         projectors = tf.broadcast_to(self.projectors, 
-                            batch_shape+self.projectors.shape) # shape=[B,N,N,N] 
+                            batch_shape+self.projectors.shape) # shape=[B,N,N,N]
         selective_rotations = tensor([R, projectors]) # shape=[B,N,2N,2N]
         selective_rotations = tf.reduce_sum(selective_rotations, axis=-3) # shape=[B,2N,2N]
         

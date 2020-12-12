@@ -43,7 +43,7 @@ class QuantumCircuit(Oscillator, GKP):
     @property
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[14], dtype=tf.float32)}
         return spec
 
     @tf.function

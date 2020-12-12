@@ -8,7 +8,7 @@ import tensorflow as tf
 from tensorflow import complex64 as c64
 import tensorflow_probability as tfp
 
-# good
+
 def normalize(state):
     """
     Args:
@@ -23,7 +23,7 @@ def normalize(state):
     state_normalized = tf.where(mask, tf.zeros_like(normalized), normalized)
     return state_normalized, norm
 
-# good
+
 def basis(n, N, batch_shape=[1]):
     """
     Args:
@@ -37,7 +37,7 @@ def basis(n, N, batch_shape=[1]):
     """
     return tf.ones(batch_shape+[1], c64) * tf.one_hot(n, N, dtype=c64)
 
-# good for now
+
 def Kronecker_product(states):
     """
     Kronecker product of states living in different Hilbert spaces.
@@ -63,7 +63,7 @@ def Kronecker_product(states):
     tensor_state = tf.linalg.LinearOperatorKronecker(operators).to_dense()
     return tf.squeeze(tensor_state, axis=-1)
 
-# good
+
 @tf.function
 def measurement(state, M_ops, sample=True):
     """
@@ -96,7 +96,7 @@ def measurement(state, M_ops, sample=True):
     else:
         return state, (p[0]-p[1])/(p[0]+p[1])
 
-# good
+
 @tf.function
 def batch_dot(state1, state2):
     """
@@ -109,7 +109,7 @@ def batch_dot(state1, state2):
     """
     return tf.math.reduce_sum(tf.math.conj(state1) * state2, axis=-1, keepdims=True)
 
-#good
+
 @tf.function
 def expectation(state, operator, reduce_batch=True):
     """
@@ -148,7 +148,7 @@ def expectation(state, operator, reduce_batch=True):
 
     return expect_batch
 
-# good for now
+#TODO: this is very memory-inefficient, write a custom kronecker product
 def tensor(operators):
     """
     Tensor product of operators acting on different Hilbert spaces.

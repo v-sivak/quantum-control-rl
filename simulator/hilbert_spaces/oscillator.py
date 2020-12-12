@@ -7,6 +7,7 @@ Created on Tue Aug 04 16:08:01 2020
 """
 from math import pi, sqrt
 import tensorflow as tf
+from tensorflow import complex64 as c64
 from tensorflow.keras.backend import batch_dot
 from simulator import operators as ops
 from simulator.utils import measurement
@@ -45,10 +46,14 @@ class Oscillator(HilbertSpace):
         self.n = ops.num(N)
         self.parity = ops.parity(N)
         self.phase = ops.Phase()
-        self.SNAP = ops.SNAP(N)
+        
         self.rotate = ops.RotationOperator(N)
         self.translate = ops.TranslationOperator(N)
         self.displace = lambda a: self.translate(sqrt(2)*a)
+
+        tf.random.set_seed(0)
+        offset = tf.cast(tf.random.uniform([N], maxval=0.5, seed=0), c64)
+        self.SNAP = ops.SNAP(N, phase_offset=offset)
 
     @property
     def _hamiltonian(self):

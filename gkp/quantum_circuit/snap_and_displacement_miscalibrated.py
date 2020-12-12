@@ -14,7 +14,6 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
-from simulator.utils import measurement
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
@@ -71,7 +70,6 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi = batch_dot(displace, psi)
         psi = batch_dot(snap, psi)
         psi = batch_dot(tf.linalg.adjoint(displace), psi)
-        psi, obs = measurement(psi, self.P)
 
-        return psi, psi, obs #tf.ones((self.batch_size,1))
+        return psi, psi, tf.ones((self.batch_size,1))
 
