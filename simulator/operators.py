@@ -4,6 +4,7 @@ Created on Mon Nov 23 22:38:34 2020
 
 @author: Vladimir Sivak
 """
+from math import pi
 import tensorflow as tf
 from tensorflow import complex64 as c64
 from math import sqrt
@@ -336,3 +337,56 @@ class Phase(ParametrizedOperator):
         angle = tf.squeeze(angle) # TODO: get rid of this
         angle = tf.cast(tf.reshape(angle, angle.shape+[1,1]), c64)
         return tf.math.exp(1j * angle)
+
+
+class SNAPv2(ParametrizedOperator):
+    """
+    Selective Number-dependent Arbitrary Phase (SNAP) gate.
+    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
+    This implementation allows to create a miscalibrated SNAP.
+    
+    """
+    def __init__(self, N, noise=None, *args, **kwargs):
+        """
+        Args:
+            N (int): dimension of Hilbert space    
+            noise (Tensor([N], c64)): static noise added to the phases to 
+                create a miscalibrated gate. 
+        """
+        self.rotate_qb = QubitRotationXY()
+        self.projectors = tf.stack([projector(i,N) for i in range(N)])
+        self.projectors = tf.cast(self.projectors, c64)
+        self.noise = tf.zeros([N], dtype=c64) if noise is None else noise
+        
+        super().__init__(N=N, *args, **kwargs)
+    
+    def compute(self, theta):
+        """Calculates SNAP(theta) using qubit rotation gates. Can simulate
+        miscalibrated snap if some noise is added to the rotation angles.
+        
+        Args:
+            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
+        Returns:
+            Tensor([B1, ..., Bb, 2N, 2N], c64): A batch of SNAP(theta)
+        """
+        # this part is the same as for perfect SNAP: pad the angles with zeros
+        S = theta.shape[-1] # SNAP truncation
+        batch_shape = theta.shape[:-1]
+        paddings = tf.constant([[0,0]]*len(batch_shape) + [[0,self.N-S]])
+        theta = tf.cast(theta, dtype=c64) # shape=[B,S]
+        theta = tf.pad(theta, paddings) # shape=[B,N]
+        theta += self.noise 
+        
+        # unitary corresponding to the first unselective qubit flip
+        unselective_rotation = tensor(
+            [self.rotate_qb(tf.constant(pi),tf.constant(0)), identity(self.N)])
+        
+        # construct a unitary corresponding to second selective qubit pulse
+        R = self.rotate_qb(tf.ones_like(theta)*pi, pi-theta) # shape=[B,N,2,2]
+        projectors = tf.broadcast_to(self.projectors, 
+                            batch_shape+self.projectors.shape) # shape=[B,N,N,N] 
+        selective_rotations = tensor([R, projectors]) # shape=[B,N,2N,2N]
+        selective_rotations = tf.reduce_sum(selective_rotations, axis=-3) # shape=[B,2N,2N]
+        
+        snap = selective_rotations @ unselective_rotation
+        return snap

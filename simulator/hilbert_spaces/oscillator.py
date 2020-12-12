@@ -33,9 +33,10 @@ class Oscillator(HilbertSpace):
         self._N = N
         self._K_osc = K_osc
         self._T1_osc = T1_osc
-        super().__init__(self, *args, N=N, channel=channel, **kwargs)
+        super().__init__(self, *args, channel=channel, **kwargs)
 
-    def _define_fixed_operators(self, N):
+    def _define_fixed_operators(self):
+        N = self.N
         self.I = ops.identity(N)
         self.a = ops.destroy(N)
         self.a_dag = ops.create(N)

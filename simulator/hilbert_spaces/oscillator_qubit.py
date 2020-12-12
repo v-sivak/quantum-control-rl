@@ -5,7 +5,6 @@ Created on Tue Aug 04 16:08:01 2020
 
 @author: Henry Liu
 """
-import qutip as qt
 import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
@@ -42,9 +41,10 @@ class OscillatorQubit(HilbertSpace):
         self._T2_qb = T2_qb
 
         self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
-        super().__init__(self, *args, N=N, channel=channel, **kwargs)
+        super().__init__(self, *args, channel=channel, **kwargs)
 
-    def _define_fixed_operators(self, N):
+    def _define_fixed_operators(self):
+        N = self.N
         self.I = tensor([ops.identity(2), ops.identity(N)])
         self.a = tensor([ops.identity(2), ops.destroy(N)])
         self.a_dag = tensor([ops.identity(2), ops.create(N)])
@@ -60,16 +60,18 @@ class OscillatorQubit(HilbertSpace):
         self.hadamard = tensor([ops.hadamard(), ops.identity(N)])
 
         tensor_with = [ops.identity(2), None]
-        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)
         self.phase = ops.Phase(tensor_with=tensor_with)
         self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
         self.displace = lambda a: self.translate(sqrt(2)*a)
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
+        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)
+        tf.random.set_seed(0)
+        noise = tf.cast(tf.random.uniform([N], maxval=0.5, seed=0), c64)
+        self.SNAP_miscalibrated = ops.SNAPv2(N, noise=noise)
 
         tensor_with = [None, ops.identity(N)]
         self.rotate_qb_xy = ops.QubitRotationXY(tensor_with=tensor_with)
         self.rotate_qb_z = ops.QubitRotationZ(tensor_with=tensor_with)
-
         self.rxp = self.rotate_qb_xy(tf.constant(pi/2), tf.constant(0))
         self.rxm = self.rotate_qb_xy(tf.constant(-pi/2), tf.constant(0))
         

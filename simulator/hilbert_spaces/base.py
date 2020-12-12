@@ -21,16 +21,15 @@ class HilbertSpace(ABC):
     operators on the space, a Hamiltonian, and a set of jump operators.
     """
 
-    def __init__(self, *args, channel, N, discrete_step_duration, diffusion_rate, **kwargs):
+    def __init__(self, *args, channel, discrete_step_duration, diffusion_rate, **kwargs):
         """
         Args:
             channel (str): either 'diffusion' or 'quantum_jumps' error channel
-            N (int): Size of the oscillator Hilbert space
             discrete_step_duration (float): Simulator time discretization in seconds.
             diffusion_rate (float): Rate of diffusion in 1/s.
         """
         # Tensor ops acting on oscillator Hilbert space
-        self._define_fixed_operators(N)
+        self._define_fixed_operators()
         
         # Initialize quantum trajectories simulator
         if channel == 'quantum_jumps':
@@ -51,16 +50,13 @@ class HilbertSpace(ABC):
     
 
     @abstractmethod
-    def _define_fixed_operators(self, N):
+    def _define_fixed_operators(self):
         """
-        Fixed operators on this Hilbert space, to be defined by the subclass.
-
-        For a (trivial) example: the identity operator. "Batch" operators, which are
-        generated from an input parameter (e.g. displacement) are currently defined
-        in a separate mixin.
-
-        Args:
-            N (int): Size of the **oscillator** Hilbert space truncation.
+        Create operators on this Hilbert space. To be defined by the subclass.
+        Example:
+            self.I = operators.identity(self.N)
+            self.p = operators.momentum(self.N)
+            self.displace = operators.DisplacementOperator(self.N)
         """
         pass
 
@@ -68,7 +64,7 @@ class HilbertSpace(ABC):
     @abstractmethod
     def _hamiltonian(self):
         """
-        System Hamiltonian, to be defined by the subclass.
+        System Hamiltonian (Tensor(c64)). To be defined by the subclass.
         """
         pass
 
@@ -76,7 +72,7 @@ class HilbertSpace(ABC):
     @abstractmethod
     def _collapse_operators(self):
         """
-        Kraus jump operators, to be defined by the subclass.
+        List of collapse operators (Tensor(c64)). To be defined by the subclass.
         """
         pass
 
