@@ -373,12 +373,15 @@ class SNAPv2(ParametrizedOperator):
         self.phase_offset = 0 if phase_offset is None else phase_offset
         super().__init__(N=N, *args)
     
-    def compute(self, theta):
+    def compute(self, theta, dangle=None):
         """Calculates SNAP(theta) using qubit rotation gates. Can simulate
         miscalibrated snap if some noise is added to the rotation angles.
         
         Args:
             theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
+            dangle (Tensor([B1, ..., Bb, S], c64)): A batch of offsets to
+                add to qubit rotation angles to compenstate for possible
+                angle offsets due to miscalibration.
         Returns:
             Tensor([B1, ..., Bb, 2N, 2N], c64): A batch of SNAP(theta)
         """
@@ -387,14 +390,16 @@ class SNAPv2(ParametrizedOperator):
         batch_shape = theta.shape[:-1]
         paddings = tf.constant([[0,0]]*len(batch_shape) + [[0,self.N-S]])
         theta = tf.cast(theta, dtype=c64) # shape=[B,S]
+        dangle = tf.zeros_like(theta) if dangle is None else tf.cast(dangle, dtype=c64)
         theta = tf.pad(theta, paddings) # shape=[B,N]
+        dangle = tf.pad(dangle, paddings)
         
         # unitary corresponding to the first unselective qubit flip
         unselective_rotation = tensor(
             [self.rotate_qb(tf.constant(pi),tf.constant(0)), identity(self.N)])
         
         # construct a unitary corresponding to second selective qubit pulse
-        angle = tf.ones_like(theta) * pi + self.angle_offset
+        angle = tf.ones_like(theta) * pi + self.angle_offset + dangle
         phase = pi - theta + self.phase_offset
         R = self.rotate_qb(angle, phase) # shape=[B,N,2,2]
         projectors = tf.broadcast_to(self.projectors, 
