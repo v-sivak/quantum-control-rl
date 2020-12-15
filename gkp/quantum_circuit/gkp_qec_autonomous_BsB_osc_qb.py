@@ -81,10 +81,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
         CT['e'] = self.ctrl(tf.linalg.adjoint(T['e']), T['e'])
 
-        # Feedback translation
-        psi_cached = psi
         # Between-round wait time
-        psi = self.simulate(psi_cached, self.t_idle)
+        psi = self.simulate(psi, self.t_idle)
         # Rotate qubit to |+> state
         psi = tf.linalg.matvec(self.hadamard, psi)
         # Troterized conditional translation
@@ -113,4 +111,4 @@ class QuantumCircuit(OscillatorQubit, GKP):
         # Flip qubit conditioned on the measurement
         psi_final = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
 
-        return psi_final, psi_cached, msmt
+        return psi_final, psi_final, msmt

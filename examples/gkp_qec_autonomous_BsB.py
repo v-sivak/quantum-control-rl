@@ -20,27 +20,25 @@ from gkp.agents import actor_distribution_network_gkp
 from gkp.gkp_tf_env import helper_functions as hf
 
 """
-Train PPO agent to do quantum error correction with modified version of Baptiste 
-autonomous circuit (which also includes a small feedback), on a square GKP code.
+Train PPO agent to do quantum error correction with autonomous BsB protocol 
+on a square GKP code.
 
 This assumes that we can start the episodes with already prepared GKP states 
 and do logical Pauli measurements in the end to assign reward.
 
-History of measurement outcomes is used to find non-Markovian strategy.
-
 """
 
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\examples'
-root_dir = os.path.join(root_dir,'qec_Baptiste_autonomous_history')
+root_dir = r'E:\data\gkp_sims\PPO\examples'
+root_dir = os.path.join(root_dir,'gkp_qec_autonomous_BsB')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'Baptiste_autonomous_osc_qb',
+    'simulate' : 'gkp_qec_autonomous_BsB_osc_qb',
     'encoding' : 'square',
     'init' : 'random',
-    'H' : 3,
+    'H' : 1,
     'T' : 2, 
-    'attn_step' : 2}
+    'attn_step' : 1}
 
 # Params for reward function
 reward_kwargs = {
@@ -48,9 +46,9 @@ reward_kwargs = {
     'code_flips' : False}
 
 # Params for action wrapper
-action_script = 'v3_Baptiste_autonomous_2round'
-action_scale = {'alpha':1, 'beta':1, 'phi':pi, 'epsilon':1}
-to_learn = {'alpha':True, 'beta':False, 'phi':False, 'epsilon':True}
+action_script = 'gkp_qec_autonomous_BsB_2round'
+action_scale = {'beta':1, 'phi':pi, 'epsilon':1}
+to_learn = {'beta':False, 'phi':False, 'epsilon':True}
 
 train_batch_size = 1000
 eval_batch_size = 1000
@@ -84,7 +82,7 @@ PPO.train_eval(
         value_pred_loss_coef = 0.005,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 500,
+        save_interval = 100,
         checkpoint_interval = 1000,
         summary_interval = 100,
         # Params for data collection
