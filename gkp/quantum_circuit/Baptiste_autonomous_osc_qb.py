@@ -10,7 +10,6 @@ approach to quantum circuits.
 
 import tensorflow as tf
 from tensorflow import complex64 as c64
-from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
@@ -52,8 +51,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha'   : specs.TensorSpec(shape=[2], dtype=tf.float32), 
-                'beta'    : specs.TensorSpec(shape=[2], dtype=tf.float32), 
+        spec = {'beta'    : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'epsilon' : specs.TensorSpec(shape=[2], dtype=tf.float32),
                 'phi'     : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
@@ -63,8 +61,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha'   : Tensor([batch_size,2], tf.float32),
-                          'beta'    : Tensor([batch_size,2], tf.float32),
+            action (dict, 'beta'    : Tensor([batch_size,2], tf.float32),
                           'epsilon' : Tensor([batch_size,2], tf.float32,
                           'phi'     : Tensor([batch_size,1])))
 
@@ -72,48 +69,41 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         """
         # extract parameters
-        alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
         epsilon = hf.vec_to_complex(action['epsilon'])
-        phi = action['phi']
+        phi = tf.squeeze(action['phi'])
 
         # Construct gates
-        Hadamard = tf.stack([self.hadamard]*self.batch_size)
-        sx = tf.stack([self.sx]*self.batch_size)
-        I = tf.stack([self.I]*self.batch_size)
-        Phase = self.rotate_qb_z(tf.squeeze(phi))
-        Rxp = tf.stack([self.rxp]*self.batch_size)
-        Rxm = tf.stack([self.rxm]*self.batch_size)
+        Phase = self.rotate_qb_z(phi)
         T, CT = {}, {}
-        T['a'] = self.translate(alpha)
-        T['b'] = self.translate(beta/4.0)
+        T['b'] = self.translate(beta/4.0) # 4 because it will be troterized
         T['e'] = self.translate(epsilon/2.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
         CT['e'] = self.ctrl(tf.linalg.adjoint(T['e']), T['e'])
 
         # Feedback translation
-        psi_cached = batch_dot(T['a'], psi)
+        psi_cached = psi
         # Between-round wait time
         psi = self.simulate(psi_cached, self.t_idle)
-        # Qubit gates
-        psi = batch_dot(Hadamard, psi)
-        # Conditional translation
-        psi = batch_dot(CT['b'], psi)
+        # Rotate qubit to |+> state
+        psi = tf.linalg.matvec(self.hadamard, psi)
+        # Troterized conditional translation
+        psi = tf.linalg.matvec(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
-        psi = batch_dot(CT['b'], psi)
+        psi = tf.linalg.matvec(CT['b'], psi)
         # Qubit rotation
-        psi = batch_dot(Rxp, psi)
+        psi = tf.linalg.matvec(self.rxp, psi)
         # Conditional translation
-        psi = batch_dot(CT['e'], psi)
+        psi = tf.linalg.matvec(CT['e'], psi)
         # Qubit rotation
-        psi = batch_dot(Rxm, psi)
-        # Conditional translation
-        psi = batch_dot(CT['b'], psi)
+        psi = tf.linalg.matvec(self.rxm, psi)
+        # Troterized conditional translation
+        psi = tf.linalg.matvec(CT['b'], psi)
         psi = self.simulate(psi, self.t_gate)
-        psi = batch_dot(CT['b'], psi)
+        psi = tf.linalg.matvec(CT['b'], psi)
         # Qubit gates
-        psi = batch_dot(Phase, psi)
-        psi = batch_dot(Hadamard, psi)
+        psi = tf.linalg.matvec(Phase, psi)
+        psi = tf.linalg.matvec(self.hadamard, psi)
         # Readout of finite duration
         psi = self.simulate(psi, self.t_read)
         psi, msmt = measurement(psi, self.P)
@@ -121,7 +111,6 @@ class QuantumCircuit(OscillatorQubit, GKP):
         # Feedback delay
         psi = self.simulate(psi, self.t_feedback)
         # Flip qubit conditioned on the measurement
-        psi_final = psi * tf.cast((msmt==1), c64)
-        psi_final += batch_dot(sx, psi) * tf.cast((msmt==-1), c64)
+        psi_final = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
 
         return psi_final, psi_cached, msmt
