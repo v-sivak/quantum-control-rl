@@ -13,13 +13,11 @@ from simulator import operators as ops
 
 class OscillatorOscillator(HilbertSpace):
 
-    def __init__(self, *args, N1=100, N2=100, channel='quantum_jumps', **kwargs):
+    def __init__(self, *args, N1=100, N2=100, **kwargs):
         """
         Args:
             N1 (int, optional): Size of the first oscillator Hilbert space.
             N2 (int, optional): Size of the second oscillator Hilbert space.
-            channel (str, optional): model of the error channel, either 'diffusion'
-                    or 'quantum_jumps'.
         """
         self._N1 = N1
         self._N2 = N2
@@ -27,7 +25,7 @@ class OscillatorOscillator(HilbertSpace):
         self.K_osc2 = 1
         self.T1_osc1 = 300e-6
         self.T1_osc2 = 300e-6
-        super().__init__(self, *args, channel=channel, **kwargs)
+        super().__init__(self, *args, **kwargs)
 
     def _define_fixed_operators(self):
         N1 = self.N1

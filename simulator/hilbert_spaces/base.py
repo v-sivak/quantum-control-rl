@@ -11,7 +11,6 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.keras.backend import batch_dot
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
-from simulator.diffusion_channel_sim import DiffusionChannelSim
 
 
 class HilbertSpace(ABC):
@@ -21,31 +20,22 @@ class HilbertSpace(ABC):
     operators on the space, a Hamiltonian, and a set of jump operators.
     """
 
-    def __init__(self, *args, channel, discrete_step_duration, diffusion_rate, **kwargs):
+    def __init__(self, *args, discrete_step_duration, **kwargs):
         """
         Args:
-            channel (str): either 'diffusion' or 'quantum_jumps' error channel
             discrete_step_duration (float): Simulator time discretization in seconds.
-            diffusion_rate (float): Rate of diffusion in 1/s.
         """
         # Tensor ops acting on oscillator Hilbert space
         self._define_fixed_operators()
         
         # Initialize quantum trajectories simulator
-        if channel == 'quantum_jumps':
-            self.mcsim = QuantumTrajectorySim(self._kraus_ops(discrete_step_duration))
-            def simulate(psi, time):
-                # TODO: fix the rounding issue
-                steps = tf.cast(time / discrete_step_duration, dtype=tf.int32)
-                return self.mcsim.run(psi, steps)
-        
-        if channel == 'diffusion':
-            self.mcsim = DiffusionChannelSim(self.translate)
-            def simulate(psi, time):
-                diffusion_sigma = tf.math.sqrt(diffusion_rate * time)
-                return self.mcsim.run(psi, diffusion_sigma)
-
+        self.mcsim = QuantumTrajectorySim(self._kraus_ops(discrete_step_duration))
+        def simulate(psi, time):
+            # TODO: fix the rounding issue
+            steps = tf.cast(time / discrete_step_duration, dtype=tf.int32)
+            return self.mcsim.run(psi, steps)
         self.simulate = tf.function(simulate)
+
         super().__init__(*args, **kwargs)
     
 

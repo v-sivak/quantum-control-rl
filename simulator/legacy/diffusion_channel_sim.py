@@ -9,6 +9,15 @@ import tensorflow_probability as tfp
 from simulator.utils import normalize
 from tensorflow.keras.backend import batch_dot
 
+# #Can include it by something like this:
+
+# # Initialize quantum trajectories simulator
+# if channel == 'diffusion':
+#     self.mcsim = DiffusionChannelSim(self.translate)
+#     def simulate(psi, time):
+#         diffusion_sigma = tf.math.sqrt(diffusion_rate * time)
+#         return self.mcsim.run(psi, diffusion_sigma)
+
 
 class DiffusionChannelSim:
     

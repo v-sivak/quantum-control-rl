@@ -12,7 +12,6 @@ Created on Sun Feb 23 12:09:16 2020
 T1_osc = 245e-6
 T2_osc = None
 K_osc = 1
-diffusion_rate = 5e3
 
 # Qubit
 T1_qb = 50e-6

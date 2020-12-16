@@ -23,7 +23,7 @@ class OscillatorQubit(HilbertSpace):
     simulate decoherence, dephasing, Kerr etc using quantum jumps.
     """
 
-    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, channel='quantum_jumps', **kwargs):
+    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, **kwargs):
         """
         Args:
             K_osc (float): Kerr of oscillator (Hz).
@@ -31,8 +31,6 @@ class OscillatorQubit(HilbertSpace):
             T1_qb (float): T1 relaxation time of qubit (seconds).
             T2_qb (float): T2 decoherence time of qubit (seconds).
             N (int, optional): Size of oscillator Hilbert space.
-            channel (str, optional): model of the error channel, either 'diffusion'
-                    or 'quantum_jumps'.
         """
         self._N = N
         self._K_osc = K_osc
@@ -41,7 +39,7 @@ class OscillatorQubit(HilbertSpace):
         self._T2_qb = T2_qb
 
         self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
-        super().__init__(self, *args, channel=channel, **kwargs)
+        super().__init__(self, *args, **kwargs)
 
     def _define_fixed_operators(self):
         N = self.N
