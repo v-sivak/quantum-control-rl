@@ -1,4 +1,5 @@
 from gkp.action_script import gkp_qec_autonomous_BsB_2round
+from gkp.action_script import gkp_qec_autonomous_sBs_2round
 from gkp.action_script import v2_phase_estimation_2round
 from gkp.action_script import v1_phase_estimation_X_prep_4round
 from gkp.action_script import v1_phase_estimation_8round

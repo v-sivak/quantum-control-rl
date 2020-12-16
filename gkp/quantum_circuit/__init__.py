@@ -7,6 +7,7 @@ from gkp.quantum_circuit import Baptiste_feedback_osc_qb
 
 from gkp.quantum_circuit import gkp_qec_autonomous_BsB_osc
 from gkp.quantum_circuit import gkp_qec_autonomous_BsB_osc_qb
+from gkp.quantum_circuit import gkp_qec_autonomous_sBs_osc_qb
 
 from gkp.quantum_circuit import Alec_universal_gate_set
 

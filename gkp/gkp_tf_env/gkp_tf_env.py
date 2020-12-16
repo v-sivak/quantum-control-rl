@@ -629,7 +629,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
         """
         # Count code flips that affect cached state
-        if code_flips: self.count_code_flips(act, 'alpha')
+        if code_flips and 'alpha' in act.keys():
+            self.count_code_flips(act, 'alpha')
 
         # Measure the Pauli expectation on cached state 
         pauli = [self.code_map[self._original[i][0]]
