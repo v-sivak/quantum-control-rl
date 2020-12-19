@@ -4,10 +4,9 @@ Created on Mon Nov 23 22:38:34 2020
 
 @author: Vladimir Sivak
 """
-from math import pi
+from math import pi, sqrt
 import tensorflow as tf
 from tensorflow import complex64 as c64
-from math import sqrt
 from simulator.utils import tensor
 
 from distutils.version import LooseVersion
@@ -165,6 +164,27 @@ class ParametrizedOperator():
         pass
 
 
+class HamiltonianEvolutionOperator(ParametrizedOperator):
+    """ Unitary evolution according to some Hamiltonian. """    
+    def __init__(self, H, *args, **kwargs):
+        """
+        Args:
+            H (Tensor([N, N], c64)): Hamiltonian in Hz
+        """
+        N = H.shape[-1]
+        (self.eigvals, self.U) = tf.linalg.eigh(H)
+        super().__init__(N=N, *args, **kwargs)
+
+    def compute(self, t):
+        """
+        Args:
+            t: time in seconds
+        """
+        t = tf.cast(t, c64)
+        exp_diag = tf.linalg.diag(tf.math.exp(-1j * 2*pi * t * self.eigvals))
+        return tf.cast(self.U @ exp_diag @ tf.linalg.adjoint(self.U), c64)
+
+
 class TranslationOperator(ParametrizedOperator):
     """ 
     Translation in phase space.
@@ -174,7 +194,6 @@ class TranslationOperator(ParametrizedOperator):
         alpha = tf.constant([1.23+0.j, 3.56j, 2.12+1.2j])
         T(alpha) # shape=[3,100,100]
     """
-    
     def __init__(self, N, *args, **kwargs):
         """ Pre-diagonalize position and momentum operators."""
         p = momentum(N)
@@ -225,8 +244,7 @@ class DisplacementOperator(TranslationOperator):
     
     """    
     def __call__(self, amplitude):
-        sqrt2 = tf.math.sqrt(tf.constant(2, dtype=amplitude.dtype))
-        return super().__call__(amplitude*sqrt2)
+        return super().__call__(amplitude*sqrt(2))
 
 
 class RotationOperator(ParametrizedOperator):
