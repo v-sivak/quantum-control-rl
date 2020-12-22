@@ -23,7 +23,7 @@ class OscillatorQubit(HilbertSpace):
     simulate decoherence, dephasing, Kerr etc using quantum jumps.
     """
 
-    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, N=100, **kwargs):
+    def __init__(self, *args, K_osc, T1_osc, T1_qb, T2_qb, chi_prime, N=100, **kwargs):
         """
         Args:
             K_osc (float): Kerr of oscillator (Hz).
@@ -37,6 +37,7 @@ class OscillatorQubit(HilbertSpace):
         self._T1_osc = T1_osc
         self._T1_qb = T1_qb
         self._T2_qb = T2_qb
+        self._chi_prime = chi_prime
 
         self._T2_star_qb = 1 / (1 / T2_qb - 1 / (2 * T1_qb))  
         super().__init__(self, *args, **kwargs)
@@ -62,10 +63,10 @@ class OscillatorQubit(HilbertSpace):
         self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
         self.displace = lambda a: self.translate(sqrt(2)*a)
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
-        
+
+        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)        
         tf.random.set_seed(0)
         offset = tf.cast(tf.random.uniform([N], maxval=0.5, seed=0), c64)
-        self.SNAP = ops.SNAP(N, tensor_with=tensor_with, phase_offset=offset)
         self.SNAP_miscalibrated = ops.SNAPv2(N, phase_offset=offset)
 
         tensor_with = [None, ops.identity(N)]
@@ -80,7 +81,9 @@ class OscillatorQubit(HilbertSpace):
 
     @property
     def _hamiltonian(self):
-        return -1 / 2 * (2 * pi) * self._K_osc * self.n * self.n  # Kerr
+        chi_prime = 1/4 * (2*pi) * self._chi_prime * self.ctrl(self.n**2, -self.n**2)
+        kerr = - 1/2 * (2*pi) * self._K_osc * self.n ** 2  # Kerr
+        return kerr + chi_prime
 
     @property
     def _collapse_operators(self):
@@ -131,8 +134,7 @@ class OscillatorQubit(HilbertSpace):
                  batch of expectation values of qubit sigma_z.
 
         """
-        I = tf.stack([self.I]*self.batch_size)
-        CT = self.ctrl(I, U)
+        CT = self.ctrl(self.I, U)
         Phase = self.rotate_qb_z(tf.squeeze(angle))
         Hadamard = tf.stack([self.hadamard]*self.batch_size)
 

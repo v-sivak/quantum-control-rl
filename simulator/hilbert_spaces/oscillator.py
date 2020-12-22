@@ -48,10 +48,7 @@ class Oscillator(HilbertSpace):
         self.rotate = ops.RotationOperator(N)
         self.translate = ops.TranslationOperator(N)
         self.displace = lambda a: self.translate(sqrt(2)*a)
-
-        tf.random.set_seed(0)
-        offset = tf.cast(tf.random.uniform([N], maxval=0.5, seed=0), c64)
-        self.SNAP = ops.SNAP(N, phase_offset=offset)
+        self.SNAP = ops.SNAP(N)
 
     @property
     def _hamiltonian(self):
@@ -85,9 +82,8 @@ class Oscillator(HilbertSpace):
 
         """
         Kraus = {}
-        I = tf.stack([self.I]*self.batch_size)
-        Kraus[0] = 1/2*(I + self.phase(angle)*U)
-        Kraus[1] = 1/2*(I - self.phase(angle)*U)
+        Kraus[0] = 1/2*(self.I + self.phase(angle)*U)
+        Kraus[1] = 1/2*(self.I - self.phase(angle)*U)
 
         return measurement(psi, Kraus, sample)
 
