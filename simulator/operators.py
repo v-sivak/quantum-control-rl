@@ -117,7 +117,7 @@ def parity(N):
         Tensor([N, N], tf.complex64): NxN photon number parity operator
     """
     pm1 = tf.where(tf.math.floormod(tf.range(N),2)==1, -1, 1)
-    return diag(tf.cast(pm1, dtype=c64))
+    return tf.cast(diag(pm1), dtype=c64)
 
 
 def projector(n, N):
@@ -130,7 +130,7 @@ def projector(n, N):
         Tensor([N, N], tf.complex64): NxN photon number parity operator
     """
     assert n < N
-    return diag(tf.one_hot(n, N, dtype=c64))
+    return tf.cast(diag(tf.one_hot(n, N)), c64)
 
 
 ### Parametrized operators
