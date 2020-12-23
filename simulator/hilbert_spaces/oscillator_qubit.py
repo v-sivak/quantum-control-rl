@@ -8,7 +8,6 @@ Created on Tue Aug 04 16:08:01 2020
 import tensorflow as tf
 from numpy import pi, sqrt
 from tensorflow import complex64 as c64
-from tensorflow.keras.backend import batch_dot
 from simulator.utils import measurement, tensor
 from .base import HilbertSpace
 from simulator import operators as ops
@@ -136,37 +135,12 @@ class OscillatorQubit(HilbertSpace):
         """
         CT = self.ctrl(self.I, U)
         Phase = self.rotate_qb_z(tf.squeeze(angle))
-        Hadamard = tf.stack([self.hadamard]*self.batch_size)
 
-        psi = batch_dot(Hadamard, psi)
-        psi = batch_dot(CT, psi)
-        psi = batch_dot(Phase, psi)
-        psi = batch_dot(Hadamard, psi)
+        psi = tf.linalg.matvec(self.hadamard, psi)
+        psi = tf.linalg.matvec(CT, psi)
+        psi = tf.linalg.matvec(Phase, psi)
+        psi = tf.linalg.matvec(self.hadamard, psi)
         return measurement(psi, self.P, sample)
-
-    @tf.function
-    def rotate_qb_xy(self, phi, theta):
-        """Calculate qubit rotation matrix for rotation axis in xy-plane.
-
-        Args:
-            phi (Tensor([batch_size], c64)): angle between rotation axis and 
-                x-axis of the Bloch sphere.
-            theta (Tensor([batch_size], c64)): rotation angle.
-
-        Returns:
-            Tensor([batch_size, N, N], c64): A batch of R_phi(theta)
-        """
-        # ensure correct shapes for 'phi' and 'theta'
-        phi = tf.cast(tf.reshape(phi, [phi.shape[0], 1, 1]), dtype=c64)
-        theta = tf.cast(tf.reshape(phi, [theta.shape[0], 1, 1]), dtype=c64)
-        
-        I = tf.expand_dims(self.I, axis=0)
-        sx = tf.expand_dims(self.sx, axis=0)
-        sy = tf.expand_dims(self.sy, axis=0)
-        
-        R = tf.math.cos(theta/2)*I - 1j*tf.math.sin(theta/2) * \
-            (tf.math.cos(phi)*sx + tf.math.sin(phi)*sy)
-        return R
 
     @property
     def N(self):

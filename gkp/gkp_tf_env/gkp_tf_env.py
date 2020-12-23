@@ -571,8 +571,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             code_flips (bool): flag to control code flips count "in software"
             
         """
-        if code_flips: self.count_code_flips(act, 'alpha')
-        
+        # Count code flips that affect cached state
+        if code_flips and 'alpha' in act.keys():
+            self.count_code_flips(act, 'alpha')
+            
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
             if code_flips: self.count_code_flips(act, 'beta')
