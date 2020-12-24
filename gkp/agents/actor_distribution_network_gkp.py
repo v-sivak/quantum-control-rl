@@ -112,7 +112,7 @@ class ActorDistributionNetworkGKP(network.DistributionNetwork):
         self._output_tensor_spec = output_tensor_spec
         
         # list of action dimensions that are independent of the measurements
-        self._clock_only_actions = ['beta','epsilon']
+        self._clock_only_actions = ['beta','epsilon', 'eps1', 'eps2']
         self._const_actions = ['theta']
     
     @property

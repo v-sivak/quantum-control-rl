@@ -196,7 +196,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Make observation of horizon H
         observation = {
             'msmt'  : tf.concat(self.history['msmt'][-self.H:], axis=1), 
-            'clock' : tf.zeros(shape=[self.batch_size,self.T]),
+            'clock' : tf.one_hot([0]*self.batch_size, self.T),
             'const'   : tf.ones(shape=[self.batch_size,1])}
         
         self._current_time_step_ = ts.restart(observation, self.batch_size)
