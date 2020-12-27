@@ -58,7 +58,7 @@ class OscillatorQubit(HilbertSpace):
         self.hadamard = tensor([ops.hadamard(), ops.identity(N)])
 
         tensor_with = [ops.identity(2), None]
-        self.phase = ops.Phase(tensor_with=tensor_with)
+        self.phase = ops.Phase()
         self.translate = ops.TranslationOperator(N, tensor_with=tensor_with)
         self.displace = lambda a: self.translate(sqrt(2)*a)
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
@@ -77,6 +77,9 @@ class OscillatorQubit(HilbertSpace):
         # qubit sigma_z measurement projector
         self.P = {i : tensor([ops.projector(i,2), ops.identity(N)])
                   for i in [0, 1]}
+
+        self.sx_selective = tensor([ops.sigma_x(), ops.projector(0, N)]) + \
+            tensor([ops.identity(2), ops.identity(N)-ops.projector(0, N)])
 
     @property
     def _hamiltonian(self):

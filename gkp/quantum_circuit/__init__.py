@@ -14,3 +14,5 @@ from gkp.quantum_circuit import Alec_universal_gate_set
 from gkp.quantum_circuit import snap_and_displacement
 from gkp.quantum_circuit import snap_and_displacement_miscalibrated
 from gkp.quantum_circuit import snap_and_displacement_angle_phase
+
+from gkp.quantum_circuit import conditional_displacement_cal
