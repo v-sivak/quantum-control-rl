@@ -17,7 +17,6 @@ from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
-# from simulator.utils import expectation
 from simulator.utils import measurement, expectation
 from gkp.gkp_tf_env import helper_functions as hf
 from tensorflow.keras.backend import batch_dot
@@ -317,7 +316,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         try:
             assert 'reward_mode' in reward_kwargs
             mode = reward_kwargs['reward_mode']
-            assert mode in ['zero', 
+            assert mode in ['zero',
+                            'measurement',
                             'stabilizers', 
                             'pauli', 
                             'fidelity',
@@ -335,6 +335,17 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 
             """
             self.calculate_reward = self.reward_zero
+
+        if mode == 'measurement':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'measurement'
+                sample (bool): flag to sample binary outcomes
+                
+            """
+            sample = reward_kwargs['sample']
+            self.calculate_reward = \
+                lambda args: self.reward_measurement(sample, args)
 
         if mode == 'pauli':
             """
@@ -558,6 +569,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         """
         return tf.zeros(self.batch_size, dtype=tf.float32)
+
+
+    # @tf.function
+    def reward_measurement(self, sample, *args):
+        """
+        Reward is simply the outcome of sigma_z measurement.
+        
+        """
+        psi, z = measurement(self.info['psi_cached'], self.P, sample)
+        return tf.squeeze(z)
 
 
     def reward_pauli(self, code_flips, act):

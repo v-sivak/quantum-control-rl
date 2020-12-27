@@ -26,7 +26,7 @@ script = {
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
 # that time step, while 0 allows to use the scripted value.
 mask = {
-    'beta'  : [0, 0],
+    'beta'  : [1, 1],
     'eps1' : [1, 1],
     'eps2' : [1, 1],
     'phi' : [1, 1]
