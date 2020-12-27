@@ -24,7 +24,7 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
     
     """
     def __init__(self, env_kwargs, reward_kwargs, batch_size,
-                 action_script, action_scale, to_learn):
+                 action_script, action_scale, to_learn, episode_length):
         """
         Args:
             env_kwargs (dict): optional parameters for training environment.
@@ -37,8 +37,12 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
                 by the agent's neural net policy by these factors.
             to_learn (dict, str:bool): dictionary mapping action dimensions to 
                 bool flags. Specifies if the action should be learned or scripted.
+            episode_length (callable: int -> int): function that defines the 
+                schedule for training episode durations. Takes as argument int 
+                epoch number and returns int episode duration for this epoch.
         
         """
+        self.episode_length = episode_length
         # Create training env and wrap it
         env = gkp_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
@@ -48,12 +52,11 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         # create dummy placeholder policy to initialize parent class
         dummy_policy = PolicyPlaceholder(env.time_step_spec(), env.action_spec())
         
-        super().__init__(env, dummy_policy, num_episodes=batch_size)        
+        super().__init__(env, dummy_policy, num_episodes=batch_size)
 
 
-    def run(self, episode_length=None):        
-        if episode_length: 
-            self.env._env.episode_length = episode_length
+    def run(self, epoch):
+        self.env._env.episode_length = self.episode_length(epoch)
         super().run()
 
         
@@ -61,4 +64,14 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         """Setup policy and observers for the driver."""
         self._policy = policy
         self._observers = observers or []
+    
+    
+    def observation_spec(self):
+        return self.env.observation_spec()
+    
+    def action_spec(self):
+        return self.env.action_spec()
+    
+    def time_step_spec(self):
+        return self.env.time_step_spec()
         

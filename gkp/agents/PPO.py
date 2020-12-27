@@ -45,8 +45,6 @@ def train_eval(
         eval_batch_size = 100,
         collect_driver = None,
         eval_driver = None,
-        train_episode_length = lambda x: 200,
-        eval_episode_length = 200,
         replay_buffer_capacity = 20000,
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
@@ -97,10 +95,6 @@ def train_eval(
         eval_batch_size (int): batch size for evaluation of the policy.
         collect_driver (Driver): driver for training data collection
         eval_driver (Driver): driver for evaluation data collection
-        train_episode_length (callable: int -> int): function that defines the 
-            schedule for training episode durations. Takes as argument the int 
-            epoch number and returns int episode duration for this epoch.
-        eval_episode_length (int): duration of evaluation episodes.
         replay_buffer_capacity (int): How many transition tuples the buffer 
             can store. The buffer is emptied and re-populated at each epoch.
         ActorNet (network.DistributionNetwork): a distribution actor network 
@@ -132,8 +126,8 @@ def train_eval(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
 
         # Define action and observation specs
-        observation_spec = collect_driver.env.observation_spec()
-        action_spec = collect_driver.env.action_spec()
+        observation_spec = collect_driver.observation_spec()
+        action_spec = collect_driver.action_spec()
         
         # Preprocessing: flatten and concatenate observation components
         preprocessing_layers = {
@@ -175,7 +169,7 @@ def train_eval(
         # Create PPO agent
         optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr)
         tf_agent = ppo_agent.PPOAgent(
-            time_step_spec = collect_driver.env.time_step_spec(),
+            time_step_spec = collect_driver.time_step_spec(),
             action_spec = action_spec,
             optimizer = optimizer,
             actor_net = actor_net,
@@ -230,7 +224,7 @@ def train_eval(
             eval_policy, train_step=global_step)
     
         # Evaluate policy once before training
-        eval_driver.run(eval_episode_length)
+        eval_driver.run(0)
         avg_return = avg_return_metric.result().numpy()
         avg_return_metric.reset()
         log = {
@@ -251,7 +245,7 @@ def train_eval(
         for epoch in range(1,num_epochs+1):
             # Collect new experience
             experience_timer.start()
-            collect_driver.run(train_episode_length(epoch))
+            collect_driver.run(epoch)
             experience_timer.stop()
             # Update the policy 
             train_timer.start()
@@ -262,7 +256,7 @@ def train_eval(
             
             if epoch % eval_interval == 0:
                 # Evaluate the policy
-                eval_driver.run(eval_episode_length)
+                eval_driver.run(epoch)
                 avg_return = avg_return_metric.result().numpy()
                 avg_return_metric.reset()
                 
