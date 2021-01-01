@@ -107,29 +107,24 @@ class PhaseSpaceSimulator():
         param['g'] = self.alpha['e']
         self.alpha = param
 
-    def CD_sequence(self, alpha, tau):
+    def CD_sequence(self, alpha, phi_g, phi_e, tau):
         """
-        This is a simple CD implementation that requires only one parameter
-        'alpha'. It doesn't include amplitude corrections for return pulses.
+        This is a simple CD implementation that includes amplitude and phse 
+        corrections for the return pulses.
         
         """
+        phi_diff = phi_g - phi_e
+        phi_sum = phi_g + phi_e
         self.displace(alpha)
         self.delay(tau)
-        self.displace(-alpha)
+        self.displace(-alpha*tf.math.cos(phi_diff/2)*tf.math.exp(1j*phi_sum/2))
         self.flip()
-        self.displace(-alpha)
+        self.displace(-alpha*tf.math.cos(phi_diff/2)*tf.math.exp(1j*phi_sum/2))
         self.delay(tau)
-        self.displace(alpha)
+        self.displace(alpha*tf.math.cos(phi_diff)*tf.math.exp(1j*phi_sum))
+        self.rotate('g', -tf.cast(phi_sum, tf.float32))
+        self.rotate('e', -tf.cast(phi_sum, tf.float32))
 
-    # def CD_sequence(self, alpha, tau):
-    #     freq = self.freq('g', self.nbar('g'))-self.freq('e', self.nbar('e'))
-    #     self.displace(alpha)
-    #     self.delay(tau)
-    #     self.displace(-alpha*tf.cast(tf.math.cos(2*pi*freq*tau/2), c64))
-    #     self.flip()
-    #     self.displace(-alpha*tf.cast(tf.math.cos(2*pi*freq*tau/2), c64))
-    #     self.delay(tau)
-    #     self.displace(alpha*tf.cast(tf.math.cos(2*pi*freq*tau), c64))
 
 
 class QuantumCircuit(OscillatorQubit, GKP):
@@ -162,7 +157,9 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
+        spec = {'alpha' : specs.TensorSpec(shape=[1], dtype=tf.float32),
+                'phi_g' : specs.TensorSpec(shape=[1], dtype=tf.float32),
+                'phi_e' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     # @tf.function
@@ -170,13 +167,17 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha' : Tensor([batch_size,1], tf.float32))
+            action (dict, 'alpha' : Tensor([batch_size,1], tf.float32),
+                          'phi_g' : Tensor([batch_size,1], tf.float32),
+                          'phi_e' : Tensor([batch_size,1], tf.float32))
 
         Returns: see parent class docs
 
         """
         alpha = tf.squeeze(tf.cast(action['alpha'], c64))
-        tau = 100e-9 # delay time for cavity rotations
+        phi_g = tf.squeeze(tf.cast(action['phi_g'], c64))
+        phi_e = tf.squeeze(tf.cast(action['phi_e'], c64))
+        
         beta = sqrt(2*pi) # amplitude of conditional displacement
         
         # randomly prepare a batch of qubits in state g or e
@@ -188,7 +189,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         
         # simulate sequence of displacements and delays implementing CD gate
         self.analytic_sim.reset()
-        self.analytic_sim.CD_sequence(alpha, tau)
+        self.analytic_sim.CD_sequence(alpha, phi_g, phi_e, self.t_gate/2)
         self.analytic_sim.displace(alpha_return)
         
         alpha = self.analytic_sim.alpha

@@ -19,8 +19,8 @@ class PolicyPlaceholder(TFPolicy):
 class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
     """
     This driver is a simple wrapper of the standard DynamicEpisodeDriver from 
-    tf-agents. It initializes a simulated GKP environment from which data will 
-    be collected according to the agent's policy.
+    tf-agents. It initializes a simulated environment from which data will be 
+    collected according to the agent's policy.
     
     """
     def __init__(self, env_kwargs, reward_kwargs, batch_size,

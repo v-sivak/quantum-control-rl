@@ -13,6 +13,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
+from math import pi
 import tensorflow as tf
 from gkp.agents import PPO
 from gkp.agents import actor_distribution_network_gkp
@@ -23,14 +24,15 @@ but it works so why not?
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\CD_cal\100'
+root_dir = r'E:\data\gkp_sims\PPO\examples\CD_cal\100_phi'
 
 # Params for environment
 env_kwargs = {
     'simulate' : 'conditional_displacement_cal',
     'init' : 'vac',
     'T' : 1, 
-    'N' : 50}
+    'N' : 50,
+    't_gate' : 100e-9}
 
 reward_kwargs = {'reward_mode' : 'measurement',
                  'sample' : True}
@@ -40,22 +42,25 @@ reward_kwargs_eval = {'reward_mode' : 'measurement',
 
 # Params for action wrapper
 action_script = 'conditional_displacement_cal'
-action_scale = {'alpha':27} # nbar of 800 ish
-to_learn = {'alpha':True}
+action_scale = {'alpha':27, 'phi_g':pi, 'phi_e':pi} # nbar of 800 ish
+to_learn = {'alpha':True, 'phi_g':True,'phi_e':True}
 
 train_batch_size = 200
 eval_batch_size = 2
+
+train_episode_length = lambda x: 1
+eval_episode_length = lambda x: 1
 
 # Create drivers for data collection
 from gkp.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, 
-    action_script, action_scale, to_learn)
+    action_script, action_scale, to_learn, train_episode_length)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs_eval, eval_batch_size, 
-    action_script, action_scale, to_learn)
+    action_script, action_scale, to_learn, eval_episode_length)
 
 PPO.train_eval(
         root_dir = root_dir,
@@ -82,8 +87,6 @@ PPO.train_eval(
         eval_batch_size = eval_batch_size,
         collect_driver = collect_driver,
         eval_driver = eval_driver,
-        train_episode_length = lambda x: 1,
-        eval_episode_length = 1,
         replay_buffer_capacity = 2000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
