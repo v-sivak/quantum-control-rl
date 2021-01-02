@@ -50,7 +50,7 @@ class Rabi_vs_detune(FPGAExperiment):
 
         detunings = data['default'].ax_data[1]
         amplitudes = data['default'].ax_data[2]
-        mean_data = np.mean(data['default'].data, axis=0).real
+        mean_data = data['postselected'].data.real
         ind = np.unravel_index(np.argmax(mean_data, axis=None), mean_data.shape)
         opt_detune, opt_amp = detunings[ind[0]], amplitudes[ind[1]]
 

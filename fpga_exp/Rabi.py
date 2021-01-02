@@ -17,6 +17,8 @@ class Rabi(FPGAExperiment):
             sync()
             readout(init_state='se')
             pulse(amp='dynamic')
+            sync()
+            delay(24)
             readout()
             delay(self.loop_delay)
 

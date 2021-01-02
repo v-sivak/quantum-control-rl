@@ -18,13 +18,14 @@ class blind_fidelity(FPGAExperiment):
 
     def sequence(self):
 
+        sync()
         qubit.flip(selective=self.selective)
         readout(traj_e='rel', state_e='se0')
         delay(self.delay_time)
         readout(traj_e='rel', state_e='se0')
         delay(self.loop_delay)
 
-
+        sync()
         readout(traj_g='rel', state_g='se0')
         delay(self.delay_time)
         readout(traj_g='rel', state_g='se0')
