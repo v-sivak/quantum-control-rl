@@ -4,14 +4,14 @@ from scipy.optimize import curve_fit
 """
 Script from Alec (slightly modified to work on my setup).
 
-Idea: displace the cavity with some amplitude, let it freely rotate for some 
+Idea: displace the cavity with some amplitude, let it freely rotate for some
 time, and then displace back with varying phase to find at which phase it
 returns back to vacuum. This way we can measure the angular rotation speed as
 a function of displacement amplitude for each qubit state, and use linear fits
 to extract detuning, Kerr, chi, and chi_prime.
 
-In this script we dynamically sweep the amplitude of the displacement pulses 
-and the phase of the returning displacement. 
+In this script we dynamically sweep the amplitude of the displacement pulses
+and the phase of the returning displacement.
 """
 
 class out_and_back_amp_phase_sweep(FPGAExperiment):
@@ -27,7 +27,10 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
     fit_func = {'chi_kHz':'linear','detuning_kHz':'linear'}
 
     def sequence(self):
-        
+
+        self.cavity = cavity
+        self.cavity_1 = cavity_1
+
         #need to dynamicaly update the phase of the return pulse
         @arbitrary_function(float, float)
         def cos(x):
@@ -51,7 +54,7 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
             DynamicMixer[1][0] <<= -sx
             sync()
             delay(2000)
-            cavity.load_mixer()
+            self.cavity.load_mixer()
             delay(2000)
             cx <<= amp_reg*cos(phase_reg)
             sx <<= amp_reg*sin(phase_reg)
@@ -62,18 +65,20 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
             DynamicMixer[1][0] <<= -sx
             sync()
             delay(2000)
-            cavity_2.load_mixer()
+            self.cavity_1.load_mixer()
             delay(2000)
 
         def myexp(start='g'):
             if start == 'e':
                 qubit.flip()
             sync()
-            cavity.displace(amp='dynamic') # displace out
+            self.cavity.displace(amp='dynamic') # displace out
             sync()
             delay(self.static_tau)
             sync()
-            cavity_2.displace(amp='dynamic') # return to origin
+            self.cavity_1.displace(amp='dynamic') # return to origin
+            sync()
+            delay(24)
             sync()
             if self.postselect:
                 readout(**{'sz_' + start + '_middle_measurement':'se'})
@@ -90,13 +95,13 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
         self.nbars = np.linspace(*self.nbar_range)
         self.alphas = np.sqrt(self.nbars)
 
-        unit_amp = cavity.displace.unit_amp
+        unit_amp = self.cavity.displace.unit_amp
         dac_amps = unit_amp*self.alphas
         f_arr = Array(dac_amps, float)
         amp_reg = FloatRegister(0.0)
         with scan_array(f_arr, amp_reg, axis_scale=1/unit_amp, plot_label='alpha'):
             if self.do_g:
-                with scan_float_register(phase_start, phase_stop, phase_points, 
+                with scan_float_register(phase_start, phase_stop, phase_points,
                         axis_scale = 180.0, plot_label='return phase, deg') as phase_reg:
                     update_amp_phase_out_and_return(amp_reg,phase_reg)
                     sync()
@@ -104,7 +109,7 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
                     sync()
                     delay(self.delay_time)
             if self.do_e:
-                with scan_float_register(-1*phase_start, -1*phase_stop, phase_points, 
+                with scan_float_register(-1*phase_start, -1*phase_stop, phase_points,
                         axis_scale = 180.0, plot_label='return phase, deg') as phase_reg:
                     update_amp_phase_out_and_return(amp_reg,phase_reg)
                     sync()
@@ -135,8 +140,8 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
                 self.results[op + '_postselected_g'] = self.results[op].postselect(middle_result,[0])[0]
                 self.results[op + '_postselected_e'] = self.results[op].postselect(middle_result,[1])[0]
                 #replace the rest of the analysis with the postselected version
-                op = op + '_postselected_g' if op == 'sz_g' else op + '_postselected_e' 
-            
+                op = op + '_postselected_g' if op == 'sz_g' else op + '_postselected_e'
+
             gaussian_peaks = []
             alphas = self.results[op].ax_data[1]
             for i, alpha in enumerate(alphas):
@@ -185,7 +190,7 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
         ax2.plot(nbars, sz_e_phase, '.',label='data', color='lime')
         ax2.set_xlabel('alpha')
         #ax2.grid()
-        
+
         nbar_frame = self.alpha_frame**2
         ax3 = fig.add_subplot(413, sharex=ax2)
         ax3.plot(nbars, self.results['chi_kHz'].data, 'o', label='chi kHz')
