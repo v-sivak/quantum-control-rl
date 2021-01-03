@@ -9,19 +9,27 @@ for simple single-state RL environments.
 """
 import tensorflow as tf
 import tensorflow_probability as tfp
+from remote_env_tools.remote_env_tools import Server
 
-actions = ['alpha', 'phi_e', 'phi_g']
 
-from untitled0 import reward_sampler, test_eval
+# initialize the "agent server" and connect to "environment client"
+server_socket = Server()
+(host, port) = '127.0.0.1', 5000
+server_socket.bind((host, port))
+server_socket.connect_client()
+
+def reward_sampler(actions):
+    server_socket.send_data(actions)
+    rewards, done = server_socket.recv_data()
+    return rewards
+
 
 # trainable variables
+actions = ['alpha', 'phi_e', 'phi_g']
 mean = {s : tf.Variable(tf.random.normal([], stddev=0.05), name='mean_'+s) for s in actions}
 sigma = {s : tf.Variable(0.5, name='sigma_'+s) for s in actions}
 baseline = tf.Variable(0.0, name='baseline')
 
-
-# TODO: initialization should be more narrow, copy from tf-agents
-# FIgure out the correct value loss coeff here
 
 algo = 'PPO'
 B = 200 # batch_size
@@ -32,11 +40,6 @@ policy_steps = 20
 log_prob_clipping = 10.
 gradient_clipping = 1.
 importance_ratio_eps = 0.2
-
-# def reward_sampler(a):
-#     p = 1/(1+500*(a['alpha'] - 0.37)**2) # just needed a sharper reward funciton!
-#     z = tfp.distributions.Bernoulli(probs=p).sample()
-#     return 2*tf.cast(z, tf.float32)-1
 
 
 def compute_log_prob(action, mean, sigma):
@@ -90,9 +93,10 @@ for epoch in range(EPOCHS):
             optimizer.apply_gradients(zip(grads, tape.watched_variables()))
             
     eval_action = tf.nest.map_structure(tf.math.tanh, mean)
-    if epoch % 10 == 0: 
-        print(test_eval(eval_action))
+    # if epoch % 10 == 0: 
+    #     print(test_eval(eval_action))
     # print(eval_action['alpha'])
+    print(float(tf.reduce_mean(R)))
         
 
-
+server_socket.disconnect_client()
