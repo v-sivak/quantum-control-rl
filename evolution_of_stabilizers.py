@@ -7,7 +7,7 @@ Created on Tue Apr  7 16:24:22 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
@@ -22,26 +22,13 @@ from gkp.gkp_tf_env import gkp_init
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = gkp_init(simulate='Alec_universal_gate_set', 
-               channel='quantum_jumps', 
-               init='vac', H=1, T=6, attn_step=1, batch_size=500, episode_length=6, 
-               reward_mode = 'zero',
-               encoding='square')
+env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+                reward_kwargs={'reward_mode':'zero'},
+                init='vac', H=1, T=2, attn_step=1, batch_size=2000, episode_length=60,
+                encoding='square')
 
-# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
-from gkp.action_script import Alec_universal_gate_set_12round as action_script
-# from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
-to_learn = {'alpha':True, 'beta':True, 'phi':True}
-env = wrappers.ActionWrapper(env, action_script, to_learn)
-
-root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp_X_prep_msmt_free_4'
-policy_dir = r'policy\001510000'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
-
-
-# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+from gkp.action_script import gkp_qec_autonomous_sBs_2round as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -93,11 +80,8 @@ while not time_step.is_last()[0]:
 # Measure stabilizers on cached wavefunctions
 for name, stabilizer, phi in zip(names, stabilizers, angles):
     for i, psi in enumerate(cache):
-        stabilizer_batch = tf.stack([stabilizer]*env.batch_size)
-        stabilizer_batch = tf.cast(stabilizer_batch, tf.complex64)
-        stabilizer_unitary = env.translate(stabilizer_batch)
-        phi_batch = tf.stack([phi]*env.batch_size)
-        _, z = env.phase_estimation(psi, stabilizer_unitary, phi_batch)
+        stabilizer_unitary = env.translate([stabilizer])
+        _, z = env.phase_estimation(psi, stabilizer_unitary, [phi])
         results[name][i] = np.mean(z)
 
 # Plot stabilizers Re and Im
@@ -105,7 +89,7 @@ fig, ax = plt.subplots(1,1)
 ax.set_xlabel('Step')
 ax.set_title('Stabilizers')
 steps = np.arange(env.episode_length)
-# ax.set_ylim(-0.2, 0.9)
+ax.set_ylim(-0.05, 0.7)
 for i, name in enumerate(names):
     ax.plot(steps, results[name], label=name, 
             linestyle=lines[i], color=colors[i])

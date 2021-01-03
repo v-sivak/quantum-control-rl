@@ -10,8 +10,6 @@ import matplotlib.pyplot as plt
 import h5py
 import plot_config
 
-
-
 # naming convention is (num points, num averages)
 
 root_dir = {

@@ -33,8 +33,8 @@ IMPORTANT:
 
 
 N_qb = 200 # truncation in charge basis
-L = 15 # truncation in transmon basis
-N_cav = 1000
+L = 7 # truncation in transmon basis
+N_cav = 600
 
 def Hamiltonian(Ej, Ec, freq_a, V):
     """
@@ -95,7 +95,7 @@ def plot_probs_folded(psi):
 freq_c  = 4.480526e9
 freq_q = 5.51491e9
 alpha = 205e6
-chi = 184e3
+chi = 190e3
 
 
 FIT_MODEL_PARAMETERS = False
@@ -129,10 +129,10 @@ if FIT_MODEL_PARAMETERS:
                    options=dict(maxiter=300))
     Ej, Ec, freq_a, V = res.x
 else:
-    Ec = 1.88593725e+08
-    Ej = 2.16094988e+10
-    freq_a = 4.48103644e+09
-    V = 2.28795771e+07
+    Ec = 188598981
+    Ej = 21608836632
+    freq_a = 4481053074
+    V = 23249563
 
 
 # create operators in the joint Hilbert space
@@ -271,17 +271,17 @@ if DO_BASIC_QUANTUM_NUMBER_ASSIGNMENT:
     ax.plot(range(N_cav-1), d[1]-offset)
     ax.set_ylim(-200e3,200e3)
     
+    fudge_factor = (0.0296/0.05)**2
+    nbar_exp = np.load(r'Z:\tmp\for Vlad\from_vlad\new\nbar.npy')
+    freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\new\freq_g.npy')
+    freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\new\freq_e.npy')
+    ax.plot(nbar_exp/fudge_factor, freq_g+15e3, marker='.', linestyle='none')
+    ax.plot(nbar_exp/fudge_factor, freq_e+15e3, marker='.', linestyle='none')
+    
     # fudge_factor = 1
-    # nbar_exp = np.load(r'Z:\tmp\for Vlad\from_vlad\nbar.npy')
-    # freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\freq_g.npy')
-    # freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\freq_e.npy')
+    # nbar_exp = np.load(r'C:\Users\qulab\Downloads\nbar.npy')
+    # freq_g = np.load(r'C:\Users\qulab\Downloads\freq_g.npy')
+    # freq_e = np.load(r'C:\Users\qulab\Downloads\freq_e.npy')
     # ax.plot(nbar_exp/fudge_factor, freq_g, marker='.', linestyle='none')
     # ax.plot(nbar_exp/fudge_factor, freq_e, marker='.', linestyle='none')
-    
-    fudge_factor = 1
-    nbar_exp = np.load(r'C:\Users\qulab\Downloads\nbar.npy')
-    freq_g = np.load(r'C:\Users\qulab\Downloads\freq_g.npy')
-    freq_e = np.load(r'C:\Users\qulab\Downloads\freq_e.npy')
-    ax.plot(nbar_exp/fudge_factor, freq_g, marker='.', linestyle='none')
-    ax.plot(nbar_exp/fudge_factor, freq_e, marker='.', linestyle='none')
-    plt.tight_layout()
+    # plt.tight_layout()

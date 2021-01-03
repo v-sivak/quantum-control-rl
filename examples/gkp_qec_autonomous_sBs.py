@@ -29,7 +29,7 @@ and do logical Pauli measurements in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'gkp_qec_autonomous_sBs_B100')
+root_dir = os.path.join(root_dir,'gkp_qec_autonomous_sBs_stabilizers')
 
 # Params for environment
 env_kwargs = {
@@ -42,8 +42,8 @@ env_kwargs = {
 
 # Params for reward function
 reward_kwargs = {
-    'reward_mode' : 'pauli', 
-    'code_flips' : True}
+    'reward_mode' : 'stabilizers', 
+    'stabilizer_translations' : [2*sqrt(pi)+0j, 2j*sqrt(pi)]}
 
 # Params for action wrapper
 action_script = 'gkp_qec_autonomous_sBs_2round'
