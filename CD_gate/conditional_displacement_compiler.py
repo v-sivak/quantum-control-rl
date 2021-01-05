@@ -22,7 +22,7 @@ class ConditionalDisplacementCompiler():
         phi_e = np.zeros_like(alpha)
         return (alpha, phi_g, phi_e)
 
-    def CD_params_improved(self, beta, tau, interpolation='cubic_spline'):
+    def CD_params_improved(self, beta, tau, interpolation='quartic_fit'):
         # load cavity rotation frequency vs nbar data
         nbar = np.load(os.path.join(self.cal_dir, 'nbar.npy'))
         freq_e_exp = np.load(os.path.join(self.cal_dir, 'freq_e.npy'))
@@ -69,11 +69,8 @@ class ConditionalDisplacementCompiler():
         A_complex *= pulse.unit_amp
         return A_complex
     
-    def make_pulse(self, beta, tau):
-        # calculate parameters for the pulse
-        alpha, phi_g, phi_e = self.CD_params_improved(beta, tau)
-        self.alpha, self.phi_g, self.phi_e = alpha, phi_g, phi_e
-        
+    def make_pulse(self, tau, alpha, phi_g, phi_e):
+        # calculate parameters for the pulse        
         phi_diff = phi_g - phi_e
         phi_sum = phi_g + phi_e
 
