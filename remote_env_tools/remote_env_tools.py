@@ -34,7 +34,7 @@ class PickleSocket(socket.socket):
             full_msg += msg
             if len(full_msg) - self.HEADERSIZE == msglen:
                 logging.info('Full msg recieved')
-                data = pickle.loads(full_msg[self.HEADERSIZE:])
+                data = pickle.loads(full_msg[self.HEADERSIZE:], encoding="latin1")
                 msg_ended = True
         return (data, False)
 
