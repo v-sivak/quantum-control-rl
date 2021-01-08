@@ -19,8 +19,14 @@ class PickleSocket(socket.socket):
     
     def __init__(self):
         super(PickleSocket, self).__init__(socket.AF_INET, socket.SOCK_STREAM)
+        self.py = sys.version[0]
     
     def recv_data(self, connection):
+        """
+        Returns:
+            data: decoded python object received from the connection
+            done (bool): flag that this was the last message
+        """
         full_msg = b''
         new_msg = True
         msg_ended = False
@@ -34,7 +40,10 @@ class PickleSocket(socket.socket):
             full_msg += msg
             if len(full_msg) - self.HEADERSIZE == msglen:
                 logging.info('Full msg recieved')
-                data = pickle.loads(full_msg[self.HEADERSIZE:], encoding="latin1")
+                if self.py=='2':
+                    data = pickle.loads(full_msg[self.HEADERSIZE:])
+                else:
+                    data = pickle.loads(full_msg[self.HEADERSIZE:], encoding="latin1")
                 msg_ended = True
         return (data, False)
 
@@ -42,7 +51,7 @@ class PickleSocket(socket.socket):
         msg = pickle.dumps(data, protocol=self.pickle_protocol)
         header_str = str(len(msg)).zfill(self.HEADERSIZE)
         # there is a slight difference for py2 vs py3
-        header = header_str if sys.version[0]=='2' else bytes(header_str, 'utf-8')
+        header = header_str if self.py=='2' else bytes(header_str, 'utf-8')
         msg = header + msg
         connection.send(msg)
 
@@ -78,7 +87,7 @@ class Client(PickleSocket):
         super(Client, self).send_data(data, self)
     
     def recv_data(self):
-        return super(Client, self).recv_data(self)
-    
-    
+        data, done = super(Client, self).recv_data(self)
+        if done: self.close()
+        return data, done
     
