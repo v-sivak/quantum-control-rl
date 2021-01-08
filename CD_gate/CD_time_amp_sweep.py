@@ -24,11 +24,13 @@ class CD_time_amp_sweep(FPGAExperiment):
     loop_delay = FloatParameter(4e6)
     flip_qubit = BoolParameter(False)
     amp_range = RangeParameter((1,20,11))
+    qubit_pulse_shift = IntParameter(-10)
+    reps = IntParameter(1)
 
     def sequence(self):
         tau_ns = np.linspace(*self.tau_range_ns)
         return_phase = np.pi/2.0 if not self.flip_qubit else -np.pi/2.0
-        C = ConditionalDisplacementCompiler(cal_dir=self.cal_dir, qubit_pulse_shift=-10)
+        C = ConditionalDisplacementCompiler(cal_dir=self.cal_dir, qubit_pulse_shift=self.qubit_pulse_shift)
         self.alpha_const_chi, self.alpha_from_cal = [], []
         for tau in tau_ns:
             # predicted optimal displacement amplitudes
@@ -43,12 +45,14 @@ class CD_time_amp_sweep(FPGAExperiment):
                 sync()
                 if self.flip_qubit:
                     qubit.flip()
-                sync()
-                qubit.array_pulse(*qubit_pulse)
-                cavity.array_pulse(*cavity_pulse, amp='dynamic')
-                sync()
-                cavity.displace(self.beta/2.0, phase=return_phase-extra_phase)
-                sync()
+                with Repeat(self.reps):
+                    sync()
+                    qubit.array_pulse(*qubit_pulse)
+                    cavity.array_pulse(*cavity_pulse, amp='dynamic')
+                    sync()
+                    cavity.displace(self.beta/2.0, phase=return_phase-extra_phase)
+                    sync()
+                    qubit.flip()
                 qubit.flip(selective=True)
                 sync()
                 readout()
@@ -81,6 +85,7 @@ class CD_time_amp_sweep(FPGAExperiment):
             self.results[name].labels = [self.results['default'].labels[2]]
         
         # fit best amplitude for each gate time
+        # NOTE: fitting to gaussian is not correct, but taking argmax is noisy
         optimal_amps = np.zeros_like(times)
         for i, t in enumerate(times):
             name = 'time_slice_' + str(t) + '_ns'
@@ -93,6 +98,7 @@ class CD_time_amp_sweep(FPGAExperiment):
         self.results['optimal_amp'].data = optimal_amps
         self.results['optimal_amp'].ax_data = [self.results['default'].ax_data[1]]
         self.results['optimal_amp'].labels = [self.results['default'].labels[1]]
+        
         
         
     def plot(self, fig, data):

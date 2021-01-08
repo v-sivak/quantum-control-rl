@@ -6,11 +6,13 @@ Created on Wed Dec 16 14:07:06 2020
 """
 
 import os
-from fpga_lib import *
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
+from fpga_lib import *
+from fpga_lib.dsl.result import Results
+
 
 ## load results of old experiment
 #exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.out_and_back_amp_phase_sweep\archive'
@@ -36,14 +38,14 @@ from scipy.optimize import curve_fit
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.out_and_back_amp_phase_sweep\archive'
-fname = '20210101.h5'
+fname = '20210103.h5'
 file_name = os.path.join(exp_dir, fname)
 
 
 qubit_states = ['g', 'e']
-groups = [6, 5, 7, 4, 8, 9, 10, 11, 12, 13]
-time = np.array([24, 48, 72, 100, 120, 144, 168, 192, 216, 240]) # [ns]
-nbar = np.linspace(1, 361, 46)
+groups = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+time = np.array([24, 48, 72, 96, 120, 144, 168, 192, 216, 240]) # [ns]
+nbar = np.linspace(25, 1000, 51)
 
 time_points = len(time)
 nbar_points = len(nbar)
@@ -98,7 +100,7 @@ for s in qubit_states:
 # Plot linear fit for all nbars in separate panels
 fig, axes = plt.subplots(7,7, sharex=True, sharey=True, figsize=(25,14))
 axes = axes.ravel()
-for j in range(46):
+for j in range(49):
     for s in ['g']:
         for i in [j]:
             mean_phase = phase[s][:,i]

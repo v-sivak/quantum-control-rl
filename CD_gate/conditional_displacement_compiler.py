@@ -12,17 +12,20 @@ from init_script import cavity, qubit
 
 class ConditionalDisplacementCompiler():
     
-    def __init__(self, cal_dir, qubit_pulse_shift=-12):
+    def __init__(self, cal_dir=None, qubit_pulse_shift=-12):
         self.cal_dir = cal_dir
         self.qubit_pulse_shift = qubit_pulse_shift
     
     def CD_params(self, beta, tau_ns):
+        """Find parameters for CD gate based on simple constant chi model."""
         alpha = beta / 2. / np.sin(2*np.pi*cavity.chi*tau_ns*1e-9)
         phi_g = np.zeros_like(alpha)
         phi_e = np.zeros_like(alpha)
         return (alpha, phi_g, phi_e)
 
     def CD_params_improved(self, beta, tau, interpolation='quartic_fit'):
+        """Find parameters for CD gate based on calibration of cavity rotation
+        frequency vs nbar."""
         # load cavity rotation frequency vs nbar data
         nbar = np.load(os.path.join(self.cal_dir, 'nbar.npy'))
         freq_e_exp = np.load(os.path.join(self.cal_dir, 'freq_e.npy'))
@@ -59,6 +62,7 @@ class ConditionalDisplacementCompiler():
         return (alpha, phi_g, phi_e)
     
     def get_calibrated_pulse(self, pulse, zero_pad=False):
+        """ Get calibrated pulse with correct dac amp, detuning etc."""
         i, q = pulse.make_wave(zero_pad=zero_pad)
         f = pulse.detune
         t_offset = (24 - len(i)) / 2
@@ -70,6 +74,7 @@ class ConditionalDisplacementCompiler():
         return A_complex
     
     def make_pulse(self, tau, alpha, phi_g, phi_e):
+        """ Build cavity and qubit sequences for CD gate."""
         # calculate parameters for the pulse        
         phi_diff = phi_g - phi_e
         phi_sum = phi_g + phi_e
