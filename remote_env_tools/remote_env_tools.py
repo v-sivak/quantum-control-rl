@@ -17,6 +17,9 @@ class PickleSocket(socket.socket):
     pickle_protocol = 2 # if client is in py2 environment 
     HEADERSIZE = 10
     
+    def __init__(self):
+        super(PickleSocket, self).__init__(socket.AF_INET, socket.SOCK_STREAM)
+    
     def recv_data(self, connection):
         full_msg = b''
         new_msg = True

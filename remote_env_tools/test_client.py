@@ -15,7 +15,7 @@ def create_reward_data(i):
     return {'R' : [i,i+1]}
 
 client_socket = Client()
-(host, port) = socket.gethostname(), 5000
+(host, port) ='172.28.140.123', 5555
 client_socket.connect((host, port))
 
 for i in range(10):
