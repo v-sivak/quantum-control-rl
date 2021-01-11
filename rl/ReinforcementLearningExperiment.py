@@ -6,10 +6,14 @@ Created on Wed Jan  6 10:23:25 2021
 """
 import numpy as np
 from fpga_lib.parameters import IntParameter
+from fpga_lib import compiler as fc
 import sys
 from init_script import *
 from gkp_exp.CD_gate.conditional_displacement_compiler import ConditionalDisplacementCompiler
 from remote_env_tools import Client
+import os
+from fpga_lib import dsl
+
 
 import logging
 logger = logging.getLogger('RL')
@@ -136,9 +140,11 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             cavity.array_pulse(*self.cavity_pulse[i])
             sync()
 
+        delay(20000)
 
         with Repeat(self.reps):
             for i in range(self.batch_size):
+                sync()
                 init_circuit('g')
                 action_circuit(i)
                 reward_circuit('g')
@@ -157,6 +163,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         
         """
         C = ConditionalDisplacementCompiler()
+        self.old_cavity_pulse = self.cavity_pulse
         self.cavity_pulse, self.qubit_pulse = [], []
         for i in range(self.batch_size):
 #            C.qubit_pulse_shift = int(round(self.action['delay'][i]))
@@ -177,6 +184,10 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         self.connect_to_RL_agent()
         done = False
         first_run = True
+        self.cavity_pulse = []
+        self.pos_dict_debug = {}
+        self.locs_debug = {}
+        self.all_measurements = {}
         while not done:
             action, done = self.recv_action_data()
             if done: break
@@ -184,12 +195,14 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             if first_run:
                 # on the first run, compile and write all tables
                 self.write_tables()
+                self.map_wave_location()
                 first_run = False
             else:
                 # on subsequent runs, only update wave tables
                 self.write_wave_tables_only()
+                
             logger.info('Updated tables.')
-            self.run(compile=False)
+            self.run(compile=False, only_waves=not first_run)
             self.wait_complete()
             logger.info('Finished collecting data.')
             self.process_available_blocks()
@@ -202,6 +215,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         if not done:
             self.batch_size = data['batch_size']
             self.reps = data['reps']
+            self.epoch = data['epoch']
             logger.info('Start %s epoch %d' %(data['type'], data['epoch']))
             return (data['action'], done)
         else:
@@ -209,6 +223,9 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             return (None, done)
     
     def create_reward_data(self):
+        self.all_measurements[self.epoch] = {
+                'g' : self.results['g'].data,
+                'e' : self.results['e'].data}
         sigmaz_g = 1 - 2 * self.results['g'].thresh_mean().data
         sigmaz_e = 1 - 2 * self.results['e'].thresh_mean().data
         self.rewards = np.mean([sigmaz_g, -sigmaz_e], axis=0)
@@ -225,11 +242,105 @@ class ReinforcementLearningExperiment(FPGAExperiment):
 
     # TODO: also modify the run method, because currently it will do yng.load_tables
     # and reload all tables.
-    def write_wave_tables_only(self):
-        self.write_tables()
+#    def write_wave_tables_only(self):
+#        self.write_tables()
+
+    def map_wave_location(self):
+
+        def find(chan, wave):
+            pulse_len = len(wave[0])
+            locations = []
+            for j, wave_tuple in enumerate(self.dsl_state.iq_table.waves_list):
+                (channel, i_wave, q_wave, interp_step) = wave_tuple
+                if channel == chan and len(i_wave) == pulse_len:
+                    if np.allclose((i_wave, q_wave), wave):
+                        locations.append(j)
+            return locations
+
+        self.wave_locations = {} # TODO: these are not locations, but calls to add_wave
+        chan= (1,0)
+        self.wave_locations[chan] = []
+        for j in range(self.batch_size):
+            wave = self.cavity_pulse[j]
+            locs = find(chan, wave)
+            self.wave_locations[chan].append(locs)
+
+
+#    def write_wave_tables_only(self):
+#
+#        new_waves_list = self.dsl_state.iq_table.waves_list
+#        for j in range(self.batch_size):
+#            locs = self.wave_locations[cavity.chan][j]
+#            i_wave, q_wave = self.cavity_pulse[j]
+#            i_wave, q_wave = np.ascontiguousarray(i_wave), np.ascontiguousarray(q_wave)
+#            for i in locs:
+#                new_waves_list[i] = (cavity.chan, i_wave, q_wave, [None, None])
+#
+#        # TODO: maybe everything is fine with the waves, and I just need to reset dsl state?
+#        self.dsl_state.iq_table = fc.IQTable(self.cards)
+#        self.pos_dict_debug[self.epoch] = []
+#
+#        for i, wave_tuple in enumerate(new_waves_list):
+#            (channel, i_wave, q_wave, interp_step) = wave_tuple
+#            i_pos, q_pos = self.dsl_state.iq_table.add_waves(channel, i_wave, q_wave, interp_step)
+#            self.pos_dict_debug[self.epoch].append((i_pos, q_pos))
+#            
+#        for i in [0,1]:
+#            tables_prefix = os.path.join(self.directory, 'Table_B%d' % i)
+##            self.dsl_state.iq_table.wms[i].export(tables_prefix)
+#        
+#        
+#            state = dsl.get_state()
+#            state.iq_table.wms[i].export(tables_prefix)
+#            state.integrations[i].export(tables_prefix)
+#            state.cpu_programs.export(tables_prefix)
+#            state.arbitrary_funcs.export(tables_prefix)
+#            state.init_memory.export(tables_prefix)
+#        
         
+    def write_wave_tables_only(self, **compile_kwargs):
+        for i, x in enumerate(self.compile_seq(**compile_kwargs)):
+            mseq, aseqs, dseq = x
+            tables_prefix = os.path.join(self.directory, 'Table_B%d' % i)
+            state = dsl.get_state()
+            state.iq_table.wms[i].export(tables_prefix)
+
         
-    def write_wave_tables_only_v2(self):
-        iq_table = self.dsl_state.iq_table
-        chan = cavity.chan
-        iq_table.waves[chan].keys()
+#    def write_wave_tables_only(self):
+#        iq_table = self.dsl_state.iq_table
+#        chan = cavity.chan
+#
+#        def find(chan, wave): # TODO: maybe iq_table here is not re-defined? 
+#            pulse_len = len(wave[0])
+#            locations = []
+#            for j, wave_tuple in enumerate(iq_table.waves_list):
+#                (channel, i_wave, q_wave, interp_step) = wave_tuple
+#                if channel == chan and len(i_wave) == pulse_len:
+#                    if np.allclose((i_wave, q_wave), wave):
+#                        locations.append(j)
+#            return locations
+#
+#        self.locs_debug[self.epoch] = []
+#        
+#        new_waves_list = iq_table.waves_list
+#        for j in range(self.batch_size):
+#            i_wave, q_wave = self.cavity_pulse[j]
+#            i_wave, q_wave = np.ascontiguousarray(i_wave), np.ascontiguousarray(q_wave)
+#            old_wave = self.old_cavity_pulse[j]
+#            locs = find(chan, old_wave)
+#            for i in locs:
+#                new_waves_list[i] = (chan, i_wave, q_wave, [None, None])
+#            self.locs_debug[self.epoch].append(locs)
+#                
+#        self.dsl_state.iq_table = fc.IQTable(self.cards)
+#
+#        self.pos_dict_debug[self.epoch] = []
+#
+#        for i, wave_tuple in enumerate(new_waves_list):
+#            (channel, i_wave, q_wave, interp_step) = wave_tuple
+#            i_pos, q_pos = self.dsl_state.iq_table.add_waves(channel, i_wave, q_wave, interp_step)
+#            self.pos_dict_debug[self.epoch].append((i_pos, q_pos))
+#            
+#        for i in [0,1]:
+#            tables_prefix = os.path.join(self.directory, 'Table_B%d' % i)
+#            self.dsl_state.iq_table.wms[i].export(tables_prefix)
