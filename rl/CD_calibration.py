@@ -5,6 +5,7 @@ Created on Wed Jan 13 11:30:49 2021
 @author: qulab
 """
 from init_script import *
+import numpy as np
 from ReinforcementLearningExperiment import ReinforcementLearningExperiment
 from gkp_exp.CD_gate.conditional_displacement_compiler import ConditionalDisplacementCompiler
 
@@ -12,7 +13,10 @@ import logging
 logger = logging.getLogger('RL')
 
 class CD_calibration(ReinforcementLearningExperiment):
-    
+    """
+    This is a simple version of the CD gate calibration experiment.
+    Only the displacement amplitude 'alpha' is learned.
+    """
     beta = FloatParameter(1.)
     tau = FloatParameter(100.)
     loop_delay = FloatParameter(4e6)
@@ -22,7 +26,6 @@ class CD_calibration(ReinforcementLearningExperiment):
         self.beta = 2.5
         self.tau = 100.
         self.loop_delay = 4e6
-        self.update_channels = [cavity.chan]
 
     def sequence(self):
         
@@ -67,7 +70,7 @@ class CD_calibration(ReinforcementLearningExperiment):
         Args:
             action (dict): dictionary of parametrizations for action circuit.
         """
-        w = {'alpha' : [-20.0, 20.0], 'phi' : [0.0, np.pi/20.0]} # params window
+        w = {'alpha' : [-20.0, 20.0]} # params window
 
         action_scaled = {s : action[s]*(w[s][1]-w[s][0])/2+(w[s][1]+w[s][0])/2
                          for s in action.keys()}
@@ -75,12 +78,11 @@ class CD_calibration(ReinforcementLearningExperiment):
         C = ConditionalDisplacementCompiler()
         self.cavity_pulse, self.qubit_pulse = [], []
         for i in range(self.batch_size):
-            c_pulse, q_pulse = C.make_pulse(self.tau, 
-                                action_scaled['alpha'][i],
-                                0, # action_scaled['phi'][i],
-                                0) #-action_scaled['phi'][i])
+            c_pulse, q_pulse = C.make_pulse(
+                    self.tau, action_scaled['alpha'][i],0,0)
             self.cavity_pulse.append(c_pulse)
             self.qubit_pulse.append(q_pulse)
+        self.trainable_pulses[(cavity.chan)] = self.cavity_pulse
         logger.info('Compiled pulses.')
 
 

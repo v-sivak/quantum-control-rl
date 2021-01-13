@@ -10,7 +10,6 @@ from fpga_lib.parameters import IntParameter
 from fpga_lib import compiler
 from fpga_lib.experiments.fpga import FPGAExperiment
 import sys
-from init_script import *
 from remote_env_tools import Client
 import os
 
@@ -36,8 +35,10 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         super(ReinforcementLearningExperiment, self).__init__(name)
         
         # TODO: implement results parsing for arb n_blocks and avgs_per_block
-        self.n_blocks = 1               
+        self.n_blocks = 1
         self.averages_per_block = 1
+        
+        self.trainable_pulses = {} # keys are fpga channels
 
 
     def training_loop(self, **kwargs):
@@ -90,7 +91,10 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         
 
     def map_wave_memory(self):
-        
+        """
+        Map out the locations of trainable waves in the waves_list after 
+        compilation.
+        """
         def find(chan, wave):
             locations = []
             for j, wave_tuple in enumerate(self.dsl_state.iq_table.waves_list):
@@ -100,25 +104,33 @@ class ReinforcementLearningExperiment(FPGAExperiment):
                         locations.append(j)
             return locations
         
-        # TODO: so far this is only for cavity channel, update to all channels
-        chan = cavity.chan
         self.add_waves_compiler_calls = {}
-        self.add_waves_compiler_calls[chan] = []
-        for j in range(self.batch_size):
-            wave = self.cavity_pulse[j]
-            locs = find(chan, wave)
-            self.add_waves_compiler_calls[chan].append(locs)
+        for chan in self.trainable_pulses.keys():
+            self.add_waves_compiler_calls[chan] = []
+            for j in range(self.batch_size):
+                wave = self.trainable_pulses[chan][j]
+                locs = find(chan, wave)
+                self.add_waves_compiler_calls[chan].append(locs)
 
 
     def write_wave_tables_only(self):
-        chan = cavity.chan
+        """
+        To avoid re-compilation, this method simply builds the IQTable by 
+        appending waves to WaveMemory in the same order as during the original
+        compilation, but replacing the trainable waves with new versions. This
+        way they go to the same memory location, and there is no need to 
+        re-compile the sequence of instructions.
+        """
         waves_list = self.dsl_state.iq_table.waves_list
-        for j in range(self.batch_size):
-            locs = self.add_waves_compiler_calls[chan][j]
-            (i_wave, q_wave) = self.cavity_pulse[j]
-            i_wave, q_wave = np.ascontiguousarray(i_wave), np.ascontiguousarray(q_wave)
-            for i in locs:
-                waves_list[i] = (chan, i_wave, q_wave, [None, None])
+        
+        for chan in self.trainable_pulses.keys():
+            for j in range(self.batch_size):
+                locs = self.add_waves_compiler_calls[chan][j]
+                (i_wave, q_wave) = self.trainable_pulses[chan][j]
+                i_wave = np.ascontiguousarray(i_wave)
+                q_wave = np.ascontiguousarray(q_wave)
+                for i in locs:
+                    waves_list[i] = (chan, i_wave, q_wave, [None, None])
 
         self.dsl_state.iq_table = compiler.IQTable(self.cards)
 
