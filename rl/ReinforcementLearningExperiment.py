@@ -5,11 +5,12 @@ Created on Wed Jan  6 10:23:25 2021
 @author: Vlad
 """
 import numpy as np
-from fpga_lib.parameters import IntParameter, FloatParameter
-from fpga_lib import compiler as fc
+import config
+from fpga_lib.parameters import IntParameter
+from fpga_lib import compiler
+from fpga_lib.experiments.fpga import FPGAExperiment
 import sys
 from init_script import *
-from gkp_exp.CD_gate.conditional_displacement_compiler import ConditionalDisplacementCompiler
 from remote_env_tools import Client
 import os
 
@@ -26,79 +27,17 @@ logger.setLevel(logging.INFO)
 __all__ = ['ReinforcementLearningExperiment']
 
 class ReinforcementLearningExperiment(FPGAExperiment):
-    beta = FloatParameter(1.)
-    tau = FloatParameter(100.)
-    loop_delay = FloatParameter(4e6)
     n_blocks = IntParameter(1)
     averages_per_block = IntParameter(1)
-
     save_raw = True # don't change, important for data shape consistency
     save_processed = False
     
     def __init__(self, name):
         super(ReinforcementLearningExperiment, self).__init__(name)
-        self.beta = 2.5
-        self.tau = 100.
-        self.loop_delay = 4e6
         
         # TODO: implement results parsing for arb n_blocks and avgs_per_block
         self.n_blocks = 1               
         self.averages_per_block = 1
-
-
-    def sequence(self):
-        
-        @subroutine
-        def init_circuit(init_state):
-            if init_state=='e': qubit.flip()
-            sync()
-
-        @subroutine
-        def reward_circuit(init_state):
-            return_phase = np.pi/2.0 if init_state=='g' else -np.pi/2.0
-            cavity.displace(self.beta/2.0, phase=return_phase)
-            sync()
-            qubit.flip(selective=True)
-            sync()
-            readout(**{init_state:'se'})
-            sync()
-        
-        def action_circuit(i):
-            sync()
-            qubit.array_pulse(*self.qubit_pulse[i])
-            cavity.array_pulse(*self.cavity_pulse[i])
-            sync()
-
-        with Repeat(self.reps, plot_label='reps'):
-            for i in range(self.batch_size):
-                init_circuit('g')
-                action_circuit(i)
-                reward_circuit('g')
-                delay(self.loop_delay)
-                
-                init_circuit('e')
-                action_circuit(i)
-                reward_circuit('e')
-                delay(self.loop_delay)
-    
-
-    def update_pulse_params(self, action):
-        """
-        Create lists of qubit and cavity array pulses to use in action circuit. 
-        
-        Args:
-            action (dict): dictionary of parametrizations for action circuit.
-        """
-        C = ConditionalDisplacementCompiler()
-        self.cavity_pulse, self.qubit_pulse = [], []
-        for i in range(self.batch_size):
-            c_pulse, q_pulse = C.make_pulse(self.tau, 
-                                action['alpha'][i]*20.0,
-                                action['phi_g'][i]*np.pi/10.0,
-                                action['phi_e'][i]*np.pi/10.0)
-            self.cavity_pulse.append(c_pulse)
-            self.qubit_pulse.append(q_pulse)
-        logger.info('Compiled pulses.')
 
 
     def training_loop(self, **kwargs):
@@ -140,16 +79,6 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             return (None, done)
 
 
-    def create_reward_data(self):
-        # data shape is [epoch*n_blocks*averages_per_block, reps, batch_size]
-        assert self.n_blocks == self.averages_per_block == 1
-        sigmaz = {'g' : 1 - 2 * self.results['g'][-1,:].threshold().data,
-                  'e' : 1 - 2 * self.results['e'][-1,:].threshold().data}
-        self.rewards = np.mean([sigmaz['g'], -sigmaz['e']], axis=0)
-        self.rewards = np.mean(self.rewards, axis=0) # average over Repeat axis
-        logger.info('Average reward %.3f' %np.mean(self.rewards))
-
-
     def send_reward_data(self):
         self.client_socket.send_data(self.rewards)
 
@@ -172,7 +101,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             return locations
         
         # TODO: so far this is only for cavity channel, update to all channels
-        chan = cavity.chan        
+        chan = cavity.chan
         self.add_waves_compiler_calls = {}
         self.add_waves_compiler_calls[chan] = []
         for j in range(self.batch_size):
@@ -191,7 +120,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             for i in locs:
                 waves_list[i] = (chan, i_wave, q_wave, [None, None])
 
-        self.dsl_state.iq_table = fc.IQTable(self.cards)
+        self.dsl_state.iq_table = compiler.IQTable(self.cards)
 
         for i, wave_tuple in enumerate(waves_list):
             (channel, i_wave, q_wave, interp_step) = wave_tuple
