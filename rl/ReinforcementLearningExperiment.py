@@ -12,6 +12,7 @@ from fpga_lib.experiments.fpga import FPGAExperiment
 import sys
 from remote_env_tools import Client
 import os
+import matplotlib.pyplot as plt
 
 
 import logging
@@ -44,20 +45,16 @@ class ReinforcementLearningExperiment(FPGAExperiment):
     def training_loop(self, **kwargs):
         self.connect_to_RL_agent()
         done = False
-        first_run = True
         while not done:
             action, done = self.recv_action_data()
             if done: break
             self.update_pulse_params(action)
-            if first_run:
-                # on the first run, compile and write all tables
+            if self.compile_flag:
                 self.write_tables()
                 self.map_wave_memory()
-                first_run = False
                 logger.info('Updated tables.')
             else:
-                # on subsequent runs, only update wave tables
-                self.write_wave_tables_only() 
+                self.write_wave_tables_only()
                 logger.info('Updated wave tables.')
             self.run(compile=False)
             self.wait_complete()
@@ -73,6 +70,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             self.batch_size = data['batch_size']
             self.reps = data['reps']
             self.epoch = data['epoch']
+            self.compile_flag = data['compile_flag']
             logger.info('Start %s epoch %d' %(data['type'], data['epoch']))
             return (data['action'], done)
         else:
@@ -92,15 +90,16 @@ class ReinforcementLearningExperiment(FPGAExperiment):
 
     def map_wave_memory(self):
         """
-        Map out the locations of trainable waves in the waves_list after 
+        Map out the locations of trainable waves in the 'waves_list' after 
         compilation.
+        
         """
         def find(chan, wave):
             locations = []
             for j, wave_tuple in enumerate(self.dsl_state.iq_table.waves_list):
                 (channel, i_wave, q_wave, interp_step) = wave_tuple
                 if channel == chan and len(i_wave) == len(wave[0]):
-                    if np.allclose((i_wave, q_wave), wave):
+                    if np.allclose((i_wave, q_wave), wave, atol=1e-10):
                         locations.append(j)
             return locations
         
@@ -111,6 +110,9 @@ class ReinforcementLearningExperiment(FPGAExperiment):
                 wave = self.trainable_pulses[chan][j]
                 locs = find(chan, wave)
                 self.add_waves_compiler_calls[chan].append(locs)
+                # Every pulse should do same number of 'add_waves' calls
+                if j==0: num_calls = len(locs)
+                assert len(locs) == num_calls
 
 
     def write_wave_tables_only(self):
@@ -120,6 +122,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         compilation, but replacing the trainable waves with new versions. This
         way they go to the same memory location, and there is no need to 
         re-compile the sequence of instructions.
+        
         """
         waves_list = self.dsl_state.iq_table.waves_list
         
@@ -141,3 +144,12 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         for i in range(len(config.cards)):
             tables_prefix = os.path.join(self.directory, 'Table_B%d' % i)
             self.dsl_state.iq_table.wms[i].export(tables_prefix)
+    
+    def plot_array_pulse(self, i_wave, q_wave):
+        times = np.arange(len(i_wave))
+        fig, axes = plt.subplots(2,1, sharex=True)
+        axes[1].set_xlabel('Time (ns)')
+        axes[0].set_ylabel('Re')
+        axes[1].set_ylabel('Im')
+        axes[0].plot(times, i_wave)
+        axes[1].plot(times, q_wave)
