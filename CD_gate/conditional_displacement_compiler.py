@@ -12,9 +12,10 @@ from init_script import cavity, qubit
 
 class ConditionalDisplacementCompiler():
     
-    def __init__(self, cal_dir=None, qubit_pulse_shift=-12):
+    def __init__(self, cal_dir=None, qubit_pulse_shift=0, qubit_pulse_pad=0):
         self.cal_dir = cal_dir
         self.qubit_pulse_shift = qubit_pulse_shift
+        self.qubit_pulse_pad = qubit_pulse_pad
     
     def CD_params(self, beta, tau_ns):
         """Find parameters for CD gate based on simple constant chi model."""
@@ -85,6 +86,8 @@ class ConditionalDisplacementCompiler():
         phase2 = -phi_sum
         
         Q_complex = self.get_calibrated_pulse(qubit.pulse)
+        Q_complex = np.concatenate([np.zeros(self.qubit_pulse_pad), 
+                                    Q_complex, np.zeros(self.qubit_pulse_pad)])
         D_complex = self.get_calibrated_pulse(cavity.displace)
 
         delay_tau = np.zeros(int(round(tau)))

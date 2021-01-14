@@ -32,7 +32,6 @@ class Rabi(FPGAExperiment):
 
     def process_data(self):
         init_state = self.results['init_state'].threshold()
-        self.results['postselected'] = self.results['default'].postselect(
-                init_state, [0])[0].thresh_mean().data
-        self.results['postselected'].ax_data = self.results['init_state'].ax_data[1:]
-        self.results['postselected'].labels = self.results['init_state'].labels[1:]
+        self.results['postselected'] = self.results['default'].postselect(init_state, [0])[0]
+        self.results['postselected'].ax_data = self.results['init_state'].ax_data
+        self.results['postselected'].labels = self.results['init_state'].labels
