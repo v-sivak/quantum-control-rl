@@ -10,30 +10,30 @@ for simple single-state RL environments.
 import tensorflow as tf
 import tensorflow_probability as tfp
 from remote_env_tools.remote_env_tools import Server
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 # initialize the "agent server" and connect to "environment client"
 server_socket = Server()
-(host, port) = '127.0.0.1', 5000
+(host, port) = '172.28.140.123', 5555
 server_socket.bind((host, port))
 server_socket.connect_client()
 
-def reward_sampler(actions):
-    server_socket.send_data(actions)
-    rewards, done = server_socket.recv_data()
-    return rewards
-
 
 # trainable variables
-actions = ['alpha', 'phi_e', 'phi_g']
+actions = ['alpha']
+# actions = [a+str(i) for a in ['amp', 'phase', 'detune'] for i in range(10)]
 mean = {s : tf.Variable(tf.random.normal([], stddev=0.05), name='mean_'+s) for s in actions}
 sigma = {s : tf.Variable(0.5, name='sigma_'+s) for s in actions}
 baseline = tf.Variable(0.0, name='baseline')
 
 
 algo = 'PPO'
-B = 200 # batch_size
-EPOCHS = 3000
+B = 40 # batch_size
+reps = 5
+eval_reps = 1000
+EPOCHS = 100
+eval_interval = 10
 lr = 1e-3
 policy_steps = 20
 
@@ -41,6 +41,31 @@ log_prob_clipping = 10.
 gradient_clipping = 1.
 importance_ratio_eps = 0.2
 
+optimizer = tf.optimizers.Adam(learning_rate=lr)
+
+def reward_sampler(a, epoch, reps, type='collection', compile_flag=True):
+    a_np = {s : np.array(a[s] if type=='collection' else [a[s]]) for s in actions}
+    batch_size = B if type=='collection' else 1
+    data = {'type':type, 
+            'epoch':epoch, 
+            'action':a_np, 
+            'reps':reps, 
+            'batch_size':batch_size,
+            'compile_flag': compile_flag}
+    server_socket.send_data(data)
+    rewards, done = server_socket.recv_data()
+    return tf.cast(rewards, tf.float32)
+
+def evaluation(epoch, log=None):
+    eval_action = tf.nest.map_structure(tf.math.tanh, mean)
+    R_eval = reward_sampler(eval_action, epoch, eval_reps, 'evaluation', True)
+    print('Deterministic policy: %.3f' %float(tf.reduce_mean(R_eval)))
+    for s in actions:
+        train_vars_tuple = (float(mean[s].numpy()), float(sigma[s].numpy()))
+        print(s+': %.5f +- %.5f' %train_vars_tuple)
+    if log is not None:
+        log['eval_rewards'].append(np.array(R_eval))
+        log['eval_epochs'].append(epoch)
 
 def compute_log_prob(action, mean, sigma):
     sigma_eps = 1e-5 # for mumerical stability
@@ -50,18 +75,21 @@ def compute_log_prob(action, mean, sigma):
             - 0.5 * (action[s] - mean[s])**2 / (sigma[s]**2 + sigma_eps)
     return log_prob
 
-optimizer = tf.optimizers.Adam(learning_rate=lr)
+log = dict(train_rewards=[], train_epochs=[], eval_rewards=[], eval_epochs=[])
 
-for epoch in range(EPOCHS):
+evaluation(0, log) # evaluate policy once before training
+for epoch in range(1,EPOCHS+1):
     # sample a batch of actions from Gaussian policy
     N = {s : tfp.distributions.Normal(loc=mean[s], scale=sigma[s]) for s in actions}
     a = {s : N[s].sample(B) for s in actions}
     a_tanh = tf.nest.map_structure(tf.math.tanh, a)
 
-    R =  reward_sampler(a_tanh) # collect rewards
+    # collect those rewards (need to re-compile after evaluation rounds)
+    compile_flag = True if epoch % eval_interval == 1 else False
+    R =  reward_sampler(a_tanh, epoch, reps, 'collection', compile_flag)
     
     # log prob according to old policy (required for importance ratio)
-    if epoch == 0: mean_old, sigma_old = mean, sigma 
+    if epoch == 1: mean_old, sigma_old = mean, sigma 
     log_prob_old = compute_log_prob(a, mean_old, sigma_old)
     log_prob_old = tf.clip_by_value(log_prob_old, -log_prob_clipping, log_prob_clipping)
     mean_old = tf.nest.map_structure(tf.identity, mean)
@@ -81,8 +109,9 @@ for epoch in range(EPOCHS):
                 
             if algo == 'PPO':
                 importance_ratio = tf.math.exp(log_prob - log_prob_old)
-                importance_ratio_clip = tf.clip_by_value(importance_ratio, 1-importance_ratio_eps, 1+importance_ratio_eps)
-                policy_loss_batch = - tf.minimum(importance_ratio*A, importance_ratio_clip*A)
+                importance_ratio_clip = tf.clip_by_value(importance_ratio, 
+                            1-importance_ratio_eps, 1+importance_ratio_eps)
+                policy_loss_batch = -tf.minimum(importance_ratio*A, importance_ratio_clip*A)
             
             policy_loss = tf.reduce_mean(policy_loss_batch) # reduce over batch
             value_loss = tf.reduce_mean(A**2)
@@ -91,12 +120,23 @@ for epoch in range(EPOCHS):
             grads = tape.gradient(loss, tape.watched_variables())
             grads = tf.clip_by_value(grads, -gradient_clipping, gradient_clipping)
             optimizer.apply_gradients(zip(grads, tape.watched_variables()))
-            
-    eval_action = tf.nest.map_structure(tf.math.tanh, mean)
-    # if epoch % 10 == 0: 
-    #     print(test_eval(eval_action))
-    # print(eval_action['alpha'])
-    print(float(tf.reduce_mean(R)))
-        
+    print('Epoch %d: %.3f' %(epoch, float(tf.reduce_mean(R))))
+    log['train_rewards'].append(np.array(R))
+    log['train_epochs'].append(epoch)
+    if epoch % eval_interval == 0: evaluation(epoch, log)
 
 server_socket.disconnect_client()
+
+
+# plot training progress
+from plotting import plot_config
+fix, ax = plt.subplots(1,1, figsize=(3.375,2))
+plt.grid()
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Reward')
+ax.set_ylim(-1,1)
+R_mean = np.mean(log['train_rewards'], axis=1)
+ax.plot(log['train_epochs'], R_mean, label='Stochastic policy')
+ax.plot(log['eval_epochs'], log['eval_rewards'], label='Deterministic policy')
+ax.legend(loc='best')
+plt.tight_layout()
