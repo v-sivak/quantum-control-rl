@@ -46,8 +46,8 @@ class CD_calibration(ReinforcementLearningExperiment):
         
         def action_circuit(i):
             sync()
-            qubit.array_pulse(*self.qubit_pulse[i])
-            cavity.array_pulse(*self.cavity_pulse[i])
+            qubit.array_pulse(*self.qubit_pulse[i], pulse_id=i)
+            cavity.array_pulse(*self.cavity_pulse[i], pulse_id=i)
             sync()
 
         with Repeat(self.reps, plot_label='reps'):

@@ -41,6 +41,22 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         
         self.trainable_pulses = {} # keys are fpga channels
 
+    def sequence(self):
+        """
+        Make sure to set 'pulse_id' (in array_pulse) equal to index of the 
+        trainable pulse in the batch. Channel and pulse_id are used to 
+        identify the pulse in wave memory and update it on each epoch.
+        """
+        raise NotImplementedError
+
+
+    def update_pulse_params(self):
+        raise NotImplementedError
+
+
+    def create_reward_data(self):
+        raise NotImplementedError
+
 
     def training_loop(self, **kwargs):
         self.connect_to_RL_agent()
@@ -51,7 +67,6 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             self.update_pulse_params(action)
             if self.compile_flag:
                 self.write_tables()
-                self.map_wave_memory()
                 logger.info('Updated tables.')
             else:
                 self.write_wave_tables_only()
@@ -63,6 +78,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             self.create_reward_data()
             self.send_reward_data()
 
+
     def recv_action_data(self):
         data, done = self.client_socket.recv_data()
         logger.info('Received data from RL agent server.')
@@ -71,6 +87,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
             self.reps = data['reps']
             self.epoch = data['epoch']
             self.compile_flag = data['compile_flag']
+            self.epoch_type = data['type']
             logger.info('Start %s epoch %d' %(data['type'], data['epoch']))
             return (data['action'], done)
         else:
@@ -88,62 +105,33 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         self.client_socket.connect((host, port))
         
 
-    def map_wave_memory(self):
-        """
-        Map out the locations of trainable waves in the 'waves_list' after 
-        compilation.
-        
-        """
-        def find(chan, wave):
-            locations = []
-            for j, wave_tuple in enumerate(self.dsl_state.iq_table.waves_list):
-                (channel, i_wave, q_wave, interp_step) = wave_tuple
-                if channel == chan and len(i_wave) == len(wave[0]):
-                    if np.allclose((i_wave, q_wave), wave, atol=1e-10):
-                        locations.append(j)
-            return locations
-        
-        self.add_waves_compiler_calls = {}
-        for chan in self.trainable_pulses.keys():
-            self.add_waves_compiler_calls[chan] = []
-            for j in range(self.batch_size):
-                wave = self.trainable_pulses[chan][j]
-                locs = find(chan, wave)
-                self.add_waves_compiler_calls[chan].append(locs)
-                # Every pulse should do same number of 'add_waves' calls
-                if j==0: num_calls = len(locs)
-                assert len(locs) == num_calls
-
-
     def write_wave_tables_only(self):
         """
         To avoid re-compilation, this method simply builds the IQTable by 
-        appending waves to WaveMemory in the same order as during the original
-        compilation, but replacing the trainable waves with new versions. This
+        appending pulses to WaveMemory in the same order as during the original
+        compilation, but replacing the trainable pulses with new versions. This
         way they go to the same memory location, and there is no need to 
         re-compile the sequence of instructions.
         
         """
         waves_list = self.dsl_state.iq_table.waves_list
-        
-        for chan in self.trainable_pulses.keys():
-            for j in range(self.batch_size):
-                locs = self.add_waves_compiler_calls[chan][j]
+        for i, wave_tuple in enumerate(waves_list):
+            chan, j = wave_tuple[0], wave_tuple[-1]
+            if chan in self.trainable_pulses.keys() and j is not None:
                 (i_wave, q_wave) = self.trainable_pulses[chan][j]
                 i_wave = np.ascontiguousarray(i_wave)
                 q_wave = np.ascontiguousarray(q_wave)
-                for i in locs:
-                    waves_list[i] = (chan, i_wave, q_wave, [None, None])
+                waves_list[i] = (chan, i_wave, q_wave, [None, None], j)
 
         self.dsl_state.iq_table = compiler.IQTable(self.cards)
-
         for i, wave_tuple in enumerate(waves_list):
-            (channel, i_wave, q_wave, interp_step) = wave_tuple
-            self.dsl_state.iq_table.add_waves(channel, i_wave, q_wave, interp_step)
+            self.dsl_state.iq_table.add_waves(*wave_tuple)
 
-        for i in range(len(config.cards)):
-            tables_prefix = os.path.join(self.directory, 'Table_B%d' % i)
-            self.dsl_state.iq_table.wms[i].export(tables_prefix)
+        for chan in self.trainable_pulses.keys():
+            card = chan[0]
+            tables_prefix = os.path.join(self.directory, 'Table_B%d' % card)
+            self.dsl_state.iq_table.wms[card].export(tables_prefix)
+    
     
     def plot_array_pulse(self, i_wave, q_wave):
         times = np.arange(len(i_wave))
