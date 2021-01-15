@@ -1,8 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan 15 17:32:45 2021
+
+@author: qulab
+"""
 from init_script import *
 
-class Rabi(FPGAExperiment):
+class Rabi_pi2_pulse(FPGAExperiment):
     amp_range = RangeParameter((0, 1.5, 41))
-    selective = BoolParameter(False)
     along_x = BoolParameter(True)
     fit_func = 'sine'
     fixed_fit_params = {'phi': -np.pi/2}
@@ -10,10 +15,12 @@ class Rabi(FPGAExperiment):
 
 
     def sequence(self):
-        pulse = qubit.selective_pulse if self.selective else qubit.pulse
+        pulse = qubit.pi2_pulse
         with pulse.scan_amplitude(*self.amp_range, in_phase=self.along_x):
             sync()
             readout(init_state='se')
+            pulse(amp='dynamic')
+            sync()
             pulse(amp='dynamic')
             sync()
             delay(24)
@@ -22,7 +29,7 @@ class Rabi(FPGAExperiment):
 
     def update(self):
         scale = 1 / (self.fit_params['f0'] * 2)
-        p = qubit.selective_pulse if self.run_params['selective'] else qubit.pulse
+        p = qubit.pi2_pulse
         old_amp = self.run_calib_params['qubit'][p.name.split('.')[-1]]['unit_amp']
         new_amp = old_amp * scale
         self.logger.info('Setting %s amp from %s to %s', p.name, old_amp, new_amp)

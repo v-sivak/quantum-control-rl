@@ -42,7 +42,8 @@ class CD_geometric_phase(FPGAExperiment):
         def myexp(op='sx'):
             readout(**{op+'_init_state':'se'})
             sync()
-            qubit.rotate(angle=np.pi/2.0, phase = np.pi/2.0)
+            qubit.pi2_pulse(phase=np.pi/2)
+            #qubit.rotate(angle=np.pi/2.0, phase = np.pi/2.0)
             sync()
             CD(1j*self.beta_CD)
             sync()
@@ -53,9 +54,11 @@ class CD_geometric_phase(FPGAExperiment):
             self.cavity.displace(amp='dynamic', phase=np.pi)
             sync()
             if op == 'sx':
-                qubit.rotate(angle=np.pi/2.0, phase = -np.pi/2.0)
+                qubit.pi2_pulse(phase=-np.pi/2)
+                #qubit.rotate(angle=np.pi/2.0, phase = -np.pi/2.0)
             elif op == 'sy':
-                qubit.rotate(angle=np.pi/2.0, phase = 0.0)
+                qubit.pi2_pulse(phase=0.0)
+                #qubit.rotate(angle=np.pi/2.0, phase = 0.0)
             sync()
             delay(24)
             readout(**{op:'se'})
