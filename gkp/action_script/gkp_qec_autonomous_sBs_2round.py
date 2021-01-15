@@ -20,7 +20,8 @@ script = {
     'beta'  : [[b_amp, 0], [0, b_amp]],
     'eps1' : [[0, eps], [-eps, 0]],
     'eps2' : [[0, eps], [-eps, 0]],
-    'phi' : [[0]]*2
+    'phi' : [[0]]*2,
+    'theta' : [[0]]*2 # -0.01
     }
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
@@ -29,5 +30,6 @@ mask = {
     'beta'  : [1, 1],
     'eps1' : [1, 1],
     'eps2' : [1, 1],
-    'phi' : [1, 1]
+    'phi' : [1, 1],
+    'theta' : [1, 1]
     }

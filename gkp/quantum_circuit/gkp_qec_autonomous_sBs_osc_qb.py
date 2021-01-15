@@ -54,7 +54,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
         spec = {'beta' : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'eps1' : specs.TensorSpec(shape=[2], dtype=tf.float32),
                 'eps2' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'phi'  : specs.TensorSpec(shape=[1], dtype=tf.float32)}
+                'phi'  : specs.TensorSpec(shape=[1], dtype=tf.float32),
+                'theta' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -63,9 +64,10 @@ class QuantumCircuit(OscillatorQubit, GKP):
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'beta'    : Tensor([batch_size,2], tf.float32),
-                          'eps1' : Tensor([batch_size,2], tf.float32,
-                          'eps2' : Tensor([batch_size,2], tf.float32,
-                          'phi'     : Tensor([batch_size,1])))
+                          'eps1' : Tensor([batch_size,2], tf.float32),
+                          'eps2' : Tensor([batch_size,2], tf.float32),
+                          'phi'     : Tensor([batch_size,1]),
+                          'theta'   : Tensor([batch_size,1]))
 
         Returns: see parent class docs
 
@@ -78,6 +80,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
         # Construct gates
         Phase = self.rotate_qb_z(phi)
+        Rotation = self.rotate(action['theta'])
         T, CT = {}, {}
         T['b'] = self.translate(beta/4.0) # 4 because it will be troterized
         T['e1'] = self.translate(eps1/2.0)
@@ -89,6 +92,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi_cached = psi
         # Between-round wait time
         psi = self.simulate(psi, self.t_idle)
+        psi = tf.linalg.matvec(Rotation, psi)
         # Rotate qubit to |+> state
         psi = tf.linalg.matvec(self.hadamard, psi)
         # Conditional translation
