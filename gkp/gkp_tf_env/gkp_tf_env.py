@@ -409,19 +409,33 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 reward_mode (str): 'tomography'
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of window for uniform distribution
+                sample_from_buffer (bool): if True, this will fill the buffer
+                    of phase space points first, and then uniformly sample
+                    from it on each epoch. Itroduces some bias if the buffer
+                    is small, but speeds things up. If False, it will sample
+                    points real-time (1 point per epoch, and use it for the
+                    whole batch).
+                buffer_size (int): number of phase space points in the buffer
                 
             """
             assert 'target_state' in reward_kwargs.keys()
             assert 'window_size' in reward_kwargs.keys()
             assert 'tomography' in reward_kwargs.keys()
+            assert 'sample_from_buffer' in reward_kwargs.keys()
+            assert 'buffer_size' in reward_kwargs.keys()            
             window_size = reward_kwargs['window_size']
             tomography = reward_kwargs['tomography']
+            sample_from_buffer = reward_kwargs['sample_from_buffer']
+            buffer_size = reward_kwargs['buffer_size']
             target_state = reward_kwargs['target_state']
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
             self.calculate_reward = \
-                lambda args: self.reward_tomography(target_state, window_size, 
-                                                    tomography, args)
+                lambda args: self.reward_tomography(
+                    target_state, window_size, tomography, sample_from_buffer)
+            if sample_from_buffer:
+                self.buffer, self.target_vals = self.fill_buffer(
+                    target_state, window_size, tomography, samples=buffer_size)
 
         if mode == 'stabilizers':
             """
@@ -482,7 +496,34 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
 
 
-    def reward_tomography(self, target_state, window_size, tomography, *args):
+    def fill_buffer(self, target_state, window_size, tomography, samples=1000):
+        # Distributions for rejection sampling
+        L = window_size/2
+        P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
+        P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
+            
+        buffer, target_vals = [], []
+        # rejection sampling of phase space points
+        for i in range(samples):
+            cond = True
+            while cond:
+                point = tf.squeeze(hf.vec_to_complex(P.sample()))
+                if tomography == 'wigner':
+                    target_state_translated = tf.linalg.matvec(
+                        self.translate(-point), target_state)
+                    W_target = expectation(target_state_translated, self.parity)
+                    target = tf.math.real(tf.squeeze(W_target))
+                if tomography == 'characteristic_fn':
+                    C_target = expectation(target_state, self.translate(-point))
+                    target = tf.math.real(tf.squeeze(C_target))               
+                cond = P_v.sample() > tf.math.abs(target)
+            buffer.append(point)
+            target_vals.append(target)
+        return buffer, target_vals
+
+
+    def reward_tomography(self, target_state, window_size, tomography, 
+                          sample_from_buffer):
         """
         Reward only on last time step using the empirical approximation of the 
         overlap of the prepared state with the target state. This overlap is
@@ -507,31 +548,21 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         alpha_samples = alpha_sample_schedule(self._episodes_completed)
         msmt_samples = msmt_sample_schedule(self._episodes_completed)
         z = 0
-        for i in range(alpha_samples):
-            # Distributions for rejection sampling
-            L = window_size/2
-            P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
-            P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
+        for i in range(alpha_samples):            
+            if sample_from_buffer:
+                # uniformly sample points from the buffer
+                samples = self.batch_size
+                index = tf.math.round(tf.random.uniform([samples])*samples)
+                targets = tf.gather(self.target_vals, tf.cast(index, tf.int32))
+                points = tf.gather(self.buffer, tf.cast(index, tf.int32))
+            else:
+                # sample 1 point real-time and use it for the whole batch
+                buffer, target_vals = self.fill_buffer(
+                    target_state, window_size, tomography, samples=1)
+                targets = tf.broadcast_to(target_vals[0], [self.batch_size])
+                points = tf.broadcast_to(buffer[0], [self.batch_size])
             
-            # rejection sampling of phase space point for tomography
-            cond = True
-            while cond:
-                point = hf.vec_to_complex(P.sample())
-                
-                if tomography == 'wigner':
-                    target_state_translated = batch_dot(
-                        self.translate(-point), target_state)
-                    W_target = expectation(target_state_translated, self.parity)
-                    target = tf.math.real(tf.squeeze(W_target))
-                if tomography == 'characteristic_fn':
-                    C_target = expectation(target_state, self.translate(-point))
-                    target = tf.math.real(tf.squeeze(C_target))
-                
-                if P_v.sample() < tf.math.abs(target): cond = False
-                    
-            points = tf.broadcast_to(point, [self.batch_size])
-            
-            for j in range(msmt_samples): 
+            for j in range(msmt_samples):
                 # first measure the qubit to disentangle from oscillator
                 psi = self.info['psi_cached']
                 if self.tensorstate:
@@ -556,9 +587,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 # states (GKP, Fock etc)
                 # Mask out trajectories where qubit was measured in |e> 
                 # Subtract baseline tf.math.abs(target) to improve (??) convergence
-                z += tf.squeeze(msmt) * tf.math.sign(target) * mask 
+                z += tf.squeeze(msmt) * tf.math.sign(targets) * mask
         z /= alpha_samples * msmt_samples
-
         return z
 
 
