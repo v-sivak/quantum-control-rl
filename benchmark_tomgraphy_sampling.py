@@ -80,7 +80,7 @@ buffer, target_vals = fill_buffer(target_state, samples=BUFFER_SIZE)
 
 def estimate_fidelity(samples, sample=True):
     # can uniformly sample points from the buffer
-    index = tf.cast(tf.math.round(tf.random.uniform([samples])*samples), tf.int32)
+    index = tf.cast(tf.math.round(tf.random.uniform([samples])*len(buffer)), tf.int32)
     points, targets = tf.gather(buffer, index), tf.gather(target_vals, index)
     
     # do a single Wigner measurement in a batch of phase space points

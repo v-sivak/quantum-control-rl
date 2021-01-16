@@ -551,8 +551,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         for i in range(alpha_samples):            
             if sample_from_buffer:
                 # uniformly sample points from the buffer
-                samples = self.batch_size
-                index = tf.math.round(tf.random.uniform([samples])*samples)
+                samples, buffer_size = self.batch_size, len(self.buffer)
+                index = tf.math.round(tf.random.uniform([samples])*buffer_size)
                 targets = tf.gather(self.target_vals, tf.cast(index, tf.int32))
                 points = tf.gather(self.buffer, tf.cast(index, tf.int32))
             else:
