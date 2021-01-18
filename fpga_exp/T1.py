@@ -14,6 +14,8 @@ class T1(FPGAExperiment):
     def sequence(self):
         with scan_length(0, self.t_max, self.points, axis_scale=self.n_repeat) as dynlen:
             sync()
+            system.cool_qubit()
+            sync()
             qubit.flip()
             sync()
             if self.ro_drive_amp:

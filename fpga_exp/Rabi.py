@@ -14,6 +14,9 @@ class Rabi(FPGAExperiment):
         with pulse.scan_amplitude(*self.amp_range, in_phase=self.along_x):
             sync()
             readout(init_state='se')
+            sync()
+            system.cool_qubit()
+            sync()
             pulse(amp='dynamic')
             sync()
             delay(24)
