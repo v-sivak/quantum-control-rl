@@ -35,6 +35,7 @@ def train_eval(
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.2,
         value_pred_loss_coef = 0.5,
+        gradient_clipping = None,
         # Params for log, eval, save
         eval_interval = 100,
         save_interval = 1000,
@@ -82,6 +83,7 @@ def train_eval(
             change the policy. Should be in (0,1]
         value_pred_loss_coef (float): weight coefficient for quadratic value
             estimation loss.
+        gradient_clipping (float): gradient clipping coefficient.
         eval_interval (int): interval between evaluations, counted in epochs.
         save_interval (int): interval between savings, counted in epochs. It
             updates the log file and saves the deterministic policy.
@@ -182,6 +184,7 @@ def train_eval(
             initial_adaptive_kl_beta = initial_adaptive_kl_beta,
             kl_cutoff_factor = kl_cutoff_factor,
             importance_ratio_clipping = importance_ratio_clipping,
+            gradient_clipping = gradient_clipping,
             value_pred_loss_coef = value_pred_loss_coef,
             debug_summaries = True)
         

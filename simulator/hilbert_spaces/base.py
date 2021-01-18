@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow.keras.backend import batch_dot
 from simulator.quantum_trajectory_sim import QuantumTrajectorySim
 
 

@@ -19,7 +19,6 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import measurement, expectation
 from gkp.gkp_tf_env import helper_functions as hf
-from tensorflow.keras.backend import batch_dot
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -227,7 +226,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # Calculate and plot the phase space representation
         if self.phase_space_rep == 'wigner':
             state = tf.broadcast_to(state, [grid_flat.shape[0], state.shape[1]])
-            state_translated = batch_dot(self.translate(-grid_flat), state)
+            state_translated = tf.linalg.matvec(self.translate(-grid_flat), state)
             W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
             W_grid = tf.reshape(W, grid.shape)
     
@@ -574,7 +573,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 # do tomography in one phase space point
                 if tomography == 'wigner':
                     translations = self.translate(-points)
-                    psi = batch_dot(translations, psi)
+                    psi = tf.linalg.matvec(translations, psi)
                     _, msmt = self.phase_estimation(psi, self.parity,
                                 angle=tf.zeros(self.batch_size), sample=True)
                 if tomography == 'characteristic_fn':

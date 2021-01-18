@@ -8,8 +8,6 @@ Qubit is included in the Hilbert space. Simulation is done with a gate-based
 approach to quantum circuits.
 """
 import tensorflow as tf
-from numpy import pi
-from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
@@ -43,7 +41,7 @@ class QuantumCircuit(Oscillator, GKP):
     @property
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[14], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -52,7 +50,7 @@ class QuantumCircuit(Oscillator, GKP):
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'alpha' : Tensor([batch_size,2], tf.float32),
-                          'theta' : Tensor([batch_size,14], tf.float32))
+                          'theta' : Tensor([batch_size,7], tf.float32))
 
         Returns: see parent class docs
 
@@ -66,9 +64,9 @@ class QuantumCircuit(Oscillator, GKP):
         snap = self.SNAP(theta)
 
         # Apply gates
-        psi = batch_dot(displace, psi)
-        psi = batch_dot(snap, psi)
-        psi = batch_dot(tf.linalg.adjoint(displace), psi) 
+        psi = tf.linalg.matvec(displace, psi)
+        psi = tf.linalg.matvec(snap, psi)
+        psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi) 
 
         return psi, psi, tf.ones((self.batch_size,1))
 

@@ -31,8 +31,8 @@ in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'fock10')
+root_dir = r'E:\data\gkp_sims\PPO\examples' 
+root_dir = os.path.join(root_dir,'test')
 
 # Params for environment
 env_kwargs = {
@@ -41,17 +41,28 @@ env_kwargs = {
     'H' : 1,
     'T' : 5, 
     'attn_step' : 1,
-    'N' : 100}
+    'N' : 50}
 
 # Params for reward function
-target_state = qt.basis(100,10)
-reward_kwargs = {'reward_mode' : 'Fock',
-                 'target_state' : target_state}
+# target_state = qt.basis(100,10)
 
-# reward_kwargs = {'reward_mode' : 'tomography',
-#                  'tomography' : 'wigner',
-#                  'target_state' : target_state,
-#                  'window_size' : 12}
+target_state = (qt.coherent(50,2)+qt.coherent(50,-2)).unit()
+
+reward_kwargs = {'reward_mode' : 'tomography',
+                  'tomography' : 'wigner',
+                  'target_state' : target_state,
+                  'window_size' : 12,
+                  'sample_from_buffer' : True,
+                  'buffer_size' : 5000
+                  }
+
+# reward_kwargs = {'reward_mode' : 'overlap',
+#                   'target_state' : target_state
+#                   }
+
+reward_kwargs_eval = {'reward_mode' : 'overlap',
+                      'target_state' : target_state
+                      }
 
 # Params for action wrapper
 action_script = 'snap_and_displacements'
@@ -59,38 +70,41 @@ action_scale = {'alpha':4, 'theta':pi}
 to_learn = {'alpha':True, 'theta':True}
 
 train_batch_size = 1000
-eval_batch_size = 1000
+eval_batch_size = 100
+
+train_episode_length = lambda x: 5
+eval_episode_length = lambda x: 5
 
 # Create drivers for data collection
 from gkp.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, 
-    action_script, action_scale, to_learn)
+    action_script, action_scale, to_learn, train_episode_length)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    env_kwargs, reward_kwargs, eval_batch_size, 
-    action_script, action_scale, to_learn)
+    env_kwargs, reward_kwargs_eval, eval_batch_size, 
+    action_script, action_scale, to_learn, eval_episode_length)
 
-    
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 2000,
+        num_epochs = 10000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-4,
-        lr_schedule = lambda x: 1e-3 if x<500 else 1e-4,
+        lr = 1e-3,
+        lr_schedule = None, #lambda x: 1e-3 if x<1000 else 1e-4,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.3,
         value_pred_loss_coef = 0.005,
+        gradient_clipping = 1.0,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 100,
+        save_interval = 200,
         checkpoint_interval = 10000,
         summary_interval = 100,
         # Params for data collection
@@ -98,9 +112,7 @@ PPO.train_eval(
         eval_batch_size = eval_batch_size,
         collect_driver = collect_driver,
         eval_driver = eval_driver,
-        train_episode_length = lambda x: 5,
-        eval_episode_length = 5,
-        replay_buffer_capacity = 5000,
+        replay_buffer_capacity = 7000,
         # Policy and value networks
         ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         actor_fc_layers = (),

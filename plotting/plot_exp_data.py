@@ -10,10 +10,10 @@ import plot_config
 from scipy.optimize import curve_fit
 
 # load and plot experimental data
-dac_cal_coeff = (0.0296/0.05)**2
-nbar = np.load(r'Z:\tmp\for Vlad\from_vlad\new\nbar.npy') / dac_cal_coeff
-freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\new\freq_g.npy')
-freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\new\freq_e.npy')
+dac_cal_coeff = 1
+nbar = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\nbar.npy') / dac_cal_coeff
+freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\freq_g.npy')
+freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\freq_e.npy')
 
 fig, ax = plt.subplots(1,1,figsize=(3.375,2))
 ax.set_xlabel('nbar')
@@ -56,4 +56,21 @@ ax.plot(nbar, diff_freq*1e-3, marker='.',linestyle='none')
 ax.plot(nbar[:fit_pts], diff_freq_fit_func(nbar[:fit_pts], *popt)*1e-3,
         label='chi=%.0f kHz, chi_prime= %.0f Hz' %(chi*1e-3,chi_prime))
 ax.legend()
+plt.tight_layout()
+
+
+# Plot quartic fits to 'e' and 'g' rotation frequency
+def quartic_fit(n, c0, c1, c2, c3, c4):
+    return c0 + c1*n + c2*n**2 + c3*n**3 + c4*n**4
+popt_g, _ = curve_fit(quartic_fit, nbar, freq_g)
+popt_e, _ = curve_fit(quartic_fit, nbar, freq_e)
+
+fig, ax = plt.subplots(1,1,figsize=(3.375,2))
+ax.set_xlabel('nbar')
+ax.set_ylabel('Rotation freq (kHz)')
+ax.plot(nbar, freq_g*1e-3, marker='.', linestyle='none', label='g')
+ax.plot(nbar, freq_e*1e-3, marker='.', linestyle='none', label='e')
+ax.plot(nbar, quartic_fit(nbar, *popt_g)*1e-3)
+ax.plot(nbar, quartic_fit(nbar, *popt_e)*1e-3)
+ax.legend(loc='lower right')
 plt.tight_layout()
