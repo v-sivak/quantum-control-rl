@@ -13,7 +13,7 @@ from time import time
 import pickle
 import os
 
-savepath = r'D:\DATA\exp\2020-11-28_cooldown\qubit_T1_T2_4'
+savepath = r'D:\DATA\exp\2020-12-26_cooldown\qubit_T1_T2_5'
 os.mkdir(savepath)
 
 experiments = [
@@ -25,7 +25,7 @@ tau = {exp : [] for exp in experiments}
 time_start = {exp : [] for exp in experiments}
 time_stop = {exp : [] for exp in experiments}
 
-reps = 600
+reps = 3000
 for i in range(reps):
     for exp in experiments:
         e = get_experiment(exp)
@@ -53,19 +53,22 @@ mid_time = {exp : (time_start[exp] + time_stop[exp])/2.0 for exp in experiments}
 mid_time = {exp : mid_time[exp] - time_start[exp][0] for exp in experiments}
 mid_time = {exp : mid_time[exp]/60.0/60.0 for exp in experiments} # hrs
 
+tau_outliers = 130e3
+
 for exp in experiments:
     fig, ax = plt.subplots(1,1)
     ax.set_xlabel('Time (hours)')
     ax.set_ylabel('tau (us)')
     ax.set_title(exp)
-    ax.plot(mid_time[exp], tau[exp]*1e-3, linestyle='none', marker='o')
+    ind = np.where(tau[exp]<tau_outliers)
+    ax.plot(mid_time[exp][ind], tau[exp][ind]*1e-3, linestyle='none', marker='o')
     plt.tight_layout()
     
     fig, ax = plt.subplots(1,1)
     ax.set_ylabel('Counts')
     ax.set_xlabel('tau (us)')
     ax.set_title(exp)
-    ax.hist(tau[exp]*1e-3, bins=50)
+    ax.hist(tau[exp][ind]*1e-3, bins=50)
 
 #with open(os.path.join(savepath,'T2.pickle'), 'r') as f:
 #    loaded = pickle.load(f)
