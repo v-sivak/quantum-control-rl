@@ -31,7 +31,7 @@ measurements are performed in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'test_alec')
+root_dir = os.path.join(root_dir,'test_clip03')
 
 # Params for environment
 env_kwargs = {
@@ -50,11 +50,15 @@ reward_kwargs = {'reward_mode' : 'tomography',
                   'target_state' : target_state,
                   'window_size' : 12,
                   'sample_from_buffer' : False,
-                  'buffer_size' : 5000
+                  'buffer_size' : 2000
                   }
 
 # reward_kwargs = {'reward_mode' : 'Fock',
 #                   'target_state' : target_state}
+
+# reward_kwargs = {'reward_mode' : 'overlap',
+#                       'target_state' : target_state
+#                       }
 
 # reward_kwargs = {'reward_mode' : 'tomography',
 #                   'tomography' : 'characteristic_fn',
@@ -104,7 +108,7 @@ PPO.train_eval(
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.1,
+        importance_ratio_clipping = 0.3,
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         # Params for log, eval, save

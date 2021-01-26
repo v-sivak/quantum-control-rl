@@ -18,7 +18,7 @@ script = {
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
 # that time step, while 0 allows to use the scripted value.
 mask = {
-    'alpha' : [1]*(period-1)+[0],
+    'alpha' : [1]*period,
     'beta'  : [1]*(period-1)+[0], # the last round will only have qubit rotations
     'phi' : [1]*period
     }

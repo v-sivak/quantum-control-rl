@@ -12,6 +12,9 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
+from simulator.utils import measurement
+from math import pi
+from tensorflow import complex64 as c64
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
@@ -58,18 +61,20 @@ class QuantumCircuit(OscillatorQubit, GKP):
         # Extract parameters
         alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
-        phi = action['phi'][:,0]
-        theta = action['phi'][:,1]
+        phi_x = action['phi'][:,0]
+        phi_y = action['phi'][:,1]
 
         # Construct gates
         T, CT, R = {}, {}, {}
         T['a'] = self.translate(alpha)
         T['b'] = self.translate(beta/2.0)
         CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
-        R = self.rotate_qb_xy(phi, theta)
-
+        Rx = self.rotate_qb_xy(phi_x, tf.zeros_like(phi_x))
+        Ry = self.rotate_qb_xy(phi_y, pi/2*tf.ones_like(phi_x))
+        
         # Qubit rotation
-        psi = tf.linalg.matvec(R, psi)
+        psi = tf.linalg.matvec(Rx, psi)
+        psi = tf.linalg.matvec(Ry, psi)
         # Oscillator translation
         psi = tf.linalg.matvec(T['a'], psi)
         # Conditional translation
