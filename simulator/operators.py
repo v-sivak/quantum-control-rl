@@ -261,39 +261,6 @@ class RotationOperator(ParametrizedOperator):
         phase = tf.cast(tf.expand_dims(phase, -1), dtype=c64)
         exp_diag = tf.math.exp(1j * phase * tf.cast(tf.range(self.N), c64))
         return tf.linalg.diag(exp_diag)
-
-
-class SNAP(ParametrizedOperator):
-    """
-    Selective Number-dependent Arbitrary Phase (SNAP) gate.
-    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
-    
-    """     
-    def __init__(self, N, phase_offset=None, *args, **kwargs):
-        """
-        Args:
-            N (int): dimension of Hilbert space    
-            phase_offset (Tensor([N], c64)): static offset added to the rota-
-                tion phases to model miscalibrated gate.             
-        """
-        self.phase_offset = 0 if phase_offset is None else phase_offset
-        super().__init__(N=N, *args, **kwargs)
-     
-    def compute(self, theta):
-        """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
-        Args:
-            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
-        Returns:
-            Tensor([B1, ..., Bb, N, N], c64): A batch of SNAP(theta)
-        """
-        S = theta.shape[-1] # SNAP truncation
-        D = len(theta.shape)-1
-        paddings = tf.constant([[0,0]]*D + [[0,self.N-S]])
-        theta = tf.cast(theta, dtype=c64)
-        theta = tf.pad(theta, paddings)
-        theta -= self.phase_offset
-        exp_diag = tf.math.exp(1j*theta)
-        return tf.linalg.diag(exp_diag)
     
 
 class QubitRotationXY(ParametrizedOperator):
@@ -368,6 +335,39 @@ class Phase(ParametrizedOperator):
         return tf.math.exp(1j * angle)
 
 
+class SNAP(ParametrizedOperator):
+    """
+    Selective Number-dependent Arbitrary Phase (SNAP) gate.
+    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
+    
+    """     
+    def __init__(self, N, phase_offset=None, *args, **kwargs):
+        """
+        Args:
+            N (int): dimension of Hilbert space    
+            phase_offset (Tensor([N], c64)): static offset added to the rota-
+                tion phases to model miscalibrated gate.             
+        """
+        self.phase_offset = 0 if phase_offset is None else phase_offset
+        super().__init__(N=N, *args, **kwargs)
+     
+    def compute(self, theta):
+        """Calculates ideal SNAP(theta) for a batch of SNAP parameters.
+        Args:
+            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
+        Returns:
+            Tensor([B1, ..., Bb, N, N], c64): A batch of SNAP(theta)
+        """
+        S = theta.shape[-1] # SNAP truncation
+        D = len(theta.shape)-1
+        paddings = tf.constant([[0,0]]*D + [[0,self.N-S]])
+        theta = tf.cast(theta, dtype=c64)
+        theta = tf.pad(theta, paddings)
+        theta -= self.phase_offset
+        exp_diag = tf.math.exp(1j*theta)
+        return tf.linalg.diag(exp_diag)
+
+
 class SNAPv2(ParametrizedOperator):
     """
     Selective Number-dependent Arbitrary Phase (SNAP) gate.
@@ -416,7 +416,7 @@ class SNAPv2(ParametrizedOperator):
         unselective_rotation = tensor(
             [self.rotate_qb(tf.constant(pi),tf.constant(0)), identity(self.N)])
         
-        # construct a unitary corresponding to second selective qubit pulse
+        # construct a unitary corresponding to second "selective" qubit pulse
         angle = tf.ones_like(theta) * pi + self.angle_offset + dangle
         phase = pi - theta + self.phase_offset
         R = self.rotate_qb(angle, phase) # shape=[B,N,2,2]
@@ -427,3 +427,93 @@ class SNAPv2(ParametrizedOperator):
         
         snap = selective_rotations @ unselective_rotation
         return snap
+
+
+class SNAPv3(ParametrizedOperator):
+    """
+    Selective Number-dependent Arbitrary Phase (SNAP) gate.
+    SNAP(theta) = sum_n( e^(i*theta_n) * |n><n| )
+    This implementation models partially selective pulses.
+    
+    """
+    def __init__(self, N, chi, pulse_len, *args):
+        """
+        Args:
+            N (int): dimension of Hilbert space    
+
+        """
+        self.rotate_qb = QubitRotationXY()
+        self.projectors = tf.stack([projector(i,N) for i in range(N)])
+        self.projectors = tf.cast(self.projectors, c64)
+        self.chi = chi
+        self.T = pulse_len
+        super().__init__(N=N, *args)
+    
+    def compute(self, theta, dangle=None):
+        """Calculates SNAP(theta) using qubit rotation gates.
+        
+        Args:
+            theta (Tensor([B1, ..., Bb, S], c64)): A batch of parameters.
+            dangle (Tensor([B1, ..., Bb, S], c64)): A batch of offsets to
+                add to qubit rotation angles to compenstate for possible
+                angle offsets due to miscalibration.
+        Returns:
+            Tensor([B1, ..., Bb, 2N, 2N], c64): A batch of SNAP(theta)
+        """
+        # this part is the same as for perfect SNAP: pad the angles with zeros
+        S = theta.shape[-1] # SNAP truncation
+        batch_shape = theta.shape[:-1]
+        paddings = tf.constant([[0,0]]*len(batch_shape) + [[0,self.N-S]])
+        dangle = tf.zeros_like(theta) if dangle is None else dangle
+        theta = tf.pad(theta, paddings) # shape=[B,N]
+        dangle = tf.pad(dangle, paddings)
+
+        # inteded angle and phase of rotation
+        angle, phase = tf.ones_like(theta) * pi + dangle, pi - theta
+        # approximate angle and phase using partially selective pulses
+        angle, phase = self.rotation_coeffs(angle, phase)
+        angle, phase = tf.cast(angle, c64), tf.cast(phase, c64)
+        
+        # unitary corresponding to the first unselective qubit flip
+        unselective_rotation = tensor(
+            [self.rotate_qb(tf.constant(pi),tf.constant(0)), identity(self.N)])
+        
+        # construct a unitary corresponding to second "selective" qubit pulse
+        R = self.rotate_qb(angle, phase) # shape=[B,N,2,2]
+        projectors = tf.broadcast_to(self.projectors, 
+                            batch_shape+self.projectors.shape) # shape=[B,N,N,N]
+        selective_rotations = tensor([R, projectors]) # shape=[B,N,2N,2N]
+        selective_rotations = tf.reduce_sum(selective_rotations, axis=-3) # shape=[B,2N,2N]
+        
+        snap = selective_rotations @ unselective_rotation
+        return snap
+
+    def rotation_coeffs(self, angle, phase):
+        """
+        Calculate the actual (angle, phase) for each qubit number-split 
+        transition given the intended (angle, phase), assuming that the pulse 
+        doesn't have perfect selectivity. 
+        
+        This is based on the approximate model in which constant Rabi drive is 
+        used at the frequencies of all transitions. Then we calculate the time
+        averaged Hamiltonian, and pretend that it is constant and equal to this
+        value. The exact solution would involve time-ordered exponentials, but
+        this approximation is quick and interpolates between long selective and
+        short unselective pulses. 
+        """
+        Nx_list, Ny_list = [], []
+        eps = 1e-10 # for numerical stability (there will be sin0/0 issue)
+        for k in range(self.N):
+            Delta_k = 2*pi*self.chi*tf.cast(tf.range(self.N)-k, tf.float32)
+            Nx = tf.math.reduce_sum((1-tf.one_hot(k, self.N))*angle*(tf.math.sin(Delta_k*self.T+phase)-tf.math.sin(phase))/(Delta_k*self.T+eps), axis=-1)
+            Nx += angle[:,k]*tf.math.cos(phase[:,k])
+            Nx_list.append(Nx)
+            Ny = -tf.math.reduce_sum((1-tf.one_hot(k, self.N))*angle*(tf.math.cos(Delta_k*self.T+phase)-tf.math.cos(phase))/(Delta_k*self.T+eps), axis=-1)
+            Ny += angle[:,k]*tf.math.sin(phase[:,k])
+            Ny_list.append(Ny)
+        Nx = tf.stack(Nx_list, axis=-1)
+        Ny = tf.stack(Ny_list, axis=-1)
+        angle = tf.math.sqrt(Nx**2 + Ny**2)
+        phase = tf.math.sign(Ny) * tf.math.acos(Nx/angle)
+        return angle, phase
+    

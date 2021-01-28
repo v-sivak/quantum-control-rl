@@ -63,10 +63,8 @@ class OscillatorQubit(HilbertSpace):
         self.displace = lambda a: self.translate(sqrt(2)*a)
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
 
-        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)        
-        tf.random.set_seed(0)
-        offset = tf.cast(tf.random.uniform([N], maxval=0.5, seed=0), c64)
-        self.SNAP_miscalibrated = ops.SNAPv2(N, phase_offset=offset)
+        self.SNAP = ops.SNAP(N, tensor_with=tensor_with)
+        self.SNAP_miscalibrated = ops.SNAPv3(N, chi=1e6, pulse_len=2e-6)
 
         tensor_with = [None, ops.identity(N)]
         self.rotate_qb_xy = ops.QubitRotationXY(tensor_with=tensor_with)
