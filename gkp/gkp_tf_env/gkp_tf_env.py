@@ -484,11 +484,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
-            # if self.tensorstate:
-            #     psi, _ = measurement(self._state, self.P, sample=True)
-            # else:
-            #     psi = self._state
-            psi = self._state
+            if self.tensorstate:
+                psi, _ = measurement(self._state, self.P, sample=True)
+            else:
+                psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
             z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
             self.info['psi_cached'] = psi
@@ -542,7 +541,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             return 1
         
         def msmt_sample_schedule(n):
-            return 1
+            return 100
         
         alpha_samples = alpha_sample_schedule(self._episodes_completed)
         msmt_samples = msmt_sample_schedule(self._episodes_completed)
@@ -560,7 +559,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                     target_state, window_size, tomography, samples=1)
                 targets = tf.broadcast_to(target_vals[0], [self.batch_size])
                 points = tf.broadcast_to(buffer[0], [self.batch_size])
-            
+
+            M = 0 + 1e-10
+            Z = 0
             for j in range(msmt_samples):
                 # first measure the qubit to disentangle from oscillator
                 psi = self.info['psi_cached']
@@ -579,15 +580,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 if tomography == 'characteristic_fn':
                     translations = self.translate(points)
                     _, msmt = self.phase_estimation(psi, translations,
-                                angle=tf.zeros(self.batch_size), sample=True)                
+                                angle=tf.zeros(self.batch_size), sample=True)
                 
                 # Make a noisy Monte Carlo estimate of the overlap integral.
                 # If using characteristic_fn, this would work only for symmetric 
                 # states (GKP, Fock etc)
                 # Mask out trajectories where qubit was measured in |e> 
-                # Subtract baseline tf.math.abs(target) to improve (??) convergence
-                z += tf.squeeze(msmt) * tf.math.sign(targets) * mask
-        z /= alpha_samples * msmt_samples
+                Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask
+                M += mask
+            z += Z/M
+        z /= alpha_samples
         return z
 
 

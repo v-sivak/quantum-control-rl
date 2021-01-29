@@ -31,7 +31,7 @@ measurements are performed in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'test_clip03')
+root_dir = os.path.join(root_dir,'test')
 
 # Params for environment
 env_kwargs = {
@@ -98,7 +98,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 100000,
+        num_epochs = 5000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -108,7 +108,7 @@ PPO.train_eval(
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.3,
+        importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         # Params for log, eval, save
