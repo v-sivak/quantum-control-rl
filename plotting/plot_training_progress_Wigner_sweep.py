@@ -13,12 +13,10 @@ import plot_config
 # naming convention is (num points, num averages)
 
 root_dir = {
-    'overlap' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\overlap',
-    '(100, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\sample_avg1_point100',
-    '(1, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\sample_avg1_point1',
-    '(10, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\sample_avg1_point10',
-    # '(1, 10)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\sample_avg10_point1',
-    # '(10, 10)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep\sample_avg10_point10'
+    'overlap' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\overlap',
+    '(100, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point100',
+    '(1, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point1',
+    '(10, 1)' : r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point10',
     }
 
 batch_size = 1000
@@ -28,8 +26,6 @@ samples_per_protocol = {
     '(1, 1)' : 1,
     '(10, 1)' : 10,
     '(100, 1)' : 100,
-    # '(1, 10)' : 10,
-    # '(10, 10)' : 100
     }
 
 colors = {
@@ -37,8 +33,6 @@ colors = {
     '(1, 1)' : plt.get_cmap('tab20c')(19),
     '(10, 1)' : plt.get_cmap('tab20c')(17),
     '(100, 1)' : plt.get_cmap('tab20c')(16),
-    # '(1, 10)' : plt.get_cmap('Paired')(6),
-    # '(10, 10)' : plt.get_cmap('Paired')(7)
     }
 
 log = {k:{} for k in root_dir.keys()}
@@ -64,7 +58,8 @@ fig, ax = plt.subplots(1,1, figsize=(3.375, 2), dpi=300)
 ax.set_ylabel(r'$1-\cal F$')
 ax.set_xlabel('Epoch')
 ax.set_ylim(3e-4,1.5)
-ax.set_xlim(1e2-2e1,1e5+2e4)
+# ax.set_xlim(1e2-2e1,1e5+2e4)
+ax.set_xlim(5e1,1e4+0.25e4)
 ax.set_yscale('log')
 ax.set_xscale('log')
 plt.grid(True, color='grey', linestyle='--', linewidth=0.4)

@@ -31,10 +31,10 @@ performed in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point1'
+root_dir = r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point1_'
 if not os.path.isdir(root_dir): os.mkdir(root_dir)
 
-random_seeds = [0,1,2,3,4]
+random_seeds = [5]
 
 for seed in random_seeds:
     sim_dir = os.path.join(root_dir,'seed'+str(seed))
@@ -86,7 +86,7 @@ for seed in random_seeds:
     PPO.train_eval(
             root_dir = sim_dir,
             random_seed = seed,
-            num_epochs = 1000,
+            num_epochs = 10000,
             # Params for train
             normalize_observations = True,
             normalize_rewards = False,
@@ -100,10 +100,10 @@ for seed in random_seeds:
             value_pred_loss_coef = 0.005,
             gradient_clipping = 1.0,
             # Params for log, eval, save
-            eval_interval = 50,
-            save_interval = 50,
+            eval_interval = 200,
+            save_interval = 200,
             checkpoint_interval = 100000,
-            summary_interval = 50,
+            summary_interval = 200,
             # Params for data collection
             train_batch_size = train_batch_size,
             eval_batch_size = eval_batch_size,

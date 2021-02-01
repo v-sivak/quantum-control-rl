@@ -64,7 +64,7 @@ class OscillatorQubit(HilbertSpace):
         self.rotate = ops.RotationOperator(N, tensor_with=tensor_with)
 
         self.SNAP = ops.SNAP(N, tensor_with=tensor_with)
-        self.SNAP_miscalibrated = ops.SNAPv3(N, chi=1e6, pulse_len=2e-6)
+        self.SNAP_miscalibrated = ops.SNAPv3(N, chi=1e6, pulse_len=3.4e-6)
 
         tensor_with = [None, ops.identity(N)]
         self.rotate_qb_xy = ops.QubitRotationXY(tensor_with=tensor_with)

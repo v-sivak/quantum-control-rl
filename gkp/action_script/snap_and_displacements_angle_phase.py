@@ -6,7 +6,7 @@ Created on Fri Oct 30 13:27:55 2020
 """
 
 period = 5
-snap_levels = 14 #7
+snap_levels = 7 # 14
 
 # Script of actions
 

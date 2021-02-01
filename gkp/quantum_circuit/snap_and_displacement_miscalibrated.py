@@ -9,11 +9,11 @@ approach to quantum circuits.
 """
 import tensorflow as tf
 from numpy import pi
-from tensorflow.keras.backend import batch_dot
 from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
+from simulator.utils import measurement
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
@@ -44,7 +44,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
     @property
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[14], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
         return spec
 
     @tf.function
@@ -53,7 +53,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'alpha' : Tensor([batch_size,2], tf.float32),
-                          'theta' : Tensor([batch_size,14], tf.float32))
+                          'theta' : Tensor([batch_size,7], tf.float32))
 
         Returns: see parent class docs
 
@@ -67,9 +67,13 @@ class QuantumCircuit(OscillatorQubit, GKP):
         snap = self.SNAP_miscalibrated(theta)
 
         # Apply gates
-        psi = batch_dot(displace, psi)
-        psi = batch_dot(snap, psi)
-        psi = batch_dot(tf.linalg.adjoint(displace), psi)
+        psi = tf.linalg.matvec(displace, psi)
+        psi = tf.linalg.matvec(snap, psi)
+        psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi)
+
+        # Readout with feedback to flip the qubit
+        # psi, msmt = measurement(psi, self.P)
+        # psi = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
 
         return psi, psi, tf.ones((self.batch_size,1))
 

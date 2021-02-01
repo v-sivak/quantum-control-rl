@@ -31,12 +31,12 @@ in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples' 
-root_dir = os.path.join(root_dir,'test')
+root_dir = r'E:\data\gkp_sims\PPO\examples\SNAP_with_feedback_comparison_v4\t=3.40'
+root_dir = os.path.join(root_dir,'0')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'snap_and_displacement',
+    'simulate' : 'snap_and_displacement_angle_phase',
     'init' : 'vac',
     'H' : 1,
     'T' : 5, 
@@ -44,33 +44,31 @@ env_kwargs = {
     'N' : 50}
 
 # Params for reward function
-# target_state = qt.basis(100,10)
+target_state = qt.tensor(qt.basis(2,0), qt.basis(50,3))
 
-target_state = (qt.coherent(50,2)+qt.coherent(50,-2)).unit()
-
-reward_kwargs = {'reward_mode' : 'tomography',
-                  'tomography' : 'wigner',
-                  'target_state' : target_state,
-                  'window_size' : 12,
-                  'sample_from_buffer' : True,
-                  'buffer_size' : 5000
-                  }
-
-# reward_kwargs = {'reward_mode' : 'overlap',
-#                   'target_state' : target_state
+# reward_kwargs = {'reward_mode' : 'tomography',
+#                   'tomography' : 'wigner',
+#                   'target_state' : target_state,
+#                   'window_size' : 12,
+#                   'sample_from_buffer' : True,
+#                   'buffer_size' : 5000
 #                   }
+
+reward_kwargs = {'reward_mode' : 'Fock',
+                  'target_state' : target_state
+                  }
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',
                       'target_state' : target_state
                       }
 
 # Params for action wrapper
-action_script = 'snap_and_displacements'
-action_scale = {'alpha':4, 'theta':pi}
-to_learn = {'alpha':True, 'theta':True}
+action_script = 'snap_and_displacements_angle_phase'
+action_scale = {'alpha':4, 'theta':pi, 'phi':pi}
+to_learn = {'alpha':True, 'theta':True, 'phi':pi}
 
 train_batch_size = 1000
-eval_batch_size = 100
+eval_batch_size = 1000
 
 train_episode_length = lambda x: 5
 eval_episode_length = lambda x: 5
@@ -89,22 +87,22 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 10000,
+        num_epochs = 5000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
         lr = 1e-3,
-        lr_schedule = None, #lambda x: 1e-3 if x<1000 else 1e-4,
+        lr_schedule = lambda x: 1e-3 if x<500 else 1e-4,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.3,
+        importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 200,
+        save_interval = 100,
         checkpoint_interval = 10000,
         summary_interval = 100,
         # Params for data collection
