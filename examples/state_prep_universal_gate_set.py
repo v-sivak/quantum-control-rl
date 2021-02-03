@@ -7,7 +7,7 @@ Created on Wed Oct 21 17:07:18 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 # append parent 'gkp-rl' directory to path 
 import sys
@@ -31,27 +31,31 @@ measurements are performed in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\examples'
-root_dir = os.path.join(root_dir,'test')
+root_dir = os.path.join(root_dir,'test3')
 
 # Params for environment
 env_kwargs = {
     'simulate' : 'Alec_universal_gate_set',
     'init' : 'vac',
     'H' : 1,
-    'T' : 6, 
+    'T' : 14, 
     'attn_step' : 1,
-    'N' : 40}
+    'N' : 100}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(40,2))
+# target_state = qt.tensor(qt.basis(2,0), qt.basis(100,2))
 
-reward_kwargs = {'reward_mode' : 'tomography',
-                  'tomography' : 'wigner',
-                  'target_state' : target_state,
-                  'window_size' : 12,
-                  'sample_from_buffer' : False,
-                  'buffer_size' : 2000
-                  }
+
+stabilizers, pauli, states, code_map = hf.GKP_state(True, 100, np.array([[1, 0], [0, 1]]))
+target_state = states['X+']
+
+# reward_kwargs = {'reward_mode' : 'tomography',
+#                   'tomography' : 'wigner',
+#                   'target_state' : target_state,
+#                   'window_size' : 16,
+#                   'sample_from_buffer' : False,
+#                   'buffer_size' : 2000
+#                   }
 
 # reward_kwargs = {'reward_mode' : 'Fock',
 #                   'target_state' : target_state}
@@ -60,13 +64,13 @@ reward_kwargs = {'reward_mode' : 'tomography',
 #                       'target_state' : target_state
 #                       }
 
-# reward_kwargs = {'reward_mode' : 'tomography',
-#                   'tomography' : 'characteristic_fn',
-#                   'target_state' : target_state,
-#                   'window_size' : 12,
-#                   'sample_from_buffer' : False,
-#                   'buffer_size': 5000
-#                   }
+reward_kwargs = {'reward_mode' : 'tomography',
+                  'tomography' : 'characteristic_fn',
+                  'target_state' : target_state,
+                  'window_size' : 16,
+                  'sample_from_buffer' : False,
+                  'buffer_size': 5000
+                  }
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',
                       'target_state' : target_state
@@ -80,8 +84,8 @@ to_learn = {'alpha':True, 'beta':True, 'phi':True}
 train_batch_size = 100
 eval_batch_size = 100
 
-train_episode_length = lambda x: 6
-eval_episode_length = lambda x: 6
+train_episode_length = lambda x: 14
+eval_episode_length = lambda x: 14
 
 # Create drivers for data collection
 from gkp.agents import dynamic_episode_driver_sim_env
@@ -98,7 +102,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 5000,
+        num_epochs = 15000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,

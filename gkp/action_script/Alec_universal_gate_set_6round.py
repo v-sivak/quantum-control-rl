@@ -5,7 +5,7 @@ Created on Fri Sep 25 13:09:38 2020
 @author: Vladimir Sivak
 """
 
-period = 6
+period = 14
 
 # Script of actions
 
