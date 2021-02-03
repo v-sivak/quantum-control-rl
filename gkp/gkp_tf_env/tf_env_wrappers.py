@@ -127,7 +127,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     to alternate between learned and scripted values with 'use_mask' flag.
 
     """
-    def __init__(self, env, action_script, scale, to_learn, use_mask=True):
+    def __init__(self, env, action_script, scale, to_learn, use_mask=True,
+                 learn_residuals=False):
         """
         Args:
             env: GKP environmen
@@ -136,6 +137,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
             scale: dictionary of scaling factors for action components
             to_learn: dictionary of bool values for action components
             use_mask: flag to control masking of action components
+            learn_residuals (bool): flag to learn residual over the scripted
+                protocol. If False, will learn actions from scratch. If True,
+                will learn a residual to be added to scripted protocol.
 
         """
         super(ActionWrapper, self).__init__(env)
@@ -145,7 +149,8 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         self.to_learn = to_learn
         self.use_mask = use_mask
         self.mask = action_script.mask
-
+        self.learn_residuals = learn_residuals
+        
         # load the script of actions and convert to tensors
         self.script = action_script.script
         for a, val in self.script.items():
@@ -179,7 +184,9 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                 action[a] = common.replicate(self.script[a][i], out_shape)
             else: # if learning: rescale input tensor
                 action[a] = input_action[a]*self.scale[a]
-
+                if self.learn_residuals:
+                    action[a] += common.replicate(self.script[a][i], out_shape)
+                
         return action
 
     def action_spec(self):

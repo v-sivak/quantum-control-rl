@@ -24,7 +24,8 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
     
     """
     def __init__(self, env_kwargs, reward_kwargs, batch_size,
-                 action_script, action_scale, to_learn, episode_length):
+                 action_script, action_scale, to_learn, episode_length, 
+                 learn_residuals=False):
         """
         Args:
             env_kwargs (dict): optional parameters for training environment.
@@ -40,14 +41,17 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
             episode_length (callable: int -> int): function that defines the 
                 schedule for training episode durations. Takes as argument int 
                 epoch number and returns int episode duration for this epoch.
-        
+            learn_residuals (bool): flag to learn residual over the scripted
+                protocol. If False, will learn actions from scratch. If True,
+                will learn a residual to be added to scripted protocol.        
         """
         self.episode_length = episode_length
         # Create training env and wrap it
         env = gkp_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
         action_script = action_scripts.__getattribute__(action_script)
-        env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)        
+        env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,
+                                     learn_residuals=learn_residuals)
 
         # create dummy placeholder policy to initialize parent class
         dummy_policy = PolicyPlaceholder(env.time_step_spec(), env.action_spec())
