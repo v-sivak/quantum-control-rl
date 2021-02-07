@@ -25,6 +25,8 @@ class CD_cat_wigner(FPGAExperiment):
             qubit.pi2_pulse(phase=np.pi/2)
             sync()
             readout(msmt='se')
+            qubit.flip()
+            delay(24+252+24+1000+12)
 
 
     def process_data(self):
