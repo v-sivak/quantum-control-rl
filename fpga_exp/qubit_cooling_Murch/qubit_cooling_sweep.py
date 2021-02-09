@@ -11,6 +11,7 @@ class qubit_cooling_sweep(FPGAExperiment):
     qubit_amp = FloatParameter(0.06)
     pump_time = IntParameter(200)
     wait_time = IntParameter(1000)
+    smooth_sigma_t = IntParameter(40)
     readout_amp_range = RangeParameter((0, 0.1, 21))
     qubit_detune_range = RangeParameter((-10e6, 10e6, 21))
     loop_delay = IntParameter(500e3)
@@ -31,11 +32,13 @@ class qubit_cooling_sweep(FPGAExperiment):
                 qubit.set_ssb(ssbreg)
                 delay(500)
                 sync()
-                readout.constant_pulse(self.pump_time, amp='dynamic', 
-                                       detune=self.readout_detune_MHz*1e6)
-                qubit.constant_pulse(self.pump_time, amp=self.qubit_amp)
+                readout.smoothed_constant_pulse(self.pump_time, amp='dynamic',
+                                       detune=self.readout_detune_MHz*1e6,
+                                       sigma_t=self.smooth_sigma_t)
+                qubit.smoothed_constant_pulse(self.pump_time, amp=self.qubit_amp,
+                                        sigma_t=self.smooth_sigma_t)
                 sync()
-                qubit.pi2_pulse(phase=-np.pi/2)
+                qubit.pi2_pulse(phase=np.pi/2)
                 sync()
                 delay(self.wait_time)
                 sync()

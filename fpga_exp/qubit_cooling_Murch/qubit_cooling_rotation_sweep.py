@@ -20,6 +20,7 @@ class qubit_cooling_rotation_sweep(FPGAExperiment):
     readout_amp = FloatParameter(0.22)
     qubit_amp = FloatParameter(0.2)
     wait_time = IntParameter(100)
+    smooth_sigma_t = IntParameter(40)
     loop_delay = IntParameter(500e3)
     flip_qubit = BoolParameter(False)
     tau = IntParameter(1000)
@@ -33,7 +34,7 @@ class qubit_cooling_rotation_sweep(FPGAExperiment):
         ssb_q = ssb0 + self.qubit_detune_MHz*1e6
         ssb_r = ssb0 + self.readout_detune_MHz*1e6
         
-        with scan_phase(qubit.chan, 0.5*qubit.pulse.unit_amp, *self.phase_range):
+        with scan_phase(qubit.chan, -0.5*qubit.pulse.unit_amp, *self.phase_range):
             sync()
             qubit.set_ssb(ssb0)
             delay(24)
@@ -47,8 +48,10 @@ class qubit_cooling_rotation_sweep(FPGAExperiment):
             qubit.set_ssb(ssb_q)
             delay(24)
             sync()
-            readout_aux.constant_pulse(self.tau, amp=self.readout_amp)
-            qubit.constant_pulse(self.tau, amp=self.qubit_amp)
+            readout_aux.smoothed_constant_pulse(self.tau, amp=self.readout_amp,
+                                                sigma_t=self.smooth_sigma_t)
+            qubit.smoothed_constant_pulse(self.tau, amp=self.qubit_amp,
+                                          sigma_t=self.smooth_sigma_t)
             sync()
             qubit.pulse(amp='dynamic')
             sync()
