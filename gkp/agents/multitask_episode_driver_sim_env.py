@@ -25,7 +25,8 @@ class MultitaskEpisodeDriverSimEnv:
     
     """
     def __init__(self, env_kwargs_list, rew_kwargs_list, batch_size,
-                 action_script, action_scale, to_learn, episode_length_list):
+                 action_script, action_scale, to_learn, episode_length_list,
+                 env_schedule=None):
         """
         Args:
             env_kwargs_list (list[dict]): list of parameters for training 
@@ -44,6 +45,8 @@ class MultitaskEpisodeDriverSimEnv:
                 functions for episode durations. Schedule functions take as 
                 argument int epoch number and return int episode duration for 
                 this epoch. The list should correspond to 'env_kwargs_list'.
+            env_schedule (callable): function mapping epoch number to index
+                of the environment from the list to use during this epoch
         """
         self.env_list, self.driver_list = [], []
         self.episode_length_list = episode_length_list
@@ -65,9 +68,15 @@ class MultitaskEpisodeDriverSimEnv:
             
             self.env_list.append(env)
             self.driver_list.append(driver)
+        
+        if env_schedule is None:
+            # regularly switch between environments
+            self.env_schedule = lambda epoch: epoch % len(self.env_list)
+        else:
+            self.env_schedule = env_schedule
 
     def run(self, epoch):
-        i = epoch % len(self.env_list) # regularly switch between environments
+        i = self.env_schedule(epoch)
         self.env_list[i]._env.episode_length = self.episode_length_list[i](epoch)
         self.driver_list[i].run()
 

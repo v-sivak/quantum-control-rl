@@ -23,7 +23,7 @@ def exp_decay(x, a, b):
 def gauss_decay(x, a, b):
     return a*np.exp(-(x/b)**2)
 
-def GKP_state(tensorstate, N, S):
+def GKP_state(tensorstate, N, S=np.array([[1, 0], [0, 1]])):
     """
     Thanks to Alec for providing base code for this function.
     

@@ -53,7 +53,7 @@ for protocol in root_dir.keys():
 
 # Plot infidelity vs epoch number
             
-# figname = r'somewhere' # where to save
+figname = r'E:\VladGoogleDrive\Qulab\GKP\paper\figs\Wigner_sweep.pdf' # where to save
 fig, ax = plt.subplots(1,1, figsize=(3.375, 2), dpi=300)
 ax.set_ylabel(r'$1-\cal F$')
 ax.set_xlabel('Epoch')
@@ -80,7 +80,7 @@ for i, protocol in enumerate(log.keys()):
     ax.plot(epochs, infidelity, color=colors[protocol], linewidth=1.0, label=protocol)
 
 fig.tight_layout()
-
+fig.savefig(figname)
 
 # Plot infidelity vs number of training episodes
 
@@ -109,4 +109,3 @@ for i, protocol in enumerate(log.keys()-['overlap']):
 # ax.legend(loc='best')
 
 fig.tight_layout()
-# fig.savefig(figname)
