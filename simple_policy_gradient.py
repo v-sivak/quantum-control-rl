@@ -7,6 +7,10 @@ Created on Tue Dec 29 18:16:23 2020
 This is a straightforward implementation of PPO http://arxiv.org/abs/1707.06347
 for simple single-state RL environments.
 """
+import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 from remote_env_tools.remote_env_tools import Server
@@ -15,14 +19,13 @@ import matplotlib.pyplot as plt
 
 # initialize the "agent server" and connect to "environment client"
 server_socket = Server()
-(host, port) = '172.28.140.123', 5555
+(host, port) = '172.28.142.46', 5555
 server_socket.bind((host, port))
 server_socket.connect_client()
 
 
 # trainable variables
 actions = ['alpha']
-# actions = [a+str(i) for a in ['amp', 'phase', 'detune'] for i in range(10)]
 mean = {s : tf.Variable(tf.random.normal([], stddev=0.05), name='mean_'+s) for s in actions}
 sigma = {s : tf.Variable(0.5, name='sigma_'+s) for s in actions}
 baseline = tf.Variable(0.0, name='baseline')
