@@ -33,7 +33,7 @@ in the end to assign reward.
 
 root_dir = r'E:\data\gkp_sims\PPO\examples\Fock_states_sweep'
 states = [1,2,3,4,5,6,7,8,9,10]
-random_seeds = [0,1,2,3,4]
+random_seeds = [0,1,2,3,4,5]
 
 for fock in states:
     # setup directory for each simulation
@@ -79,7 +79,7 @@ for fock in states:
         PPO.train_eval(
                 root_dir = sim_dir,
                 random_seed = seed,
-                num_epochs = 2000,
+                num_epochs = 4000,
                 # Params for train
                 normalize_observations = True,
                 normalize_rewards = False,
