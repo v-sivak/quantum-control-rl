@@ -31,9 +31,9 @@ in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\Fock_states_sweep'
-states = [1,2,3,4,5,6,7,8,9,10]
-random_seeds = [0,1,2,3,4,5]
+root_dir = r'E:\data\gkp_sims\PPO\paper_data\Fock_sweep'
+states = [3,4,5,6,7,8,9,10]
+random_seeds = [4,5]
 
 for fock in states:
     # setup directory for each simulation
@@ -55,6 +55,10 @@ for fock in states:
         target_state = qt.basis(100,fock)
         reward_kwargs = {'reward_mode' : 'Fock',
                          'target_state' : target_state}
+
+        reward_kwargs_eval = {'reward_mode' : 'overlap',
+                              'target_state' : target_state
+                              }
         
         # Params for action wrapper
         action_script = 'snap_and_displacements'
@@ -63,17 +67,20 @@ for fock in states:
         
         train_batch_size = 1000
         eval_batch_size = 1000
+
+        train_episode_length = lambda x: 5
+        eval_episode_length = lambda x: 5
         
         # Create drivers for data collection
         from gkp.agents import dynamic_episode_driver_sim_env
         
         collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
             env_kwargs, reward_kwargs, train_batch_size, 
-            action_script, action_scale, to_learn)
+            action_script, action_scale, to_learn, train_episode_length)
         
         eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-            env_kwargs, reward_kwargs, eval_batch_size, 
-            action_script, action_scale, to_learn)
+            env_kwargs, reward_kwargs_eval, eval_batch_size, 
+            action_script, action_scale, to_learn, eval_episode_length)
         
         
         PPO.train_eval(
@@ -89,7 +96,7 @@ for fock in states:
                 num_policy_updates = 20,
                 initial_adaptive_kl_beta = 0.0,
                 kl_cutoff_factor = 0,
-                importance_ratio_clipping = 0.3,
+                importance_ratio_clipping = 0.1,
                 value_pred_loss_coef = 0.005,
                 # Params for log, eval, save
                 eval_interval = 50,
@@ -101,9 +108,7 @@ for fock in states:
                 eval_batch_size = eval_batch_size,
                 collect_driver = collect_driver,
                 eval_driver = eval_driver,
-                train_episode_length = lambda x: 5,
-                eval_episode_length = 5,
-                replay_buffer_capacity = 6000,
+                replay_buffer_capacity = 7000,
                 # Policy and value networks
                 ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
                 actor_fc_layers = (),
