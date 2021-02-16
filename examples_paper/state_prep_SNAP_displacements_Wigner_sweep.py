@@ -31,10 +31,10 @@ performed in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\Wigner_reward_sweep_v2\sample_avg1_point1_'
+root_dir = r'E:\data\gkp_sims\PPO\paper_data\Wigner_cat2_small_nn\sample10'
 if not os.path.isdir(root_dir): os.mkdir(root_dir)
 
-random_seeds = [5]
+random_seeds = [0,1,2,3,4,5]
 
 for seed in random_seeds:
     sim_dir = os.path.join(root_dir,'seed'+str(seed))
@@ -45,18 +45,21 @@ for seed in random_seeds:
         'H' : 1,
         'T' : 5, 
         'attn_step' : 1,
-        'N' : 50}
+        'N' : 100}
     
     # Params for reward function
-    target_state = (qt.coherent(50,2)+qt.coherent(50,-2)).unit()
+    target_state = (qt.coherent(100,2)+qt.coherent(100,-2)).unit()
     
     reward_kwargs = {'reward_mode' : 'tomography',
                       'tomography' : 'wigner',
                       'target_state' : target_state,
-                      'window_size' : 12,
-                      'sample_from_buffer' : True,
+                      'window_size' : 14,
+                      'sample_from_buffer' : False,
                       'buffer_size' : 20000
                       }
+
+    # reward_kwargs = {'reward_mode' : 'overlap',
+    #                  'target_state' : target_state}
     
     reward_kwargs_eval = {'reward_mode' : 'overlap',
                           'target_state' : target_state}
@@ -67,7 +70,7 @@ for seed in random_seeds:
     to_learn = {'alpha':True, 'theta':True}
     
     train_batch_size = 1000
-    eval_batch_size = 100
+    eval_batch_size = 1000
 
     train_episode_length = lambda x: 5
     eval_episode_length = lambda x: 5
@@ -86,7 +89,7 @@ for seed in random_seeds:
     PPO.train_eval(
             root_dir = sim_dir,
             random_seed = seed,
-            num_epochs = 10000,
+            num_epochs = 5000,
             # Params for train
             normalize_observations = True,
             normalize_rewards = False,
@@ -96,14 +99,14 @@ for seed in random_seeds:
             num_policy_updates = 20,
             initial_adaptive_kl_beta = 0.0,
             kl_cutoff_factor = 0,
-            importance_ratio_clipping = 0.3,
+            importance_ratio_clipping = 0.1,
             value_pred_loss_coef = 0.005,
             gradient_clipping = 1.0,
             # Params for log, eval, save
-            eval_interval = 200,
-            save_interval = 200,
+            eval_interval = 50,
+            save_interval = 50,
             checkpoint_interval = 100000,
-            summary_interval = 200,
+            summary_interval = 100000,
             # Params for data collection
             train_batch_size = train_batch_size,
             eval_batch_size = eval_batch_size,

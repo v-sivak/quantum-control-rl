@@ -538,10 +538,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             return tf.zeros(self.batch_size, dtype=tf.float32)
         
         def alpha_sample_schedule(n):
-            return 1
+            return 10
         
         def msmt_sample_schedule(n):
-            return 100
+            return 1
         
         alpha_samples = alpha_sample_schedule(self._episodes_completed)
         msmt_samples = msmt_sample_schedule(self._episodes_completed)
@@ -588,7 +588,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 # Mask out trajectories where qubit was measured in |e> 
                 Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask
                 M += mask
-            z += Z/M
+            z += Z/msmt_samples
         z /= alpha_samples
         return z
 
