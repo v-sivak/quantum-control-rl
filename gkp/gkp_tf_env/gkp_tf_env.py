@@ -17,7 +17,7 @@ from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
-from simulator.utils import measurement, expectation
+from simulator.utils import measurement, expectation, normalize
 from gkp.gkp_tf_env import helper_functions as hf
 
 
@@ -381,13 +381,17 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             Required reward_kwargs:
                 reward_mode (str): 'overlap'
                 target_state (Qobj, type=ket): Qutip object
+                postselect_0 (bool): flag to project qubit onto |0>. If False,
+                    will project randomly with a sigam_z measurement
                 
             """
             assert 'target_state' in reward_kwargs.keys()
+            assert 'postselect_0' in reward_kwargs.keys()
             target_projector = qt.ket2dm(reward_kwargs['target_state'])
             target_projector = tf.constant(target_projector.full(), dtype=c64)
+            postselect_0 = reward_kwargs['postselect_0']
             self.calculate_reward = \
-                lambda args: self.reward_overlap(target_projector, args)
+                lambda args: self.reward_overlap(target_projector, postselect_0)
 
         if mode == 'Fock':
             """
@@ -472,7 +476,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
     
 
-    def reward_overlap(self, target_projector, *args):
+    def reward_overlap(self, target_projector, postselect_0):
         """
         Reward only on last time step using the overlap of the cached state 
         with the target state. The cached state is measured prior to computing
@@ -485,7 +489,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:            
             if self.tensorstate:
-                psi, _ = measurement(self._state, self.P, sample=True)
+                if postselect_0: # project qubit to |0>
+                    psi = tf.linalg.matvec(self.P[0], self._state)
+                    psi, _ = normalize(psi)
+                else: # randomly project qubit with a measurement
+                    psi, _ = measurement(self._state, self.P, sample=True)
             else:
                 psi = self._state
             overlap = expectation(psi, target_projector, reduce_batch=False)
@@ -538,7 +546,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             return tf.zeros(self.batch_size, dtype=tf.float32)
         
         def alpha_sample_schedule(n):
-            return 10
+            return 1
         
         def msmt_sample_schedule(n):
             return 1
@@ -664,10 +672,18 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             stabilizers = tf.convert_to_tensor(stabilizers, dtype=c64)
             phi = tf.zeros(self.batch_size)
             stabilizers = self.translate(stabilizers)
-            _, z = self.phase_estimation(self.info['psi_cached'], stabilizers, 
+            
+            if self.tensorstate:
+                psi, m = measurement(self._state, self.P, sample=True)
+                mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+            else:
+                psi = self.info['psi_cached']
+                mask = tf.ones([self.batch_size])
+
+            _, z = self.phase_estimation(psi, stabilizers, 
                                          angle=phi, sample=True)
             z = tf.cast(z, dtype=tf.float32)
-            z = tf.reshape(z, shape=(self.batch_size,))
+            z = tf.reshape(z, shape=(self.batch_size,)) * mask
         return z
     
 
