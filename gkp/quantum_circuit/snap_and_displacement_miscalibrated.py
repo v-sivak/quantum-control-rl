@@ -44,16 +44,16 @@ class QuantumCircuit(OscillatorQubit, GKP):
     @property
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[10], dtype=tf.float32)}
         return spec
 
-    @tf.function
+    # @tf.function
     def _quantum_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
             action (dict, 'alpha' : Tensor([batch_size,2], tf.float32),
-                          'theta' : Tensor([batch_size,7], tf.float32))
+                          'theta' : Tensor([batch_size,10], tf.float32))
 
         Returns: see parent class docs
 
@@ -72,8 +72,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi)
 
         # Readout with feedback to flip the qubit
-        # psi, msmt = measurement(psi, self.P)
-        # psi = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
+        psi, msmt = measurement(psi, self.P)
+        psi = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
 
-        return psi, psi, tf.ones((self.batch_size,1))
+        return psi, psi, msmt #tf.ones((self.batch_size,1))
 
