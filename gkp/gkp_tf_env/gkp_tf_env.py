@@ -163,11 +163,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             TimeStep object (see tf-agents docs)
             
         """
+        self.info = {} # use to cache some intermediate results
         # Create initial state
         if self.init in ['vac','X+','X-','Y+','Y-','Z+','Z-']:
             psi = self.states[self.init]
             psi_batch = tf.stack([psi]*self.batch_size)
-            self._state = psi_batch
+            self._state = self.info['psi_cached'] = psi_batch
             self._original = np.array([self.init]*self.batch_size)
         elif self.init == 'random':
             self._original = np.random.choice(['X+','Y+','Z+'], 
@@ -180,7 +181,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self._episode_ended = False
         self._elapsed_steps = 0
         self._episode_return = 0
-        self.info = {} # use to cache some intermediate results
 
         # Initialize history of horizon H with actions=0 and measurements=1 
         self.history = tensor_spec.zero_spec_nest(

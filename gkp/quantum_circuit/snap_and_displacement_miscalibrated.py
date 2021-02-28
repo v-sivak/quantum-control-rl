@@ -13,7 +13,7 @@ from gkp.gkp_tf_env.gkp_tf_env import GKP
 from gkp.gkp_tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
-from simulator.utils import measurement
+from simulator.utils import measurement, normalize
 
 class QuantumCircuit(OscillatorQubit, GKP):
     """
@@ -39,14 +39,17 @@ class QuantumCircuit(OscillatorQubit, GKP):
         """
         self.t_gate = tf.constant(t_gate, dtype=tf.float32)
         self.step_duration = self.t_gate
+        self.bit_string = None
+        self.norms = []
         super().__init__(*args, **kwargs)
 
     @property
     def _quantum_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[10], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
         return spec
 
+    # remove the decorator to be able to access the class attributes from withing this method
     # @tf.function
     def _quantum_circuit(self, psi, action):
         """
@@ -71,9 +74,18 @@ class QuantumCircuit(OscillatorQubit, GKP):
         psi = tf.linalg.matvec(snap, psi)
         psi = tf.linalg.matvec(tf.linalg.adjoint(displace), psi)
 
-        # Readout with feedback to flip the qubit
-        psi, msmt = measurement(psi, self.P)
-        psi = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
+        # Either implement a measurement with a random qubit projection, or 
+        # project on the specified 'self.bit_string' sequence of qubit states.
+        if self.bit_string is not None:
+            s = int(self.bit_string[self._elapsed_steps])
+            psi = tf.linalg.matvec(self.P[s], psi)
+            if s == 1: psi = tf.linalg.matvec(self.sx, psi)
+            psi, norm = normalize(psi)
+            self.norms.append(norm)
+            msmt = tf.ones((self.batch_size,1)) * (1 if s==0 else -1)
+        else: # Readout with feedback to flip the qubit
+            psi, msmt = measurement(psi, self.P)
+            psi = tf.where(msmt==1, psi, tf.linalg.matvec(self.sx, psi))
 
-        return psi, psi, msmt #tf.ones((self.batch_size,1))
+        return psi, psi, msmt
 
