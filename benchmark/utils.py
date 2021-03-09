@@ -11,7 +11,7 @@ from distutils.version import LooseVersion
 import numpy as np
 import tensorflow as tf
 
-from . import err_checks
+import err_checks
 
 if LooseVersion(tf.__version__) >= "2.2":
     random_generator = tf.random.Generator

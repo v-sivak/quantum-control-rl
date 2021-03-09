@@ -10,7 +10,7 @@ Created on Tue Jun 09 12:03:52 2020
 import tensorflow as tf
 import numpy as np
 
-from . import utils
+import utils
 
 
 def rel_diff(a, b):
