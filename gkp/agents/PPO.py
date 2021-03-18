@@ -36,6 +36,7 @@ def train_eval(
         importance_ratio_clipping = 0.2,
         value_pred_loss_coef = 0.5,
         gradient_clipping = None,
+        entropy_regularization = 0.0,
         # Params for log, eval, save
         eval_interval = 100,
         save_interval = 1000,
@@ -84,6 +85,7 @@ def train_eval(
         value_pred_loss_coef (float): weight coefficient for quadratic value
             estimation loss.
         gradient_clipping (float): gradient clipping coefficient.
+        entropy_regularization (float): entropy regularization loss coefficient.
         eval_interval (int): interval between evaluations, counted in epochs.
         save_interval (int): interval between savings, counted in epochs. It
             updates the log file and saves the deterministic policy.
@@ -186,6 +188,7 @@ def train_eval(
             importance_ratio_clipping = importance_ratio_clipping,
             gradient_clipping = gradient_clipping,
             value_pred_loss_coef = value_pred_loss_coef,
+            entropy_regularization=entropy_regularization,
             debug_summaries = True)
         
         tf_agent.initialize()
