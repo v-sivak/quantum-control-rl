@@ -505,26 +505,37 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     def fill_buffer(self, target_state, window_size, tomography, samples=1000):
         # Distributions for rejection sampling
         L = window_size/2
-        P = tfp.distributions.Uniform(low=[[-L,-L]], high=[[L,L]])
-        P_v = tfp.distributions.Uniform(low=0.0, high=1.0)
+        P = tfp.distributions.Uniform(low=[[-L,-L]]*samples, high=[[L,L]]*samples)
+        P_v = tfp.distributions.Uniform(low=[0.0]*samples, high=[1.0]*samples)
             
-        buffer, target_vals = [], []
-        # rejection sampling of phase space points
-        for i in range(samples):
-            cond = True
-            while cond:
-                point = tf.squeeze(hf.vec_to_complex(P.sample()))
-                if tomography == 'wigner':
-                    target_state_translated = tf.linalg.matvec(
-                        self.translate(-point), target_state)
-                    W_target = expectation(target_state_translated, self.parity)
-                    target = tf.math.real(tf.squeeze(W_target))
-                if tomography == 'characteristic_fn':
-                    C_target = expectation(target_state, self.translate(-point))
-                    target = tf.math.real(tf.squeeze(C_target))               
-                cond = P_v.sample() > tf.math.abs(target)
-            buffer.append(point)
-            target_vals.append(target)
+        cond = True
+        # mask for asynchronous interruption of rejection sampling
+        accepted = tf.zeros([samples], tf.bool) 
+        accepted_points = tf.zeros([samples], tf.complex64)
+        accepted_targets = tf.zeros([samples], tf.float32)
+        # batch rejection sampling of phase space points
+        while cond:
+            points = tf.squeeze(hf.vec_to_complex(P.sample()))
+            if tomography == 'wigner':
+                target_state_translated = tf.linalg.matvec(
+                    self.translate(-points), target_state)
+                W_target = expectation(target_state_translated, 
+                                       self.parity, reduce_batch=False)
+                target = tf.math.real(tf.squeeze(W_target))
+            if tomography == 'characteristic_fn':
+                C_target = expectation(target_state, self.translate(-points), 
+                                       reduce_batch=False)
+                target = tf.math.real(tf.squeeze(C_target))                     
+            reject = P_v.sample() > tf.math.abs(target)
+            # mask which streams should be interrupted at this iteration
+            mask = tf.logical_and(tf.logical_not(reject), tf.logical_not(accepted))
+            accepted = tf.logical_or(mask, accepted)
+            accepted_points = tf.where(mask, points, accepted_points)
+            accepted_targets = tf.where(mask, target, accepted_targets)
+            cond = not tf.reduce_all(accepted)
+        
+        buffer = list(accepted_points)
+        target_vals = list(accepted_targets)
         return buffer, target_vals
 
 
@@ -553,20 +564,25 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         alpha_samples = alpha_sample_schedule(self._episodes_completed)
         msmt_samples = msmt_sample_schedule(self._episodes_completed)
+        
+        # populate a new small mini-buffer for each epoch
+        if not sample_from_buffer: 
+            mini_buffer, target_vals = self.fill_buffer(
+                    target_state, window_size, tomography, samples=alpha_samples)
+        
         z = 0
         for i in range(alpha_samples):            
             if sample_from_buffer:
-                # uniformly sample points from the buffer
+                # uniformly sample points from the large buffer; each batch
+                # member will get its own phase space point
                 samples, buffer_size = self.batch_size, len(self.buffer)
                 index = tf.math.round(tf.random.uniform([samples])*buffer_size)
                 targets = tf.gather(self.target_vals, tf.cast(index, tf.int32))
                 points = tf.gather(self.buffer, tf.cast(index, tf.int32))
             else:
-                # sample 1 point real-time and use it for the whole batch
-                buffer, target_vals = self.fill_buffer(
-                    target_state, window_size, tomography, samples=1)
-                targets = tf.broadcast_to(target_vals[0], [self.batch_size])
-                points = tf.broadcast_to(buffer[0], [self.batch_size])
+                # take 1 point from the buffer and replicate it for the batch
+                targets = tf.broadcast_to(target_vals[i], [self.batch_size])
+                points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
 
             M = 0 + 1e-10
             Z = 0

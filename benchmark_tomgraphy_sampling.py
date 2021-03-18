@@ -7,7 +7,7 @@ Created on Tue Dec 22 09:47:40 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 import tensorflow as tf
@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from gkp.gkp_tf_env import helper_functions as hf
 from simulator.utils import expectation, basis, measurement, normalize, batch_dot
 from simulator import operators as ops
+import numpy as np
 
 """
 Benchmarking of the overlap fidelity estimator.
@@ -39,7 +40,7 @@ window_size = 12
 alpha_samples = 100
 msmt_samples = 1
 
-BUFFER_SIZE = 10000
+BUFFER_SIZE = 20000
 
 T = ops.TranslationOperator(N)
 parity = ops.parity(N)
@@ -56,7 +57,7 @@ def phase_estimation(psi, U, angle, sample=False):
     Kraus[1] = 1/2*(I - phase*U)
     return measurement(psi, Kraus, sample)
 
-
+# Fill the buffer with serial rejection sampling (slow)
 def fill_buffer(target_state, buffer=[], target_vals=[], samples=1000):
     # Distributions for rejection sampling
     L = window_size/2
@@ -76,7 +77,37 @@ def fill_buffer(target_state, buffer=[], target_vals=[], samples=1000):
         target_vals.append(W_target)
     return buffer, target_vals
 
-buffer, target_vals = fill_buffer(target_state, samples=BUFFER_SIZE)
+
+# Fill buffer with batch rejection sampling (fast)
+def fill_buffer_v2(target_state, buffer=[], target_vals=[], samples=1000):
+    # Distributions for rejection sampling
+    L = window_size/2
+    P = tfp.distributions.Uniform(low=[[-L,-L]]*samples, high=[[L,L]]*samples)
+    P_v = tfp.distributions.Uniform(low=[0.0]*samples, high=[1.0]*samples)
+        
+    # batch rejection sampling of phase space points
+    cond = True
+    accepted = tf.zeros([samples], tf.bool)
+    accepted_points = tf.zeros([samples], tf.complex64)
+    accepted_targets = tf.zeros([samples], tf.float32)
+    while cond:
+        points = tf.squeeze(hf.vec_to_complex(P.sample()))
+        target_state_translated = tf.linalg.matvec(T(-points), target_state)
+        W_target = expectation(target_state_translated, parity, reduce_batch=False)
+        W_target = tf.math.real(tf.squeeze(W_target))
+        reject = P_v.sample() > tf.math.abs(W_target)**2
+        mask = tf.logical_and(tf.logical_not(reject), tf.logical_not(accepted))
+        accepted = tf.logical_or(mask, accepted)
+        accepted_points = tf.where(mask, points, accepted_points)
+        accepted_targets = tf.where(mask, W_target, accepted_targets)
+        cond = not tf.reduce_all(accepted)
+    
+    buffer += list(accepted_points)
+    target_vals += list(accepted_targets)
+    return buffer, target_vals
+
+buffer, target_vals = fill_buffer_v2(target_state, samples=BUFFER_SIZE)
+print('Buffer filled.')
 
 def estimate_fidelity(samples, sample=True):
     # can uniformly sample points from the buffer
@@ -87,19 +118,22 @@ def estimate_fidelity(samples, sample=True):
     psi = tf.linalg.matvec(T(-points), state)
     _, msmt = phase_estimation(psi, parity, tf.zeros(samples), sample=sample)
     
-    # Make a noisy Monte Carlo estimate of the overlap integral.np.sdf
-    return tf.reduce_mean(tf.squeeze(msmt) / targets)
+    # Make a noisy Monte Carlo estimate of the overlap integral
+    estimator = tf.squeeze(msmt) / targets
+    estimator = tf.where(tf.math.is_nan(estimator), 0, estimator)
+    estimator = tf.where(tf.math.is_inf(estimator), 0, estimator)
+    return tf.reduce_mean(estimator)
 
 
 # look at estimators with these many samples
-num_points = [10,30,100,300,1000,3000,8000]
+num_points = [10,30,100,300,1000,3000,6000]
 
 # for each type of estimator (i.e. a different number of phase space points), 
 # construct a bunch of them and measure the mean and variance. 
 means, stds = [], []
 for n in num_points:
     F_samples = []
-    for i in range(100):
+    for i in range(50):
         F = estimate_fidelity(n, sample=True)
         F_samples.append(F)
     mean, std = np.mean(F_samples), np.std(F_samples)
