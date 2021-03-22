@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 24 09:34:40 2020
+Created on Fri Mar 19 15:24:51 2021
 
 @author: Vladimir Sivak
-
-Qubit is included in the Hilbert space. Simulation is done with a gate-based 
-approach to quantum circuits.
 """
 import tensorflow as tf
 from gkp.gkp_tf_env.gkp_tf_env import GKP
@@ -24,13 +21,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         2) conditional translations of the oscillator conditioned on qubit
     
     """
-    def __init__(
-        self,
-        *args,
-        # Required kwargs
-        t_gate,
-        # Optional kwargs
-        **kwargs):
+    def __init__(self, *args, t_gate, **kwargs):
         """
         Args:
             t_gate (float): Gate time in seconds.
@@ -41,44 +32,41 @@ class QuantumCircuit(OscillatorQubit, GKP):
 
     @property
     def _quantum_circuit_spec(self):
-        spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
+        spec = {'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[2], dtype=tf.float32)}
         return spec
 
-    @tf.function
+    # remove the decorator to be able to access the class attributes from withing this method
+    # @tf.function
     def _quantum_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha' : Tensor([batch_size,2], tf.float32),
-                          'beta'  : Tensor([batch_size,2], tf.float32),
+            action (dict, 'beta'  : Tensor([batch_size,2], tf.float32),
                           'phi'   : Tensor([batch_size,2], tf.float32))
 
         Returns: see parent class docs
 
         """
         # Extract parameters
-        alpha = hf.vec_to_complex(action['alpha'])
         beta = hf.vec_to_complex(action['beta'])
-        phi_x = action['phi'][:,0]
-        phi_y = action['phi'][:,1]
+        phase, angle = action['phi'][:,0], action['phi'][:,1]
 
-        # Construct gates
-        T, CT, R = {}, {}, {}
-        T['a'] = self.translate(alpha)
-        T['b'] = self.translate(beta/2.0)
-        CT['b'] = self.ctrl(tf.linalg.adjoint(T['b']), T['b'])
-        Rx = self.rotate_qb_xy(phi_x, tf.zeros_like(phi_x))
-        Ry = self.rotate_qb_xy(phi_y, pi/2*tf.ones_like(phi_x))
+        # Construct gates        
+        D = self.displace(beta/2.0)
+        CD = self.ctrl(D, tf.linalg.adjoint(D))
+        R = self.rotate_qb_xy(angle, phase)
+        flip = self.rotate_qb_xy(tf.constant(pi), tf.constant(0))
         
-        # Qubit rotation
-        psi = tf.linalg.matvec(Rx, psi)
-        psi = tf.linalg.matvec(Ry, psi)
-        # Oscillator translation
-        psi = tf.linalg.matvec(T['a'], psi)
-        # Conditional translation
-        psi = tf.linalg.matvec(CT['b'], psi)
+        # Apply gates
+        psi = tf.linalg.matvec(R, psi)
+        psi = tf.linalg.matvec(CD, psi)
+        if self._elapsed_steps < self.T-1:
+            psi = tf.linalg.matvec(flip, psi)
+        
+        m = tf.ones((self.batch_size,1))
+        if self._elapsed_steps == self.T-1:
+            psi, m = measurement(psi, self.P, sample=True)
 
-        return psi, psi, tf.ones((self.batch_size,1))
+        return psi, psi, m
 
