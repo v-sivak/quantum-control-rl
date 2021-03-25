@@ -412,33 +412,19 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 reward_mode (str): 'tomography'
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of window for uniform distribution
-                sample_from_buffer (bool): if True, this will fill the buffer
-                    of phase space points first, and then uniformly sample
-                    from it on each epoch. Itroduces some bias if the buffer
-                    is small, but speeds things up. If False, it will sample
-                    points real-time (1 point per epoch, and use it for the
-                    whole batch).
-                buffer_size (int): number of phase space points in the buffer
                 
             """
             assert 'target_state' in reward_kwargs.keys()
             assert 'window_size' in reward_kwargs.keys()
-            assert 'tomography' in reward_kwargs.keys()
-            assert 'sample_from_buffer' in reward_kwargs.keys()
-            assert 'buffer_size' in reward_kwargs.keys()            
+            assert 'tomography' in reward_kwargs.keys()        
             window_size = reward_kwargs['window_size']
             tomography = reward_kwargs['tomography']
-            sample_from_buffer = reward_kwargs['sample_from_buffer']
-            buffer_size = reward_kwargs['buffer_size']
             target_state = reward_kwargs['target_state']
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
             self.calculate_reward = \
                 lambda args: self.reward_tomography(
-                    target_state, window_size, tomography, sample_from_buffer)
-            if sample_from_buffer:
-                self.buffer, self.target_vals = self.fill_buffer(
-                    target_state, window_size, tomography, samples=buffer_size)
+                    target_state, window_size, tomography)
 
         if mode == 'stabilizers':
             """
@@ -539,8 +525,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return buffer, target_vals
 
 
-    def reward_tomography(self, target_state, window_size, tomography, 
-                          sample_from_buffer):
+    def reward_tomography(self, target_state, window_size, tomography):
         """
         Reward only on last time step using the empirical approximation of the 
         overlap of the prepared state with the target state. This overlap is
@@ -557,32 +542,27 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             return tf.zeros(self.batch_size, dtype=tf.float32)
         
         def alpha_sample_schedule(n):
-            return 1
+            return 100
         
         def msmt_sample_schedule(n):
-            return 1
+            return 10
         
+        def penalty_coeff_schedule(n):
+            return 1
+            
         alpha_samples = alpha_sample_schedule(self._episodes_completed)
         msmt_samples = msmt_sample_schedule(self._episodes_completed)
+        e_penalty_coeff = penalty_coeff_schedule(self._episodes_completed)
         
-        # populate a new small mini-buffer for each epoch
-        if not sample_from_buffer: 
-            mini_buffer, target_vals = self.fill_buffer(
-                    target_state, window_size, tomography, samples=alpha_samples)
+        # populate a new mini-buffer for each epoch
+        mini_buffer, target_vals = self.fill_buffer(
+                target_state, window_size, tomography, samples=alpha_samples)
         
         z = 0
-        for i in range(alpha_samples):            
-            if sample_from_buffer:
-                # uniformly sample points from the large buffer; each batch
-                # member will get its own phase space point
-                samples, buffer_size = self.batch_size, len(self.buffer)
-                index = tf.math.round(tf.random.uniform([samples])*buffer_size)
-                targets = tf.gather(self.target_vals, tf.cast(index, tf.int32))
-                points = tf.gather(self.buffer, tf.cast(index, tf.int32))
-            else:
-                # take 1 point from the buffer and replicate it for the batch
-                targets = tf.broadcast_to(target_vals[i], [self.batch_size])
-                points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
+        for i in range(alpha_samples):
+            # take 1 point from the buffer and replicate it for the batch
+            targets = tf.broadcast_to(target_vals[i], [self.batch_size])
+            points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
 
             M = 0 + 1e-10
             Z = 0
@@ -591,7 +571,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 psi = self.info['psi_cached']
                 if self.tensorstate:
                     psi, m = measurement(psi, self.P, sample=True)
+                    # psi = tf.where(m==1, psi, tf.linalg.matvec(self.sx, psi))
                     mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+                    # mask = tf.squeeze(tf.where(self.history['msmt'][-1]==1, 1.0, 0.0))
                 else:
                     mask = tf.ones([self.batch_size])
                 
@@ -610,12 +592,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 # If using characteristic_fn, this would work only for symmetric 
                 # states (GKP, Fock etc)
                 # Mask out trajectories where qubit was measured in |e> 
-                Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask
+                Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask \
+                    - e_penalty_coeff * (1-mask)
                 M += mask
             z += Z/msmt_samples
         z /= alpha_samples
         return z
-
 
     @tf.function
     def reward_zero(self, *args):
