@@ -19,6 +19,7 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import measurement, expectation, normalize
 from gkp.gkp_tf_env import helper_functions as hf
+from remote_env_tools.remote_env_tools import Server
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -214,8 +215,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         x = np.linspace(-lim, lim, pts)
         y = np.linspace(-lim, lim, pts)
 
-        x = tf.squeeze(tf.constant(x, dtype=c64))
-        y = tf.squeeze(tf.constant(y, dtype=c64))
+        x = tf.constant(x, dtype=c64)
+        y = tf.constant(y, dtype=c64)
         
         one = tf.constant([1]*len(y), dtype=c64)
         onej = tf.constant([1j]*len(x), dtype=c64)
@@ -322,7 +323,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                             'fidelity',
                             'overlap',
                             'Fock',
-                            'tomography']
+                            'tomography',
+                            'remote']
             self.reward_mode = mode
         except: 
             raise ValueError('reward_mode not specified or not supported.') 
@@ -410,8 +412,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'tomography'
+                tomography (str): either 'wigner' or 'characteristic_fn'
                 target_state (Qobj, type=ket): Qutip object
-                window_size (float): size of window for uniform distribution
+                window_size (float): size of phase space window
                 
             """
             assert 'target_state' in reward_kwargs.keys()
@@ -437,6 +440,32 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             stabilizer_translations = reward_kwargs['stabilizer_translations']
             self.calculate_reward = \
                 lambda args: self.reward_stabilizers(stabilizer_translations, args)
+
+        if mode == 'remote':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'remote'
+                tomography (str): either 'wigner' or 'characteristic_fn'
+                target_state (Qobj, type=ket): Qutip object
+                window_size (float): size of phase space window
+                host_port (tuple): for example ('172.28.140.123', 5555)
+            """
+            for k in ['target_state', 'window_size', 'tomography', 'host_port']:
+                assert k in reward_kwargs.keys()
+                
+            window_size = reward_kwargs['window_size']
+            tomography = reward_kwargs['tomography']
+            target_state = reward_kwargs['target_state']
+            target_state = tf.constant(target_state.full(), dtype=c64)
+            target_state = tf.transpose(target_state)
+            
+            self.server_socket = Server()
+            (host, port) = reward_kwargs['host_port']
+            self.server_socket.bind((host, port))
+            self.server_socket.connect_client()
+            
+            self.calculate_reward = lambda args: self.reward_remote(
+                    target_state, window_size, tomography)
 
 
     def reward_Fock(self, target_projector, *args):
@@ -599,6 +628,45 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         z /= alpha_samples
         return z
 
+    def reward_remote(self, target_state, window_size, tomography):
+        """
+        Send the action sequence to remote environment and receive rewards.
+        The data received from the remote env should be sigma_z measurement 
+        outcomes of shape [batch_size, N_alpha, N_msmt, 2] where the first
+        measurement is disentangling and second measurement is tomography. 
+        
+        """
+        # return 0 on all intermediate steps of the episode
+        if self._elapsed_steps < self.episode_length:
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+
+        N_alpha, N_msmt = 100, 10
+        penalty_coeff = 1.0
+
+        action_batch = {}
+        for a in self.history.keys() - ['msmt']:
+            # reshape to = [batch_size, T, action_dim] 
+            action_batch[a] = np.transpose(self.history[a][1:], axes=[1,0,2])
+ 
+        # populate a new mini-buffer for each epoch
+        mini_buffer, targets = self.fill_buffer(
+                target_state, window_size, tomography, samples=N_alpha)
+
+        # send action sequence and phase space points to remote client
+        message = dict(action_batch=action_batch, mini_buffer=mini_buffer)
+        self.server_socket.send_data(message)
+        
+        # receive array of outcomes of shape [batch_size, N_alpha, N_msmt, 2]
+        msmt, done = self.server_socket.recv_data()
+        msmt = tf.cast(msmt, tf.float32)
+        
+        mask = tf.where(msmt[:,:,:,0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
+        targets = tf.reshape(targets, [1, len(targets), 1])
+        Z = msmt[:,:,:,1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
+        z = tf.math.reduce_mean(Z, axis=[1,2])
+        return z
+        
+
     @tf.function
     def reward_zero(self, *args):
         """
@@ -608,7 +676,6 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return tf.zeros(self.batch_size, dtype=tf.float32)
 
 
-    # @tf.function
     def reward_measurement(self, sample, *args):
         """
         Reward is simply the outcome of sigma_z measurement.
