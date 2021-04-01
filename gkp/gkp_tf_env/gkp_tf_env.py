@@ -318,7 +318,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             mode = reward_kwargs['reward_mode']
             assert mode in ['zero',
                             'measurement',
-                            'stabilizers', 
+                            'stabilizers',
+                            'stabilizers_v2',
                             'pauli', 
                             'fidelity',
                             'overlap',
@@ -440,6 +441,21 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             stabilizer_translations = reward_kwargs['stabilizer_translations']
             self.calculate_reward = \
                 lambda args: self.reward_stabilizers(stabilizer_translations, args)
+
+        if mode == 'stabilizers_v2':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'stabilizers_v2'
+                eps (float): envelope trimming amplitude
+                beta (float): stabilizer displacement amplitude
+                sample (bool): flag to sample measurements or use expectations
+                
+            """
+            for k in ['eps', 'beta', 'sample']:
+                assert k in reward_kwargs.keys()
+            sample = reward_kwargs['sample'] 
+            self.calculate_reward = lambda args: self.reward_stabilizers_v2(
+                reward_kwargs['eps'], reward_kwargs['beta'], sample)
 
         if mode == 'remote':
             """
@@ -750,6 +766,45 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             z = tf.cast(z, dtype=tf.float32)
             z = tf.reshape(z, shape=(self.batch_size,)) * mask
         return z
+
+
+    def reward_stabilizers_v2(self, eps, beta, sample):
+        """
+        Use finite-energy stabilizers instead of ideal stabilizers. These have 
+        a parameter 'eps' controlling the squeezing level and 'beta'
+        controlling the stabilizer magnitude (the direction is randomly
+        sampled to be e^{0j} or e^{1j*pi/2}).
+        
+        See this paper by Baptiste Royer for more details:
+        https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.125.260509
+            
+        """
+        # return 0 on all intermediate steps of the episode
+        if self._elapsed_steps < self.episode_length:
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+        
+        # sample random stabilizer directions
+        theta = tf.where(tf.random.uniform([self.batch_size])>1/2, 0., pi/2)
+        theta = tf.cast(theta, c64)
+        
+        if self.tensorstate:
+            raise ValueError('Only <Oscillator> Hilbert space is supported.')
+        
+        # Create Kraus operators corresponding to finite-energy stabilizers
+        D_e = self.displace((eps+0j)*tf.math.exp(1j*theta)/2)
+        D_b = self.displace(-1j*beta*tf.math.exp(1j*theta)/2)
+        
+        chunk1 = tf.linalg.matmul(D_b, D_e - 1j*tf.linalg.adjoint(D_e))
+        chunk2 = tf.linalg.matmul(tf.linalg.adjoint(D_b), \
+                                  -1j*D_e + tf.linalg.adjoint(D_e))
+        Kraus = {}
+        Kraus[0] = 1/(2*sqrt(2))*(chunk2 + chunk1)
+        Kraus[1] = 1/(2*sqrt(2))*(chunk2 - chunk1)
+
+        psi, z = measurement(self._state, Kraus, sample=sample)
+        return tf.squeeze(z)
+
+
     
 
     def reward_fidelity(self, code_flips, act):
