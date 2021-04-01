@@ -446,16 +446,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'stabilizers_v2'
-                eps (float): envelope trimming amplitude
+                Delta (float): envelope trimming amplitude
                 beta (float): stabilizer displacement amplitude
                 sample (bool): flag to sample measurements or use expectations
                 
             """
-            for k in ['eps', 'beta', 'sample']:
+            for k in ['Delta', 'beta', 'sample']:
                 assert k in reward_kwargs.keys()
             sample = reward_kwargs['sample'] 
             self.calculate_reward = lambda args: self.reward_stabilizers_v2(
-                reward_kwargs['eps'], reward_kwargs['beta'], sample)
+                reward_kwargs['beta'], reward_kwargs['Delta'], sample)
 
         if mode == 'remote':
             """
@@ -768,10 +768,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
 
 
-    def reward_stabilizers_v2(self, eps, beta, sample):
+    def reward_stabilizers_v2(self, beta, Delta, sample):
         """
         Use finite-energy stabilizers instead of ideal stabilizers. These have 
-        a parameter 'eps' controlling the squeezing level and 'beta'
+        a parameter 'Delta' controlling the squeezing level and 'beta'
         controlling the stabilizer magnitude (the direction is randomly
         sampled to be e^{0j} or e^{1j*pi/2}).
         
@@ -790,6 +790,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self.tensorstate:
             raise ValueError('Only <Oscillator> Hilbert space is supported.')
         
+        eps = beta * Delta**2
         # Create Kraus operators corresponding to finite-energy stabilizers
         D_e = self.displace((eps+0j)*tf.math.exp(1j*theta)/2)
         D_b = self.displace(-1j*beta*tf.math.exp(1j*theta)/2)
