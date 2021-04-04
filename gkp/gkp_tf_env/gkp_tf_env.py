@@ -211,7 +211,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         state = self.info['psi_cached']
         
         # Generate a grid of phase space points
-        lim, pts = 4, 41
+        lim, pts = 4, 81
         x = np.linspace(-lim, lim, pts)
         y = np.linspace(-lim, lim, pts)
 

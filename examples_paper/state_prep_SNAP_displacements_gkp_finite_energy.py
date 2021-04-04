@@ -31,9 +31,9 @@ in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\test'
-deltas = [0.45, 0.35, 0.25, 0.15]
-random_seeds = [0,1]
+root_dir = r'E:\data\gkp_sims\PPO\examples\test_gkp_eps0.2'
+deltas = [0.55]
+random_seeds = [0,1,2,3,4,5]
 
 for Delta in deltas:
     # setup directory for each simulation
@@ -96,7 +96,7 @@ for Delta in deltas:
                 num_policy_updates = 20,
                 initial_adaptive_kl_beta = 0.0,
                 kl_cutoff_factor = 0,
-                importance_ratio_clipping = 0.1,
+                importance_ratio_clipping = 0.2,
                 value_pred_loss_coef = 0.005,
                 gradient_clipping = 1.0,
                 # Params for log, eval, save
