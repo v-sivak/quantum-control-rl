@@ -8,12 +8,12 @@ import numpy as np
 
 period = 8
 
-filename = r'C:\Users\qulab\Downloads\fock_4.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\fock_4.npz'
 script_npz = np.load(filename)
 
 script = {} # Script of actions
-script['beta'] = [[np.real(b), np.imag(b)] for b in script_npz['betas']]
-script['phi'] = [[p,t] for (p,t) in zip(script_npz['phis'], script_npz['thetas'])]
+script['beta'] = [[np.real(b), np.imag(b)] for b in script_npz['betas_error']]
+script['phi'] = [[p,t] for (p,t) in zip(script_npz['phis_error'], script_npz['thetas_error'])]
 
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on

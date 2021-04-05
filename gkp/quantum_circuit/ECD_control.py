@@ -65,8 +65,8 @@ class QuantumCircuit(OscillatorQubit, GKP):
             psi = tf.linalg.matvec(flip, psi)
         
         m = tf.ones((self.batch_size,1))
-        if self._elapsed_steps == self.T-1:
-            psi, m = measurement(psi, self.P, sample=True)
+        # if self._elapsed_steps == self.T-1:
+        #     psi, m = measurement(psi, self.P, sample=True)
 
         return psi, psi, m
 

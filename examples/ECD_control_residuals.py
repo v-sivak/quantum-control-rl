@@ -30,43 +30,52 @@ measurements are performed in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD'
-root_dir = os.path.join(root_dir,'test_fock4_residuals')
+root_dir = r'E:\data\gkp_sims\PPO\ECD\gkp'
+root_dir = os.path.join(root_dir,'0')
 
 # Params for environment
 env_kwargs = {
     'simulate' : 'ECD_control',
     'init' : 'vac',
-    'H' : 1,
-    'T' : 8, 
-    'attn_step' : 1,
-    'N' : 50}
+    'T' : 16, 
+    'N' : 200}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
 
+if 0: # Fock
+    target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
 
-# reward_kwargs = {'reward_mode' : 'overlap',
-#                   'target_state' : target_state,
-#                   'postselect_0' : False
-#                   }
+if 0: # squeezed
+    N = 70
+    db_val = 8
+    z = db_val / (20 * np.log10(np.e))
+    target_state = qt.tensor(qt.basis(2,0), qt.squeeze(N,z)*qt.basis(N,0))
+
+if 0: # binomial
+    N = 60
+    pz = (qt.basis(N,0) + qt.basis(N,4))/np.sqrt(2.0)
+    mz = qt.basis(N,2)
+    py = (pz + 1j*mz)/np.sqrt(2.0)
+    target_state = qt.tensor(qt.basis(2,0), py)
+
+if 1: # GKP
+    target_state_cav = qt.qload('E:\data\gkp_sims\PPO\ECD\GKP_state_delta_0p25')
+    target_state = qt.tensor(qt.basis(2,0), target_state_cav)
+    N = target_state_cav.dims[0][0] # 200
+
 
 reward_kwargs = {'reward_mode' : 'tomography',
                   'tomography' : 'characteristic_fn',
                   'target_state' : target_state,
-                  'window_size' : 16,
-                  'sample_from_buffer' : False,
-                  'buffer_size': 5000
-                  }
+                  'window_size' : 16}
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',
                       'target_state' : target_state,
-                      'postselect_0' : False
-                      }
+                      'postselect_0' : False}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
-action_scale = {'beta':3/4, 'phi':pi/4}
+action_scale = {'beta':3/16, 'phi':pi/16}
 to_learn = {'beta':True, 'phi':True}
 
 train_batch_size = 10
@@ -91,7 +100,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 
 PPO.train_eval(
         root_dir = root_dir,
-        random_seed = 0,
+        random_seed = 5,
         num_epochs = 300,
         # Params for train
         normalize_observations = True,
@@ -118,7 +127,6 @@ PPO.train_eval(
         eval_driver = eval_driver,
         replay_buffer_capacity = 15000,
         # Policy and value networks
-        # ActorNet = actor_distribution_network_gkp.ActorDistributionNetworkGKP,
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         actor_fc_layers = (),
         value_fc_layers = (),
