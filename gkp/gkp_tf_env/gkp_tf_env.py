@@ -534,6 +534,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
 
     def fill_buffer(self, target_state, window_size, tomography, samples=1000):
+        """
+        Fill the buffer of phase space points and corresponding target Wigner
+        or characteristic function values. Points are produced with rejection
+        sampling proportionally to the |W| or |Re[C]|.
+        
+        Returns:
+            buffer (list(c64)): a list of phase space points
+            target_vals (list(float32)): a list of target values
+        """
         # Distributions for rejection sampling
         L = window_size/2
         P = tfp.distributions.Uniform(low=[[-L,-L]]*samples, high=[[L,L]]*samples)
@@ -569,6 +578,58 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         target_vals = list(accepted_targets)
         return buffer, target_vals
 
+    def collect_tomography_measurements(self, tomography, mini_buffer, N_msmt):
+        """
+        Given the buffer of 'N_alpha' phase space points, do 'N_msmt'
+        tomography measurements per point. 
+        
+        Args:
+            tomography (str): type of tomography, either 'Wigner' or 'CF'
+            mini_buffer (list(c64)): a list of phase space points
+            N_msmt (int): number of measurements to do per phase space point
+        
+        Returns:
+            msmt (Tensor([2, batch_size, N_alpha, N_msmt], float32)): tensor 
+                of measurement outomes; msmt[0] is the first measurement in 
+                the tomography reward circuit, which disentangles the qubit
+                and oscillator, msmt[1] is the actual tomography measurement. 
+        """
+        N_alpha = len(mini_buffer)
+        M1_buffer, M2_buffer = [], []
+        
+        for i in range(N_alpha):
+            # take 1 point from the buffer and replicate it for the batch
+            points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
+            M1, M2 = [], []
+
+            for j in range(N_msmt):
+                # first measure the qubit to disentangle from oscillator
+                psi = self.info['psi_cached']
+                if self.tensorstate:
+                    psi, m1 = measurement(psi, self.P, sample=True)
+                else:
+                    m1 = tf.ones([self.batch_size])
+                M1.append(tf.squeeze(m1))
+                
+                # do 1 tomography measurement in this phase space point
+                if tomography == 'wigner':
+                    translations = self.translate(-points)
+                    psi = tf.linalg.matvec(translations, psi)
+                    _, m2 = self.phase_estimation(psi, self.parity,
+                                angle=tf.zeros(self.batch_size), sample=True)
+                
+                if tomography == 'characteristic_fn':
+                    translations = self.translate(points)
+                    _, m2 = self.phase_estimation(psi, translations,
+                                angle=tf.zeros(self.batch_size), sample=True)
+                M2.append(tf.squeeze(m2))
+            
+            M1_buffer.append(M1)
+            M2_buffer.append(M2)
+        msmt = tf.cast([M1_buffer, M2_buffer], tf.float32)
+        msmt = np.transpose(msmt, axes=[0,3,1,2])
+        return msmt
+    
 
     def reward_tomography(self, target_state, window_size, tomography):
         """
@@ -595,23 +656,23 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         def penalty_coeff_schedule(n):
             return 1
             
-        alpha_samples = alpha_sample_schedule(self._episodes_completed)
-        msmt_samples = msmt_sample_schedule(self._episodes_completed)
+        N_alpha = alpha_sample_schedule(self._episodes_completed)
+        N_msmt = msmt_sample_schedule(self._episodes_completed)
         e_penalty_coeff = penalty_coeff_schedule(self._episodes_completed)
         
         # populate a new mini-buffer for each epoch
         mini_buffer, target_vals = self.fill_buffer(
-                target_state, window_size, tomography, samples=alpha_samples)
+                target_state, window_size, tomography, samples=N_alpha)
         
         z = 0
-        for i in range(alpha_samples):
+        for i in range(N_alpha):
             # take 1 point from the buffer and replicate it for the batch
             targets = tf.broadcast_to(target_vals[i], [self.batch_size])
             points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
 
             M = 0 + 1e-10
             Z = 0
-            for j in range(msmt_samples):
+            for j in range(N_msmt):
                 # first measure the qubit to disentangle from oscillator
                 psi = self.info['psi_cached']
                 if self.tensorstate:
@@ -640,15 +701,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask \
                     - e_penalty_coeff * (1-mask)
                 M += mask
-            z += Z/msmt_samples
-        z /= alpha_samples
+            z += Z/N_msmt
+        z /= N_alpha
         return z
 
     def reward_remote(self, target_state, window_size, tomography):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
-        outcomes of shape [batch_size, N_alpha, N_msmt, 2] where the first
+        outcomes of shape [2, batch_size, N_alpha, N_msmt] where the first
         measurement is disentangling and second measurement is tomography. 
         
         """
@@ -661,7 +722,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
-            # reshape to = [batch_size, T, action_dim] 
+            # reshape to [batch_size, T, action_dim] 
             action_batch[a] = np.transpose(self.history[a][1:], axes=[1,0,2])
  
         # populate a new mini-buffer for each epoch
@@ -672,13 +733,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         message = dict(action_batch=action_batch, mini_buffer=mini_buffer)
         self.server_socket.send_data(message)
         
-        # receive array of outcomes of shape [batch_size, N_alpha, N_msmt, 2]
+        # receive array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
         
-        mask = tf.where(msmt[:,:,:,0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
+        mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
         targets = tf.reshape(targets, [1, len(targets), 1])
-        Z = msmt[:,:,:,1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
+        Z = msmt[1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
         z = tf.math.reduce_mean(Z, axis=[1,2])
         return z
         

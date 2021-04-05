@@ -10,6 +10,7 @@ from gkp.quantum_circuit import gkp_qec_autonomous_BsB_osc_qb
 from gkp.quantum_circuit import gkp_qec_autonomous_sBs_osc_qb
 
 from gkp.quantum_circuit import ECD_control
+from gkp.quantum_circuit import ECD_control_remote
 
 from gkp.quantum_circuit import snap_and_displacement
 from gkp.quantum_circuit import snap_and_displacement_miscalibrated
