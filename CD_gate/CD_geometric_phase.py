@@ -13,7 +13,7 @@ class CD_geometric_phase(FPGAExperiment):
 
     def sequence(self):
 
-        self.cavity = cavity_1
+        self.cavity = cavity
 
         def CD(beta):
             #note: beta = 2*alpha0*sin(chi*tw)

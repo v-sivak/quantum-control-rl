@@ -128,7 +128,8 @@ class ConditionalDisplacementCompiler():
 class sBs_compiler():
     
     def __init__(self, tau_small, tau_big, cal_dir=None):
-        self.C = ConditionalDisplacementCompiler(cal_dir=cal_dir)
+        self.C = ConditionalDisplacementCompiler(cal_dir=cal_dir, 
+                                                 pad_clock_cycle=False)
         self.tau_small = tau_small
         self.tau_big = tau_big
     
@@ -149,13 +150,9 @@ class sBs_compiler():
         phase += phi_g + phi_e
         sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
         sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
-        # 2b) flip qubit after echo during CD gate
-        X180 = self.C.get_calibrated_pulse(qubit.pulse)
-        sbs_qb = np.concatenate([sbs_qb, X180])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X180)])
         
-        # 3) qubit X90 rotation
-        sbs_qb = np.concatenate([sbs_qb, X90])
+        # 3) qubit X180 + X90 rotation (combined in single rotation)
+        sbs_qb = np.concatenate([sbs_qb, X90*np.exp(1j*np.pi)])
         sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
         
         # 4a) apply "big" CD gate (with stabilizer amplitude)
@@ -167,12 +164,9 @@ class sBs_compiler():
         phase += phi_g + phi_e
         sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
         sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
-        # 4b) flip qubit after echo during CD gate
-        sbs_qb = np.concatenate([sbs_qb, X180])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X180)])
 
-        # 5) qubit -X90 rotation
-        sbs_qb = np.concatenate([sbs_qb, X90 * np.exp(1j*np.pi)])
+        # 5) qubit X180 - X90 rotation (combined in single rotation)
+        sbs_qb = np.concatenate([sbs_qb, X90])
         sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
 
         # 6a) apply 2nd "small" CD gate
@@ -183,12 +177,14 @@ class sBs_compiler():
         phase += phi_g + phi_e
         sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
         sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
-        # 6b) flip qubit after echo during CD gate
-        sbs_qb = np.concatenate([sbs_qb, X180])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X180)])
 
-        # 7) Rotate the qubit to be preferentially in |g>
-        sbs_qb = np.concatenate([sbs_qb, X90 * np.exp(-1j*np.pi/2.0)])
+        # 7) Qubit Y180 - Y90 rotation (combined in single rotation)
+        # this rotates the qubit to be preferentially in |g>
+        sbs_qb = np.concatenate([sbs_qb, X90 * np.exp(1j*np.pi/2.0)])
         sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
+
+        zero_pad = np.zeros(4 - (len(sbs_cav) % 4))
+        sbs_cav = np.concatenate([sbs_cav, zero_pad])
+        sbs_qb = np.concatenate([sbs_qb, zero_pad])
         
         return (sbs_cav.real, sbs_cav.imag), (sbs_qb.real, sbs_qb.imag)
