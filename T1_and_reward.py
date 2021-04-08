@@ -7,35 +7,52 @@ Created on Tue Apr  7 16:16:45 2020
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import tensorflow as tf
+from math import pi
 from gkp.gkp_tf_env import helper_functions as hf
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+import gkp.action_script as action_scripts
 from gkp.gkp_tf_env import policy as plc
 from gkp.gkp_tf_env import gkp_init
 
+# env = gkp_init(simulate='phase_estimation_osc_qb_v2', 
+#                 reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
+#                 init='X+', H=1, T=4, attn_step=1, batch_size=1000, episode_length=100,
+#                 encoding='square')
 
-env = gkp_init(simulate='phase_estimation_osc_v2', 
-               channel='quantum_jumps',
-               reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
-               init='X+', H=1, T=4, attn_step=1, batch_size=1000, episode_length=50,
-               encoding='square')
+env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+                reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
+                init='X+', H=1, T=2, attn_step=1, batch_size=500, episode_length=60,
+                encoding='square')
 
-# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
-# # # from gkp.action_script import Alec_universal_gate_set_12round as action_script
-# # # from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
-# to_learn = {'alpha':True, 'beta':True, 'phi':False, 'theta':False}
-# # # to_learn = {'alpha':True, 'beta':True, 'phi':True}
-# env = wrappers.ActionWrapper(env, action_script, to_learn)
+# action_script = 'gkp_qec_autonomous_BsB_2round'
+# action_scale = {'beta':1, 'phi':pi, 'epsilon':1}
+# to_learn = {'beta':False, 'phi':False, 'epsilon':True}
+# action_script = action_scripts.__getattribute__(action_script)
+# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
-# root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\August\OscillatorGKP\mlp2_H3T4A4_steps36_64_qec_4'
-# policy_dir = r'policy\000640000'
+# root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_qec_autonomous_BsB'
+# policy_dir = r'policy\000200'
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# from gkp.action_script import v3_Baptiste_autonomous_2round as action_script
-from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
+
+# action_script = 'gkp_qec_autonomous_sBs_2round'
+# action_scale = {'beta':1, 'phi':pi, 'eps1':1, 'eps2':1}
+# to_learn = {'beta':False, 'phi':False, 'eps1':True, 'eps2':True}
+# action_script = action_scripts.__getattribute__(action_script)
+# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
+
+# root_dir = r'E:\data\gkp_sims\PPO\examples\test'
+# policy_dir = r'policy\000300'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+
+
+# from gkp.action_script import gkp_qec_autonomous_BsB_2round as action_script
+from gkp.action_script import gkp_qec_autonomous_sBs_2round as action_script
+# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------

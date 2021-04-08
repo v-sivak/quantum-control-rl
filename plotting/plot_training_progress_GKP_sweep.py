@@ -23,7 +23,7 @@ from gkp.gkp_tf_env import gkp_init
 import gkp.action_script as action_scripts
 import plot_config
 
-root_dir = r'E:\data\gkp_sims\PPO\examples\test_gkp_eps0.2'
+root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_T9'
 deltas = [0.45, 0.35, 0.25, 0.15]
 
 
@@ -87,11 +87,12 @@ for j, Delta in enumerate(deltas):
         ax.plot(epochs[state][sim_name], np.array(rewards[state][sim_name]), 
                 linestyle='--', alpha=0.25, color=palette(j))
     all_seeds = np.array([rews for seed, rews in rewards[state].items()])
+    seed_names = list(rewards[state].keys())
     
     # find the best random seed
     i_best= np.argmax(all_seeds[:,-1])
     stabilizer = all_seeds[i_best,:]
-    best_seed[Delta] = i_best
+    best_seed[Delta] = seed_names[i_best]
     
     train_epochs = np.array(epochs[state]['seed0'])
     ind = [i for i in range(len(train_epochs)) if i%1==0]
@@ -111,7 +112,7 @@ for Delta in deltas:
                      'sample' : False}
     
     env = gkp_init(simulate='snap_and_displacement', reward_kwargs=reward_kwargs,
-                    init='vac', H=1, T=6, attn_step=1, batch_size=1, N=200, episode_length=6)
+                    init='vac', H=1, T=9, attn_step=1, batch_size=1, N=200, episode_length=9)
     
     action_script = 'snap_and_displacements'
     action_scale = {'alpha':6, 'theta':pi}
@@ -120,7 +121,7 @@ for Delta in deltas:
     env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
     delta_dir = os.path.join(root_dir, 'delta' + str(Delta))
-    seed_dir = os.path.join(delta_dir, 'seed'+str(best_seed[Delta]))
+    seed_dir = os.path.join(delta_dir, best_seed[Delta])
     policy_dir = r'policy\010000'
     policy = tf.compat.v2.saved_model.load(os.path.join(seed_dir,policy_dir))
     
@@ -149,12 +150,12 @@ ax1.set_ylim(0,20)
 ax1.plot([0,20], [0,20], color='grey')
 for i in range(len(deltas)):
     ax1.scatter(Delta_dB[i], Delta_eff_dB[i], color=palette(i), zorder=3)
-ax1.set_xlabel(r'Target $\Delta$ (dB)', fontsize=8)
-ax1.set_ylabel(r'Achieved $\Delta_{\rm eff}$ (dB)', fontsize=8)
+ax1.set_xlabel(r'Target $\Delta$ (dB)', fontsize=7)
+ax1.set_ylabel(r'Achieved $\Delta_{\rm eff}$ (dB)', fontsize=7)
 ax1.set_xticks([0,10,20])
 ax1.set_yticks([0,10,20])
-ax1.xaxis.set_tick_params(labelsize=8)
-ax1.yaxis.set_tick_params(labelsize=8)
+ax1.xaxis.set_tick_params(labelsize=7)
+ax1.yaxis.set_tick_params(labelsize=7)
 
 fig.tight_layout()
-# fig.savefig(figname)
+fig.savefig(figname)
