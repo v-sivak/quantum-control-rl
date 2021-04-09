@@ -50,6 +50,7 @@ def train_eval(
         replay_buffer_capacity = 20000,
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
+        zero_means_kernel_initializer = False,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = True,
@@ -104,6 +105,9 @@ def train_eval(
         ActorNet (network.DistributionNetwork): a distribution actor network 
             to use for training. The default is ActorDistributionNetwork from
             tf-agents, but this can also be customized.
+        zero_means_kernel_initializer (bool): flag to initialize the means
+            projection network with zeros. If this flag is not set, it will
+            use default tf-agent random initializer.
         actor_fc_layers (tuple): sizes of fully connected layers in actor net.
         value_fc_layers (tuple): sizes of fully connected layers in value net.
         use_rnn (bool): whether to use LSTM units in the neural net.
@@ -157,12 +161,17 @@ def train_eval(
                 lstm_size = value_lstm_size,
                 output_fc_layer_params = value_fc_layers)
         else:
+            npn = actor_distribution_network._normal_projection_net
+            normal_projection_net = lambda specs: npn(specs, 
+                zero_means_kernel_initializer=zero_means_kernel_initializer)
+            
             actor_net = ActorNet(
                 input_tensor_spec = observation_spec,
                 output_tensor_spec = action_spec,
                 preprocessing_layers = preprocessing_layers,
                 preprocessing_combiner = preprocessing_combiner,
-                fc_layer_params = actor_fc_layers)
+                fc_layer_params = actor_fc_layers,
+                continuous_projection_net=normal_projection_net)
         
             value_net = value_network.ValueNetwork(
                 input_tensor_spec = observation_spec,
