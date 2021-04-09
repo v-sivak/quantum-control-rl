@@ -290,3 +290,4 @@ def train_eval(
                 epoch % checkpoint_interval == 0:
                     # Save training checkpoint
                     train_checkpointer.save(global_step)
+        collect_driver.finish_training()

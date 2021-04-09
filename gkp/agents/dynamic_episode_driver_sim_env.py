@@ -25,7 +25,7 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
     """
     def __init__(self, env_kwargs, reward_kwargs, batch_size,
                  action_script, action_scale, to_learn, episode_length, 
-                 learn_residuals=False):
+                 learn_residuals=False, remote=False):
         """
         Args:
             env_kwargs (dict): optional parameters for training environment.
@@ -43,9 +43,12 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
                 epoch number and returns int episode duration for this epoch.
             learn_residuals (bool): flag to learn residual over the scripted
                 protocol. If False, will learn actions from scratch. If True,
-                will learn a residual to be added to scripted protocol.        
+                will learn a residual to be added to scripted protocol.
+            remote (bool): flag for remote environment to close the connection
+                to a client upon finishing the training.
         """
         self.episode_length = episode_length
+        self.remote = remote
         # Create training env and wrap it
         env = gkp_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
@@ -58,17 +61,18 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         
         super().__init__(env, dummy_policy, num_episodes=batch_size)
 
-
     def run(self, epoch):
         self.env._env.episode_length = self.episode_length(epoch)
         super().run()
-
         
     def setup(self, policy, observers):
         """Setup policy and observers for the driver."""
         self._policy = policy
         self._observers = observers or []
-    
+
+    def finish_training(self):
+        if self.remote:
+            self.env.server_socket.disconnect_client()
     
     def observation_spec(self):
         return self.env.observation_spec()

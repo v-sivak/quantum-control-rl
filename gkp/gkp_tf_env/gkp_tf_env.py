@@ -19,7 +19,7 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import measurement, expectation, normalize
 from gkp.gkp_tf_env import helper_functions as hf
-from remote_env_tools.remote_env_tools import Server
+from remote_env_tools import remote_env_tools as rmt
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -87,7 +87,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         self.setup_reward(reward_kwargs)
         self.define_stabilizer_code(encoding)
-        self._episodes_completed = 0
+        self._epoch = 0
 
         # Define action and observation specs
         self.quantum_circuit = self._quantum_circuit
@@ -142,7 +142,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         self._episode_return += reward
         
         if self._episode_ended:
-            self._episodes_completed += self.batch_size
+            self._epoch += 1
             self._current_time_step_ = ts.termination(observation, reward)
         else:
             self._current_time_step_ = ts.transition(observation, reward)
@@ -475,7 +475,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
             
-            self.server_socket = Server()
+            self.server_socket = rmt.Server()
             (host, port) = reward_kwargs['host_port']
             self.server_socket.bind((host, port))
             self.server_socket.connect_client()
@@ -656,9 +656,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         def penalty_coeff_schedule(n):
             return 1
             
-        N_alpha = alpha_sample_schedule(self._episodes_completed)
-        N_msmt = msmt_sample_schedule(self._episodes_completed)
-        e_penalty_coeff = penalty_coeff_schedule(self._episodes_completed)
+        N_alpha = alpha_sample_schedule(self._epoch)
+        N_msmt = msmt_sample_schedule(self._epoch)
+        e_penalty_coeff = penalty_coeff_schedule(self._epoch)
         
         # populate a new mini-buffer for each epoch
         mini_buffer, target_vals = self.fill_buffer(
@@ -714,12 +714,12 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         """
         # return 0 on all intermediate steps of the episode
-        if self._elapsed_steps < self.episode_length:
+        if self._elapsed_steps != self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
 
         N_alpha, N_msmt = 100, 10
         penalty_coeff = 1.0
-
+        
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
             # reshape to [batch_size, T, action_dim] 
@@ -729,8 +729,17 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         mini_buffer, targets = self.fill_buffer(
                 target_state, window_size, tomography, samples=N_alpha)
 
+        np_mini_buffer = [alpha.numpy() for alpha in mini_buffer]
+        
         # send action sequence and phase space points to remote client
-        message = dict(action_batch=action_batch, mini_buffer=mini_buffer)
+        message = dict(action_batch=action_batch, 
+                       mini_buffer=np_mini_buffer,
+                       batch_size=self.batch_size,
+                       N_alpha=N_alpha, N_msmt=N_msmt,
+                       epoch_type='training',
+                       compile_flag=True,
+                       epoch=self._epoch)
+        
         self.server_socket.send_data(message)
         
         # receive array of outcomes of shape [2, batch_size, N_alpha, N_msmt]

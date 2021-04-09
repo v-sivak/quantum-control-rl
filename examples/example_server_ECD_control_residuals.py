@@ -7,7 +7,7 @@ Created on Fri Mar 26 13:26:26 2021
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 # append parent 'gkp-rl' directory to path 
 import sys
@@ -67,7 +67,7 @@ from gkp.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 
-    to_learn, train_episode_length, learn_residuals)
+    to_learn, train_episode_length, learn_residuals, remote=True)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 

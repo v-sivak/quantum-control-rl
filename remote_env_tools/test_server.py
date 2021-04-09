@@ -10,7 +10,7 @@ def create_action_data(i):
     return {'alpha': [i**2, i**3], 'beta': [i**4, i+1]}
 
 server_socket = Server()
-(host, port) = '172.28.140.123', 5555
+(host, port) = '172.28.142.46', 5555
 server_socket.bind((host, port))
 server_socket.connect_client()
 
