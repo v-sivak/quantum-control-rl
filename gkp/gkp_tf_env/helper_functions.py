@@ -96,44 +96,26 @@ def epsilon_normalizer(N, epsilon=0.1):
     return lambda rho: G*rho*G_inv
 
 
-
-def plot_wigner(state, tensorstate, cmap='seismic', title=None, savepath=None):
-    if tensorstate: state = qt.ptrace(state, 1)
-    xvec = np.linspace(-7,7,81)
-    W = qt.wigner(state, xvec, xvec, g=sqrt(2))
-    fig, ax = plt.subplots(figsize=(6,5))
-    # p = ax.pcolormesh(xvec, xvec, W, cmap=cmap, vmin=-1, vmax=+1) #'RdBu_r'
-    # ax.plot([sqrt(pi), sqrt(pi)/2, 0, 0], [0, 0, sqrt(pi), sqrt(pi)/2], 
-    #         linestyle='none', marker='.',color='black')
-
-    p = ax.pcolormesh(xvec/sqrt(pi), xvec/sqrt(pi), W, cmap=cmap, vmin=-1, vmax=+1) #'RdBu_r'   
-    ax.plot([1, 1/2, 0, 0], [0, 0, 1, 1/2], 
-            linestyle='none', marker='.',color='black')
-    fig.colorbar(p, ax=ax)
-    plt.grid()
-    if title: ax.set_title(title)
-    if savepath: plt.savefig(savepath)
-
-
-# TODO: add support for batch plotting
-def plot_wigner_tf_wrapper(state, tensorstate=False, *args, **kwargs):
-    try:
-        assert state.shape[0]==1
-    except:
-        raise ValueError('Batch plotting is not supported')
-    state = state.numpy()[0]
-
-    if tensorstate:
-        N = int(len(state) / 2)
-        state = state.reshape((2*N,1))
-        dims = [[2, N], [1, 1]]
-    else:
-        N = int(len(state))
-        state = state.reshape((N,1))
-        dims = [[N], [1]]
+def GKP_1D_state(tensorstate, N, Delta):
+    """ This function creates a gkp sensor state as qutip Qobj."""    
+    Sx, Sp = qt.displace(N, sqrt(pi)), qt.displace(N, 1j*sqrt(pi))
+     
+    def envelope_operator(N, Delta=Delta):
+        a = qt.destroy(N)
+        n_op = a.dag()*a
+        G = (-Delta**2 * n_op).expm()
+        G_inv = (Delta**2 * n_op).expm()
+        return lambda rho: G*rho*G_inv
     
-    state = qt.Qobj(state, dims=dims, type='ket')    
-    plot_wigner(state, tensorstate, *args, **kwargs)
+    # Define Hermitian stablizers and apply the envelope
+    chan = envelope_operator(N)
+    Sx = chan((Sx + Sx.dag())/2)
+    Sp = chan((Sp + Sp.dag())/2)
+    
+    # find ground state of this Hamiltonian
+    state = (-Sx - Sp).groundstate()[1].unit()
+    if tensorstate: state = qt.tensor(qt.identity(2), state)
+    return state
 
 
 def vec_to_complex(a):
