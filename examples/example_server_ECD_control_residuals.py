@@ -20,7 +20,7 @@ from tf_agents.networks import actor_distribution_network
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\remote'
-root_dir = os.path.join(root_dir,'0')
+root_dir = os.path.join(root_dir,'1')
 
 # Params for environment
 env_kwargs = {
@@ -43,7 +43,9 @@ reward_kwargs = {'reward_mode' : 'remote',
                  'tomography' : 'characteristic_fn',
                  'target_state' : target_state,
                  'window_size' : 16,
-                 'host_port' : ('172.28.142.46', 5555)}
+                 'host_port' : ('172.28.142.46', 5555),
+                 'skip' : False,
+                 'amplitude_type' : 'translation'}
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',
                       'target_state' : target_state,
@@ -104,6 +106,7 @@ PPO.train_eval(
         replay_buffer_capacity = 15000,
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
+        zero_means_kernel_initializer = True,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = False,

@@ -238,7 +238,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             ax.set_aspect('equal')
         
         if self.phase_space_rep == 'characteristic_fn':
-            C = expectation(state, self.translate(grid_flat))
+            C = expectation(state, self.translate(grid_flat), reduce_batch=False)
             C_grid = tf.reshape(C, grid.shape)
             
             fig, axes = plt.subplots(1,2, sharey=True)
@@ -474,6 +474,10 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             target_state = reward_kwargs['target_state']
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
+            skip = reward_kwargs['skip']
+            amplitude_type = reward_kwargs['amplitude_type']
+            
+            assert amplitude_type in ['displacement', 'translation']
             
             self.server_socket = rmt.Server()
             (host, port) = reward_kwargs['host_port']
@@ -481,7 +485,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             self.server_socket.connect_client()
             
             self.calculate_reward = lambda args: self.reward_remote(
-                    target_state, window_size, tomography)
+                    target_state, window_size, tomography, skip, amplitude_type)
 
 
     def reward_Fock(self, target_projector, *args):
@@ -565,7 +569,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             if tomography == 'characteristic_fn':
                 C_target = expectation(target_state, self.translate(-points), 
                                        reduce_batch=False)
-                target = tf.math.real(tf.squeeze(C_target))                     
+                target = tf.math.real(tf.squeeze(C_target))
             reject = P_v.sample() > tf.math.abs(target)
             # mask which streams should be interrupted at this iteration
             mask = tf.logical_and(tf.logical_not(reject), tf.logical_not(accepted))
@@ -627,7 +631,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             M1_buffer.append(M1)
             M2_buffer.append(M2)
         msmt = tf.cast([M1_buffer, M2_buffer], tf.float32)
-        msmt = np.transpose(msmt, axes=[0,3,1,2])
+        msmt = tf.transpose(msmt, perm=[0,3,1,2])
         return msmt
     
 
@@ -658,54 +662,26 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             
         N_alpha = alpha_sample_schedule(self._epoch)
         N_msmt = msmt_sample_schedule(self._epoch)
-        e_penalty_coeff = penalty_coeff_schedule(self._epoch)
+        penalty_coeff = penalty_coeff_schedule(self._epoch)
         
         # populate a new mini-buffer for each epoch
         mini_buffer, target_vals = self.fill_buffer(
                 target_state, window_size, tomography, samples=N_alpha)
         
-        z = 0
-        for i in range(N_alpha):
-            # take 1 point from the buffer and replicate it for the batch
-            targets = tf.broadcast_to(target_vals[i], [self.batch_size])
-            points = tf.broadcast_to(mini_buffer[i], [self.batch_size])
-
-            M = 0 + 1e-10
-            Z = 0
-            for j in range(N_msmt):
-                # first measure the qubit to disentangle from oscillator
-                psi = self.info['psi_cached']
-                if self.tensorstate:
-                    psi, m = measurement(psi, self.P, sample=True)
-                    # psi = tf.where(m==1, psi, tf.linalg.matvec(self.sx, psi))
-                    mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
-                    # mask = tf.squeeze(tf.where(self.history['msmt'][-1]==1, 1.0, 0.0))
-                else:
-                    mask = tf.ones([self.batch_size])
-                
-                # do tomography in one phase space point
-                if tomography == 'wigner':
-                    translations = self.translate(-points)
-                    psi = tf.linalg.matvec(translations, psi)
-                    _, msmt = self.phase_estimation(psi, self.parity,
-                                angle=tf.zeros(self.batch_size), sample=True)
-                if tomography == 'characteristic_fn':
-                    translations = self.translate(points)
-                    _, msmt = self.phase_estimation(psi, translations,
-                                angle=tf.zeros(self.batch_size), sample=True)
-                
-                # Make a noisy Monte Carlo estimate of the overlap integral.
-                # If using characteristic_fn, this would work only for symmetric 
-                # states (GKP, Fock etc)
-                # Mask out trajectories where qubit was measured in |e> 
-                Z += tf.squeeze(msmt) * tf.math.sign(targets) * mask \
-                    - e_penalty_coeff * (1-mask)
-                M += mask
-            z += Z/N_msmt
-        z /= N_alpha
+        # get array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
+        msmt = self.collect_tomography_measurements(
+            tomography, mini_buffer, N_msmt)
+        
+        # create mask based on the first "disentangling" measurement
+        # construct fidelity estimator and penalty term
+        mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
+        targets = tf.reshape(target_vals, [1, len(target_vals), 1])
+        z = msmt[1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
+        z = tf.math.reduce_mean(z, axis=[1,2])
         return z
 
-    def reward_remote(self, target_state, window_size, tomography):
+    def reward_remote(self, target_state, window_size, tomography, skip,
+                      amplitude_type):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
@@ -717,8 +693,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps != self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
 
-        N_alpha, N_msmt = 100, 10
-        penalty_coeff = 1.0
+        N_alpha, N_msmt = 120, 10
+        penalty_coeff = 0.0
         
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
@@ -729,11 +705,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         mini_buffer, targets = self.fill_buffer(
                 target_state, window_size, tomography, samples=N_alpha)
 
+        np_targets = [C.numpy() for C in targets]
         np_mini_buffer = [alpha.numpy() for alpha in mini_buffer]
+        if amplitude_type == 'displacement':
+            np_mini_buffer = [alpha / sqrt(2) for alpha in np_mini_buffer]
         
         # send action sequence and phase space points to remote client
         message = dict(action_batch=action_batch, 
                        mini_buffer=np_mini_buffer,
+                       targets=np_targets,
                        batch_size=self.batch_size,
                        N_alpha=N_alpha, N_msmt=N_msmt,
                        epoch_type='training',
@@ -744,6 +724,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         # receive array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
         msmt, done = self.server_socket.recv_data()
+        
+        if skip: return tf.zeros(self.batch_size, dtype=tf.float32)
+        
         msmt = tf.cast(msmt, tf.float32)
         
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
@@ -853,8 +836,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps < self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
         
-        # sample random stabilizer directions
-        theta = tf.where(tf.random.uniform([self.batch_size])>1/2, 0., pi/2)
+        # sample random stabilizer directions (+/-x, +/-p)
+        mask = tf.random.uniform([self.batch_size])
+        theta_x = tf.where(mask>3/4, 0., pi)*tf.where(mask>1/2, 1., 0.)
+        theta_p = tf.where(mask>1/4, pi/2, -pi/2)*tf.where(mask<1/2, 1., 0.)
+        theta = theta_x + theta_p
         theta = tf.cast(theta, c64)
         
         if self.tensorstate:
