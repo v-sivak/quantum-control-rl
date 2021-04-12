@@ -14,6 +14,16 @@ class ConditionalDisplacementCompiler():
     
     def __init__(self, cal_dir=None, qubit_pulse_shift=0, qubit_pulse_pad=0,
                  pad_clock_cycle=True):
+        """
+        Args:
+            cal_dir (str): directory with cavity rotation frequency calibrations. 
+                Should contain .npy files named 'nbar', 'freq_e' and 'freq_g'.
+            qubit_pulse_shift (int): by how much to advance or delay the qubit 
+                pulse relative to the cavity pulse (in nanoseconds).
+            qubit_pulse_pad (int): by how much to pad the qubit pulse on each
+                side with zeros (in nanoseconds).
+            pad_clock_cycle (bool): flag to pad the gate to be multiple of 4 ns
+        """
         self.cal_dir = cal_dir
         self.qubit_pulse_shift = qubit_pulse_shift
         self.qubit_pulse_pad = qubit_pulse_pad
@@ -48,7 +58,7 @@ class ConditionalDisplacementCompiler():
             freq_g = lambda a: CubicSpline(nbar, freq_g_exp)(a**2)
             freq_e = lambda a: CubicSpline(nbar, freq_e_exp)(a**2)
 
-        # use Nelder-Mead algo to find optimal alpha for each tau
+        # use Nelder-Mead to find optimal alpha for each tau
         def cost_fn(a):
             phi = 2*np.pi*(freq_g(a)-freq_e(a))*tau*1e-9
             return (beta - 2*a*np.sin(phi))**2
@@ -65,10 +75,12 @@ class ConditionalDisplacementCompiler():
         return (alpha, phi_g, phi_e)
     
     def get_calibrated_pulse(self, pulse, zero_pad=False):
-        """ Get calibrated pulse with correct dac amp, detuning etc."""
+        """ Get calibrated pulse with correct dac amp, detuning etc.
+        If the pulse is shorter than 24 ns, fpga_lib would pad it to 24. This
+        function strips that padding."""
         i, q = pulse.make_wave(zero_pad=zero_pad)
         f = pulse.detune
-        t_offset = (24 - len(i)) / 2
+        t_offset = (24 - len(i)) / 2 # assumes pulse is no longer than 24 ns
         t = (np.arange(len(i)) + t_offset)*1e-9
         i_prime = np.cos(2*np.pi*f*t)*i + np.sin(2*np.pi*f*t)*q
         q_prime = np.cos(2*np.pi*f*t)*q - np.sin(2*np.pi*f*t)*i
@@ -123,7 +135,7 @@ class ConditionalDisplacementCompiler():
             Q_pulse = np.concatenate([Q_pulse, zero_pad])
 
         return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)
-    
+
     
 class sBs_compiler():
     
