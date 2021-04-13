@@ -29,7 +29,7 @@ class ConditionalDisplacementCompiler():
         self.qubit_pulse_pad = qubit_pulse_pad
         self.pad_clock_cycle = pad_clock_cycle
     
-    def CD_params(self, beta, tau_ns):
+    def CD_params_fixed_tau(self, beta, tau_ns):
         """
         Find parameters for CD gate based on simple constant chi model.
         This uses the definition CD(beta) = D(sigma_z*beta/2).
@@ -40,7 +40,17 @@ class ConditionalDisplacementCompiler():
         alpha = beta / 4. / np.sin(2*np.pi*cavity.chi*tau_ns*1e-9) * 1j
         phi_g = np.zeros_like(alpha)
         phi_e = np.zeros_like(alpha)
-        return (alpha, phi_g, phi_e)
+        return (tau_ns, alpha, phi_g, phi_e)
+
+    def CD_params_fixed_alpha(self, beta, alpha_abs):
+        tau = 2. / (2*np.pi*cavity.chi) * np.arcsin(np.abs(beta/alpha_abs/4.))
+        tau_ns = int(round(tau*1e9))
+        alpha_phase = np.angle(beta) + np.pi/2
+        alpha = alpha_abs * np.exp(1j*alpha_phase)
+        phi_g = np.zeros_like(alpha)
+        phi_e = np.zeros_like(alpha)
+        return (tau_ns, alpha, phi_g, phi_e)
+
 
     # TODO: check this for consistency of directions of displacements
     def CD_params_improved(self, beta, tau, interpolation='quartic_fit'):
@@ -151,10 +161,14 @@ class ConditionalDisplacementCompiler():
 # TODO: make sure all conventions for direction of rotation are consistent
 class ECD_control_simple_compiler():
     
-    def __init__(self, tau_ns=20):
+    def __init__(self, tau_ns=None, alpha_abs=None):
         self.CD = ConditionalDisplacementCompiler(pad_clock_cycle=False)
         self.pi_pulse = self.CD.get_calibrated_pulse(qubit.pulse)
-        self.tau = tau_ns
+        
+        if tau_ns is not None:
+            self.CD_params_func = lambda beta: self.CD.CD_params_fixed_tau(beta, tau_ns)
+        elif alpha_abs is not None:
+            self.CD_params_func = lambda beta: self.CD.CD_params_fixed_alpha(beta, alpha_abs)
 
     def make_pulse(self, beta, phi):
         """
@@ -162,7 +176,6 @@ class ECD_control_simple_compiler():
             beta (array([T,2], flaot32)):
             phi (array([T2, float32]))
         """
-        CD_params_func = self.CD.CD_params
         T = beta.shape[0] # protocol duration (number of steps)
         C_pulse, Q_pulse = np.array([]), np.array([])
         
@@ -175,8 +188,8 @@ class ECD_control_simple_compiler():
             
             # Then create the CD gate
             beta_t = beta[t,0] + 1j*beta[t,1]
-            (alpha, phi_g, phi_e) = CD_params_func(beta_t, self.tau)
-            cav_CD, qb_CD = self.CD.make_pulse(self.tau, alpha, phi_g, phi_e)
+            (tau, alpha, phi_g, phi_e) = self.CD_params_func(beta_t)
+            cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
             C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
             Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
         
