@@ -25,12 +25,15 @@ while not done:
     # receive action data from the agent
     message, done = client_socket.recv_data()
     print('Received data.')
-    print(message)    
     if done: break
     action_batch = message['action_batch']
     mini_buffer = message['mini_buffer']
-
-    msmt = np.ones([2,10,100,10])
+    print('Epoch %d' %message['epoch'])
+    print(message['epoch_type'])
+    print(message['action_batch']['beta'].shape)
+    print('N_alpha=%d, N_msmt=%d' %(message['N_alpha'], message['N_msmt']))
+    
+    msmt = np.ones([2,message['batch_size'],message['N_alpha'],message['N_msmt']])
     client_socket.send_data(msmt)
 
 
@@ -38,24 +41,24 @@ while not done:
 
 
 
-# Create environment that will produce mock measurement outcomes
+# # Create environment that will produce mock measurement outcomes
 
 
-# connect to the agent
-client_socket = Client()
-(host, port) = '172.28.142.46', 5554
-client_socket.connect((host, port))
+# # connect to the agent
+# client_socket = Client()
+# (host, port) = '172.28.142.46', 5554
+# client_socket.connect((host, port))
 
-# training loop
-done = False
-while not done:
-    # receive action data from the agent
-    message, done = client_socket.recv_data()
-    print('Received data.')
-    print(message)    
-    if done: break
-    action_batch = message['action_batch']
-    mini_buffer = message['mini_buffer']
+# # training loop
+# done = False
+# while not done:
+#     # receive action data from the agent
+#     message, done = client_socket.recv_data()
+#     print('Received data.')
+#     print(message)    
+#     if done: break
+#     action_batch = message['action_batch']
+#     mini_buffer = message['mini_buffer']
 
-    msmt = np.ones([2,1,100,10])
-    client_socket.send_data(msmt)
+#     msmt = np.ones([2,1,100,10])
+#     client_socket.send_data(msmt)

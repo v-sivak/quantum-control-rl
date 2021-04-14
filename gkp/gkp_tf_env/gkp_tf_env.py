@@ -19,7 +19,6 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import measurement, expectation, normalize
 from gkp.gkp_tf_env import helper_functions as hf
-from remote_env_tools import remote_env_tools as rmt
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
@@ -87,7 +86,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         self.setup_reward(reward_kwargs)
         self.define_stabilizer_code(encoding)
-        self._epoch = 0
+        self._epoch = 1
 
         # Define action and observation specs
         self.quantum_circuit = self._quantum_circuit
@@ -314,8 +313,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
     def setup_reward(self, reward_kwargs):
         """Setup the reward function based on reward_kwargs. """
         try:
-            assert 'reward_mode' in reward_kwargs
-            mode = reward_kwargs['reward_mode']
+            mode = reward_kwargs.pop('reward_mode')
             assert mode in ['zero',
                             'measurement',
                             'stabilizers',
@@ -417,18 +415,13 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of phase space window
                 
-            """
-            assert 'target_state' in reward_kwargs.keys()
-            assert 'window_size' in reward_kwargs.keys()
-            assert 'tomography' in reward_kwargs.keys()        
-            window_size = reward_kwargs['window_size']
-            tomography = reward_kwargs['tomography']
-            target_state = reward_kwargs['target_state']
+            """            
+            target_state = reward_kwargs.pop('target_state')
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
-            self.calculate_reward = \
-                lambda args: self.reward_tomography(
-                    target_state, window_size, tomography)
+            reward_kwargs['target_state'] = target_state
+            
+            self.calculate_reward = lambda x: self.reward_tomography(**reward_kwargs)
 
         if mode == 'stabilizers':
             """
@@ -465,27 +458,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of phase space window
                 host_port (tuple): for example ('172.28.140.123', 5555)
-            """
-            for k in ['target_state', 'window_size', 'tomography', 'host_port']:
-                assert k in reward_kwargs.keys()
-                
-            window_size = reward_kwargs['window_size']
-            tomography = reward_kwargs['tomography']
-            target_state = reward_kwargs['target_state']
+            """            
+            self.server_socket = reward_kwargs.pop('server_socket')
+            
+            target_state = reward_kwargs.pop('target_state')
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
-            skip = reward_kwargs['skip']
-            amplitude_type = reward_kwargs['amplitude_type']
+            reward_kwargs['target_state'] = target_state
             
-            assert amplitude_type in ['displacement', 'translation']
-            
-            self.server_socket = rmt.Server()
-            (host, port) = reward_kwargs['host_port']
-            self.server_socket.bind((host, port))
-            self.server_socket.connect_client()
-            
-            self.calculate_reward = lambda args: self.reward_remote(
-                    target_state, window_size, tomography, skip, amplitude_type)
+            self.calculate_reward = lambda x: self.reward_remote(**reward_kwargs)
 
 
     def reward_Fock(self, target_projector, *args):
@@ -680,8 +661,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         z = tf.math.reduce_mean(z, axis=[1,2])
         return z
 
-    def reward_remote(self, target_state, window_size, tomography, skip,
-                      amplitude_type):
+    def reward_remote(self, target_state, window_size, tomography,
+                      amplitude_type, epoch_type, N_alpha, N_msmt):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
@@ -693,8 +674,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         if self._elapsed_steps != self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
 
-        N_alpha, N_msmt = 120, 10
-        penalty_coeff = 0.0
+        penalty_coeff = 1.0
         
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
@@ -707,6 +687,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
         np_targets = [C.numpy() for C in targets]
         np_mini_buffer = [alpha.numpy() for alpha in mini_buffer]
+        
+        assert amplitude_type in ['displacement', 'translation'] 
         if amplitude_type == 'displacement':
             np_mini_buffer = [alpha / sqrt(2) for alpha in np_mini_buffer]
         
@@ -716,8 +698,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                        targets=np_targets,
                        batch_size=self.batch_size,
                        N_alpha=N_alpha, N_msmt=N_msmt,
-                       epoch_type='training',
-                       compile_flag=True,
+                       epoch_type=epoch_type,
                        epoch=self._epoch)
         
         self.server_socket.send_data(message)
@@ -725,7 +706,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # receive array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
         msmt, done = self.server_socket.recv_data()
         
-        if skip: return tf.zeros(self.batch_size, dtype=tf.float32)
+        if epoch_type == 'evaluation':
+            return tf.zeros(self.batch_size, dtype=tf.float32)
         
         msmt = tf.cast(msmt, tf.float32)
         

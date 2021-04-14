@@ -249,6 +249,12 @@ def train_eval(
             'experience_time' : [0.0],
             'train_time' : [0.0]
             }
+        print('-------------------')
+        print('Epoch 0')
+        print('  Policy steps: 0')
+        print('  Experience time: 0.00 mins')
+        print('  Policy train time: 0.00 mins')
+        print('  Average return: %.5f' %avg_return)
         
         # Save initial random policy
         path = os.path.join(policy_dir,('0').zfill(6))
@@ -300,3 +306,4 @@ def train_eval(
                     # Save training checkpoint
                     train_checkpointer.save(global_step)
         collect_driver.finish_training()
+        eval_driver.finish_training()
