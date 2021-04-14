@@ -72,7 +72,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 for the reward function of RL agent.
             encoding (str, optional): Type of GKP lattice. Defaults to "square".
             phase_space_rep (str, optional): phase space representation to use
-                for rendering ('wigner' or 'characteristic_fn')
+                for rendering ('wigner' or 'CF')
             
         """
         # Default simulation parameters
@@ -236,7 +236,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                                cmap='RdBu_r', vmin=-1/pi, vmax=1/pi)
             ax.set_aspect('equal')
         
-        if self.phase_space_rep == 'characteristic_fn':
+        if self.phase_space_rep == 'CF':
             C = expectation(state, self.translate(grid_flat), reduce_batch=False)
             C_grid = tf.reshape(C, grid.shape)
             
@@ -411,11 +411,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'tomography'
-                tomography (str): either 'wigner' or 'characteristic_fn'
+                tomography (str): either 'wigner' or 'CF'
                 target_state (Qobj, type=ket): Qutip object
                 window_size (float): size of phase space window
-                
-            """            
+                N_alpha (int): number of phase space points to sample
+                N_msmt (int): number of measurements per phase space point
+                sampling_type (str): either 'abs' or 'square'
+            """
+            assert reward_kwargs['sampling_type'] in ['abs', 'sqr']
+            assert reward_kwargs['tomography'] in ['wigner', 'CF']
+            
             target_state = reward_kwargs.pop('target_state')
             target_state = tf.constant(target_state.full(), dtype=c64)
             target_state = tf.transpose(target_state)
@@ -454,11 +459,20 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             """
             Required reward_kwargs:
                 reward_mode (str): 'remote'
-                tomography (str): either 'wigner' or 'characteristic_fn'
-                target_state (Qobj, type=ket): Qutip object
-                window_size (float): size of phase space window
-                host_port (tuple): for example ('172.28.140.123', 5555)
-            """            
+                tomography (str): either 'wigner' or 'CF'
+                target_state (Qobj, type=ket): Qutip state-vector object
+                window_size (float): size of (symmetric) phase space window
+                server_socket (Socket): socket for communication
+                amplitude_type (str): either 'displacement' or 'translation'
+                epoch_type (str): either 'training' or 'evaluation'
+                N_alpha (int): number of phase space points to sample
+                N_msmt (int): number of measurements per phase space point
+                sampling_type (str): either 'abs' or 'square'
+            """
+            assert reward_kwargs['tomography'] in ['wigner', 'CF']
+            assert reward_kwargs['amplitude_type'] in ['displacement', 'translation']
+            assert reward_kwargs['epoch_type'] in ['training', 'evaluation']
+            assert reward_kwargs['sampling_type'] in ['abs', 'sqr']
             self.server_socket = reward_kwargs.pop('server_socket')
             
             target_state = reward_kwargs.pop('target_state')
@@ -518,15 +532,19 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return z
 
 
-    def fill_buffer(self, target_state, window_size, tomography, samples=1000):
+    def fill_buffer(self, target_state, window_size, tomography, num_samples,
+                    sampling_type):
         """
         Fill the buffer of phase space points and corresponding target Wigner
         or characteristic function values. Points are produced with rejection
         sampling proportionally to the |W| or |Re[C]|.
         
         Returns:
-            buffer (list(c64)): a list of phase space points
-            target_vals (list(float32)): a list of target values
+            target_state (Tensor([1,N]), c64): tf target state
+            window_size (float): size of (symmetric) phase space window
+            tomography (str): either 'wigner' or 'CF'
+            num_samples (int): number of samples to generate
+            sampling_type (str): either 'abs' or 'sqr'
         """
         # Distributions for rejection sampling
         L = window_size/2
@@ -547,11 +565,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                 W_target = expectation(target_state_translated, 
                                        self.parity, reduce_batch=False)
                 target = tf.math.real(tf.squeeze(W_target))
-            if tomography == 'characteristic_fn':
+            if tomography == 'CF':
                 C_target = expectation(target_state, self.translate(-points), 
                                        reduce_batch=False)
                 target = tf.math.real(tf.squeeze(C_target))
-            reject = P_v.sample() > tf.math.abs(target)
+            if sampling_type == 'abs': 
+                V = tf.math.abs(target)
+            elif sampling_type == 'sqr': 
+                V = tf.math.abs(target)**2
+            reject = P_v.sample() > V
             # mask which streams should be interrupted at this iteration
             mask = tf.logical_and(tf.logical_not(reject), tf.logical_not(accepted))
             accepted = tf.logical_or(mask, accepted)
@@ -603,7 +625,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
                     _, m2 = self.phase_estimation(psi, self.parity,
                                 angle=tf.zeros(self.batch_size), sample=True)
                 
-                if tomography == 'characteristic_fn':
+                if tomography == 'CF':
                     translations = self.translate(points)
                     _, m2 = self.phase_estimation(psi, translations,
                                 angle=tf.zeros(self.batch_size), sample=True)
@@ -616,7 +638,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         return msmt
     
 
-    def reward_tomography(self, target_state, window_size, tomography):
+    def reward_tomography(self, target_state, window_size, tomography, 
+                          N_alpha, N_msmt, sampling_type):
         """
         Reward only on last time step using the empirical approximation of the 
         overlap of the prepared state with the target state. This overlap is
@@ -631,23 +654,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # return 0 on all intermediate steps of the episode
         if self._elapsed_steps < self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
-        
-        def alpha_sample_schedule(n):
-            return 100
-        
-        def msmt_sample_schedule(n):
-            return 10
-        
+
         def penalty_coeff_schedule(n):
             return 1
-            
-        N_alpha = alpha_sample_schedule(self._epoch)
-        N_msmt = msmt_sample_schedule(self._epoch)
+
         penalty_coeff = penalty_coeff_schedule(self._epoch)
         
         # populate a new mini-buffer for each epoch
         mini_buffer, target_vals = self.fill_buffer(
-                target_state, window_size, tomography, samples=N_alpha)
+                target_state, window_size, tomography, N_alpha, sampling_type)
         
         # get array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
         msmt = self.collect_tomography_measurements(
@@ -657,12 +672,19 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         # construct fidelity estimator and penalty term
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
         targets = tf.reshape(target_vals, [1, len(target_vals), 1])
-        z = msmt[1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
-        z = tf.math.reduce_mean(z, axis=[1,2])
+        
+        if sampling_type == 'abs':
+            Z = msmt[1] * tf.math.sign(targets) * mask
+        elif sampling_type == 'sqr'
+            Z = msmt[1] / targets * mask
+        
+        Z = Z - penalty_coeff * (1-mask)
+        z = tf.math.reduce_mean(Z, axis=[1,2])
         return z
 
     def reward_remote(self, target_state, window_size, tomography,
-                      amplitude_type, epoch_type, N_alpha, N_msmt):
+                      amplitude_type, epoch_type, N_alpha, N_msmt,
+                      sampling_type):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
@@ -683,12 +705,11 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
  
         # populate a new mini-buffer for each epoch
         mini_buffer, targets = self.fill_buffer(
-                target_state, window_size, tomography, samples=N_alpha)
+                target_state, window_size, tomography, N_alpha, sampling_type)
 
         np_targets = [C.numpy() for C in targets]
         np_mini_buffer = [alpha.numpy() for alpha in mini_buffer]
         
-        assert amplitude_type in ['displacement', 'translation'] 
         if amplitude_type == 'displacement':
             np_mini_buffer = [alpha / sqrt(2) for alpha in np_mini_buffer]
         
@@ -710,10 +731,15 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             return tf.zeros(self.batch_size, dtype=tf.float32)
         
         msmt = tf.cast(msmt, tf.float32)
-        
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
         targets = tf.reshape(targets, [1, len(targets), 1])
-        Z = msmt[1]*tf.math.sign(targets)*mask - penalty_coeff*(1-mask)
+        
+        if sampling_type == 'abs':
+            Z = msmt[1] * tf.math.sign(targets) * mask
+        elif sampling_type == 'sqr'
+            Z = msmt[1] / targets * mask
+        
+        Z = Z - penalty_coeff * (1-mask)
         z = tf.math.reduce_mean(Z, axis=[1,2])
         return z
         

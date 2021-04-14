@@ -53,7 +53,8 @@ reward_kwargs = {'reward_mode' : 'remote',
                  'amplitude_type' : 'displacement',
                  'epoch_type' : 'training',
                  'N_alpha' : 100,
-                 'N_msmt' : 10}
+                 'N_msmt' : 10,
+                 'sampling_type' : 'abs'}
 
 reward_kwargs_eval = {'reward_mode' : 'remote',
                     'tomography' : 'wigner',
@@ -63,7 +64,8 @@ reward_kwargs_eval = {'reward_mode' : 'remote',
                     'amplitude_type' : 'displacement',
                     'epoch_type' : 'evaluation',
                     'N_alpha' : 10,
-                    'N_msmt' : 10}
+                    'N_msmt' : 10,
+                    'sampling_type' : 'abs'}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
