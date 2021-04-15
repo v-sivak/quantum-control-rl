@@ -86,7 +86,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         self.setup_reward(reward_kwargs)
         self.define_stabilizer_code(encoding)
-        self._epoch = 1
+        self._epoch = 0
 
         # Define action and observation specs
         self.quantum_circuit = self._quantum_circuit
@@ -548,14 +548,16 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         """
         # Distributions for rejection sampling
         L = window_size/2
-        P = tfp.distributions.Uniform(low=[[-L,-L]]*samples, high=[[L,L]]*samples)
-        P_v = tfp.distributions.Uniform(low=[0.0]*samples, high=[1.0]*samples)
+        P = tfp.distributions.Uniform(
+            low=[[-L,-L]]*num_samples, high=[[L,L]]*num_samples)
+        P_v = tfp.distributions.Uniform(
+            low=[0.0]*num_samples, high=[1.0]*num_samples)
             
         cond = True
         # mask for asynchronous interruption of rejection sampling
-        accepted = tf.zeros([samples], tf.bool) 
-        accepted_points = tf.zeros([samples], tf.complex64)
-        accepted_targets = tf.zeros([samples], tf.float32)
+        accepted = tf.zeros([num_samples], tf.bool) 
+        accepted_points = tf.zeros([num_samples], tf.complex64)
+        accepted_targets = tf.zeros([num_samples], tf.float32)
         # batch rejection sampling of phase space points
         while cond:
             points = tf.squeeze(hf.vec_to_complex(P.sample()))
@@ -634,6 +636,9 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             M1_buffer.append(M1)
             M2_buffer.append(M2)
         msmt = tf.cast([M1_buffer, M2_buffer], tf.float32)
+        if self.batch_size == 1:
+            msmt = tf.expand_dims(msmt, axis=-1)
+        # at this point msmt.shape = [2, N_alpha, N_msmt, B]
         msmt = tf.transpose(msmt, perm=[0,3,1,2])
         return msmt
     
@@ -675,7 +680,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         if sampling_type == 'abs':
             Z = msmt[1] * tf.math.sign(targets) * mask
-        elif sampling_type == 'sqr'
+        elif sampling_type == 'sqr':
             Z = msmt[1] / targets * mask
         
         Z = Z - penalty_coeff * (1-mask)
@@ -726,20 +731,20 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
         
         # receive array of outcomes of shape [2, batch_size, N_alpha, N_msmt]
         msmt, done = self.server_socket.recv_data()
-        
-        if epoch_type == 'evaluation':
-            return tf.zeros(self.batch_size, dtype=tf.float32)
-        
         msmt = tf.cast(msmt, tf.float32)
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_alpha, N_msmt]
         targets = tf.reshape(targets, [1, len(targets), 1])
-        
+
+        # calculate fidelity estimator and use it as reward.
         if sampling_type == 'abs':
-            Z = msmt[1] * tf.math.sign(targets) * mask
-        elif sampling_type == 'sqr'
+            Z = msmt[1] * tf.math.sign(targets) * mask # propto fidelity
+        elif sampling_type == 'sqr':
             Z = msmt[1] / targets * mask
         
-        Z = Z - penalty_coeff * (1-mask)
+        # if training, include penalty for measuring m1='e'
+        if epoch_type == 'training':
+            Z = Z - penalty_coeff * (1-mask)
+        
         z = tf.math.reduce_mean(Z, axis=[1,2])
         return z
         
@@ -967,8 +972,8 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
 
     @batch_size.setter
     def batch_size(self, size):
-        if 'code_map' in self.__dir__():
-            raise ValueError('Cannot change batch_size after initialization.')
+        # if 'code_map' in self.__dir__():
+        #     raise ValueError('Cannot change batch_size after initialization.')
         try:
             assert size>0 and isinstance(size,int)
             self._batch_size = size

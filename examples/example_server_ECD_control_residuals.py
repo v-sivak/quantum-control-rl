@@ -17,39 +17,49 @@ import qutip as qt
 from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
+from remote_env_tools import remote_env_tools as rmt
 
+root_dir = r'E:\data\gkp_sims\PPO\ECD\remote\0'
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\remote'
-root_dir = os.path.join(root_dir,'1')
+# socket for communication with environment
+server_socket = rmt.Server()
+(host, port) = ('172.28.142.46', 5555)
+server_socket.bind((host, port))
+server_socket.connect_client()
 
 # Params for environment
 env_kwargs = {
     'simulate' : 'ECD_control_remote',
     'init' : 'vac',
     'T' : 8,
-    'N' : 50}
+    'N' : 100}
 
 # Evaluation environment params
 eval_env_kwargs = {
     'simulate' : 'ECD_control',
     'init' : 'vac',
     'T' : 8, 
-    'N' : 50}
+    'N' : 100}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
+target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
 
-reward_kwargs = {'reward_mode' : 'remote',
-                 'tomography' : 'characteristic_fn',
-                 'target_state' : target_state,
-                 'window_size' : 16,
-                 'host_port' : ('172.28.142.46', 5555),
-                 'skip' : False,
-                 'amplitude_type' : 'translation'}
+reward_kwargs = {
+    'reward_mode' : 'remote',
+    'tomography' : 'wigner',
+    'target_state' : target_state,
+    'window_size' : 16,
+    'server_socket' : server_socket,
+    'amplitude_type' : 'translation',
+    'epoch_type' : 'training',
+    'N_alpha' : 100,
+    'N_msmt' : 10,
+    'sampling_type' : 'abs'}
 
-reward_kwargs_eval = {'reward_mode' : 'overlap',
-                      'target_state' : target_state,
-                      'postselect_0' : False}
+reward_kwargs_eval = {
+    'reward_mode' : 'overlap',
+    'target_state' : target_state,
+    'postselect_0' : False}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
@@ -57,7 +67,7 @@ action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
 train_batch_size = 10
-eval_batch_size = 1000
+eval_batch_size = 100
 
 learn_residuals = True
 

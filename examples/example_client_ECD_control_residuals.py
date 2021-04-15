@@ -18,7 +18,7 @@ from remote_env_tools.remote_env_tools import Client
 
 # Create environment that will produce mock measurement outcomes
 env = gkp_init(simulate='ECD_control', reward_kwargs={'reward_mode' : 'zero'},
-               init='vac', T=8, batch_size=10, N=50, episode_length=8)
+               init='vac', T=8, batch_size=10, N=100, episode_length=8)
 
 # connect to the agent
 client_socket = Client()
@@ -34,6 +34,7 @@ while not done:
     action_batch = message['action_batch']
     mini_buffer = message['mini_buffer']
     N_msmt = message['N_msmt']
+    env.batch_size = message['batch_size']
     
     # simulate a batch of episodes
     env.reset()
@@ -43,7 +44,7 @@ while not done:
     
     # collect reward measurements and send them back to the agent
     msmt = env.collect_tomography_measurements(
-        'characteristic_fn', mini_buffer, N_msmt=N_msmt)
+        'wigner', mini_buffer, N_msmt=N_msmt)
     client_socket.send_data(msmt)
 
 

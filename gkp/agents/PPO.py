@@ -42,6 +42,7 @@ def train_eval(
         save_interval = 1000,
         checkpoint_interval = None,
         summary_interval = 100,
+        do_evaluation = True,
         # Params for data collection
         train_batch_size = 10,
         eval_batch_size = 100,
@@ -96,6 +97,8 @@ def train_eval(
         summary_interval (int): interval between summary writing, counted in 
             epochs. tf-agents takes care of summary writing; results can be
             later displayed in tensorboard.
+        do_evaluation (bool): flag to interleave training epochs with 
+            evaluation epochs.
         train_batch_size (int): training batch size, collected in parallel.
         eval_batch_size (int): batch size for evaluation of the policy.
         collect_driver (Driver): driver for training data collection
@@ -239,22 +242,23 @@ def train_eval(
             eval_policy, train_step=global_step)
     
         # Evaluate policy once before training
-        eval_driver.run(0)
-        avg_return = avg_return_metric.result().numpy()
-        avg_return_metric.reset()
-        log = {
-            'returns' : [avg_return],
-            'epochs' : [0],
-            'policy_steps' : [0],
-            'experience_time' : [0.0],
-            'train_time' : [0.0]
-            }
-        print('-------------------')
-        print('Epoch 0')
-        print('  Policy steps: 0')
-        print('  Experience time: 0.00 mins')
-        print('  Policy train time: 0.00 mins')
-        print('  Average return: %.5f' %avg_return)
+        if do_evaluation:
+            eval_driver.run(0)
+            avg_return = avg_return_metric.result().numpy()
+            avg_return_metric.reset()
+            log = {
+                'returns' : [avg_return],
+                'epochs' : [0],
+                'policy_steps' : [0],
+                'experience_time' : [0.0],
+                'train_time' : [0.0]
+                }
+            print('-------------------')
+            print('Epoch 0')
+            print('  Policy steps: 0')
+            print('  Experience time: 0.00 mins')
+            print('  Policy train time: 0.00 mins')
+            print('  Average return: %.5f' %avg_return)
         
         # Save initial random policy
         path = os.path.join(policy_dir,('0').zfill(6))
@@ -275,7 +279,7 @@ def train_eval(
             replay_buffer.clear()
             train_timer.stop()
             
-            if epoch % eval_interval == 0:
+            if (epoch % eval_interval == 0) and do_evaluation:
                 # Evaluate the policy
                 eval_driver.run(epoch)
                 avg_return = avg_return_metric.result().numpy()
@@ -293,13 +297,13 @@ def train_eval(
                 log['returns'].append(avg_return)
                 log['experience_time'].append(experience_timer.value())
                 log['train_time'].append(train_timer.value())
+                # Save updated log
+                save_log(log, logfile, ('%d' % epoch).zfill(6))
                 
             if epoch % save_interval == 0:
                 # Save deterministic policy
                 path = os.path.join(policy_dir,('%d' % epoch).zfill(6))
                 saved_model.save(path)
-                # Save updated log
-                save_log(log, logfile, ('%d' % epoch).zfill(6))
             
             if checkpoint_interval is not None and \
                 epoch % checkpoint_interval == 0:
