@@ -44,14 +44,14 @@ class QuantumCircuit(OscillatorQubit, GKP):
         super().__init__(*args, **kwargs)
 
     @property
-    def _quantum_circuit_spec(self):
+    def _control_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
                 'theta' : specs.TensorSpec(shape=[7], dtype=tf.float32)}
         return spec
 
     # remove the decorator to be able to access the class attributes from withing this method
     # @tf.function
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states

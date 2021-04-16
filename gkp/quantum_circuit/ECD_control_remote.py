@@ -23,13 +23,13 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     
     """
     @property
-    def _quantum_circuit_spec(self):
+    def _control_circuit_spec(self):
         spec = {'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[2], dtype=tf.float32)}
         return spec
 
     @tf.function
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states

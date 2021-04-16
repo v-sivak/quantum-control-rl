@@ -33,9 +33,9 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
     This is the base environment class for quantum control problems which 
     incorporates simulation-independet methods. The QuantumCircuit subclasses 
     inherit from this base class and from a simulation class. Subclasses
-    implementat 'quantum_circuit' which is ran at each time step. RL agent's 
+    implement 'control_circuit' which is ran at each time step. RL agent's 
     actions are parametrized according to the sequence of gates applied at
-    each time step, as defined by 'quantum_circuit'.
+    each time step, as defined by 'control_circuit'.
 
     Environment step() method returns TimeStep tuple whose 'observation'
     attribute stores the finite-horizon history of applied actions, measurement
@@ -89,8 +89,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         self._epoch = 0
 
         # Define action and observation specs
-        self.quantum_circuit = self._quantum_circuit
-        action_spec = self._quantum_circuit_spec
+        self.control_circuit = self._control_circuit
+        action_spec = self._control_circuit_spec
 
         observation_spec = {
             'msmt'  : specs.TensorSpec(shape=[self.H], dtype=tf.float32),
@@ -115,7 +115,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             TimeStep object (see tf-agents docs)  
             
         """
-        self._state, info, obs = self.quantum_circuit(self._state, action)
+        self._state, info, obs = self.control_circuit(self._state, action)
         self.info['psi_cached'] = info
         # Calculate rewards
         self._elapsed_steps += 1
@@ -260,7 +260,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
     
     
     @abstractmethod
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Quantum circuit to run on every step, to be defined by the subclass.
         Input:
