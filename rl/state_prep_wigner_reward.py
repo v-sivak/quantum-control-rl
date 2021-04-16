@@ -57,6 +57,9 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
         # expected shape of the results is [N_msmt, B, N_alpha]
         m1 = 1. - 2*results['m1'].threshold().data
         m2 = 1. - 2*results['m2'].threshold().data
+        if self.batch_size == 1: 
+            m1 = np.expand_dims(m1, 1)
+            m2 = np.expand_dims(m2, 1)
         m1 = np.transpose(m1, axes=[1,2,0])
         m2 = np.transpose(m2, axes=[1,2,0])
         reward_data = np.stack([m1,m2])

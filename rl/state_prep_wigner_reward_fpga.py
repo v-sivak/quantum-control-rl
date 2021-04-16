@@ -19,12 +19,12 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
         params = np.load(self.opt_file)
         self.alphas, self.targets = params['alphas'], params['targets']
         self.qubit_pulses = [(p.real, p.imag) for p in params['qubit_pulses']]
-        self.cavity_pulses = [(p.real, p.imag) for p in params['cavity_pulses']]        
-        
+        self.cavity_pulses = [(p.real, p.imag) for p in params['cavity_pulses']]
+
         @arbitrary_function(float, float)
         def cos(x):
             return np.cos(np.pi * x)
-    
+
         @arbitrary_function(float, float)
         def sin(x):
             return np.sin(np.pi * x)
@@ -46,7 +46,7 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
             delay(2000)
 
         amp_reg = FloatRegister(0.0)
-        phase_reg = FloatRegister(0.0)        
+        phase_reg = FloatRegister(0.0)
         unit_amp = cavity.displace.unit_amp
         dac_amps = unit_amp * np.abs(self.alphas)
         dac_amps_arr = Array(dac_amps, float)
@@ -60,7 +60,7 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
             qubit.pi2_pulse(phase=-np.pi/2)
             sync()
             readout(m2='se')
-    
+
         @subroutine
         def reward_circuit():
             delay(2000)
@@ -72,7 +72,7 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
         @subroutine
         def init_circuit():
             readout(m0='se')
-        
+
         def control_circuit(i):
             sync()
             qubit.array_pulse(*self.qubit_pulses[i])
@@ -80,34 +80,34 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
             sync()
 
         j_range = (0, self.N_alpha-1, self.N_alpha)
-        
+
         for i in range(self.batch_size):
             with scan_register(*j_range) as j:
                 # update dynamic mixer for tomography
                 amp_reg <<= dac_amps_arr[j]
                 phase_reg <<= phase_arr[j]
                 update_dynamic_mixer(amp_reg, phase_reg)
-                
+
                 # initialize, run control circuit and collect reward
                 init_circuit()
                 control_circuit(i)
                 reward_circuit()
-    
+
 
     def plot(self, fig, data):
         ax1, ax2 = fig.add_subplot(121), fig.add_subplot(122)
-        
+
         # Plot scattered phase space points and IDEAL Wigner values
-        ax1.scatter(self.alphas.real, self.alphas.imag, marker="o", s=12, 
+        ax1.scatter(self.alphas.real, self.alphas.imag, marker="o", s=12,
            c=self.targets, cmap='seismic', vmin=-1, vmax=+1)
         ax1.set_title('Ideal')
         ax1.set_aspect('equal')
-        
+
         # Plot scattered phase space points and MEASURED Wigner values
         m2 = 1. - 2*np.squeeze(self.results['m2'].threshold().data)
-        avg_values = np.mean(m2, axis=(0,1))
-        
-        ax2.scatter(self.alphas.real, self.alphas.imag, marker="o", s=12, 
+        avg_values = np.mean(m2, axis=(0,1)) if self.batch_size>1 else np.mean(m2, axis=0)
+
+        ax2.scatter(self.alphas.real, self.alphas.imag, marker="o", s=12,
            c=avg_values, cmap='seismic', vmin=-1, vmax=+1)
         ax2.set_title('Measured')
         ax2.set_aspect('equal')
