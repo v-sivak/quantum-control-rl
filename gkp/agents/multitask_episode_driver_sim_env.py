@@ -8,7 +8,7 @@ Created on Tue Oct 27 13:27:01 2020
 
 from tf_agents.drivers import dynamic_episode_driver
 from gkp.utils.version_helper import TFPolicy
-from gkp.gkp_tf_env import gkp_init
+from gkp.gkp_tf_env import env_init
 from gkp.gkp_tf_env import tf_env_wrappers as wrappers
 import gkp.action_script as action_scripts
 

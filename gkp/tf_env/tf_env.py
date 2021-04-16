@@ -18,7 +18,7 @@ from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 from simulator.utils import measurement, expectation, normalize
-from gkp.gkp_tf_env import helper_functions as hf
+from gkp.tf_env import helper_functions as hf
 
 
 class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):

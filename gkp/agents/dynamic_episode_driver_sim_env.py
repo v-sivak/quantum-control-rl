@@ -8,8 +8,8 @@ Created on Tue Oct 27 13:27:01 2020
 
 from tf_agents.drivers import dynamic_episode_driver
 from gkp.utils.version_helper import TFPolicy
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from gkp.tf_env import env_init
+from gkp.tf_env import tf_env_wrappers as wrappers
 import gkp.action_script as action_scripts
 
 
@@ -50,7 +50,7 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         self.episode_length = episode_length
         self.remote = remote
         # Create training env and wrap it
-        env = gkp_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
+        env = env_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
         action_script = action_scripts.__getattribute__(action_script)
         env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,

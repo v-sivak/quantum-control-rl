@@ -19,7 +19,7 @@ from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from remote_env_tools import remote_env_tools as rmt
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\remote\0'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\remote\1'
 
 # socket for communication with environment
 server_socket = rmt.Server()
@@ -29,14 +29,14 @@ server_socket.connect_client()
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'ECD_control_remote',
+    'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
     'T' : 8,
     'N' : 100}
 
 # Evaluation environment params
 eval_env_kwargs = {
-    'simulate' : 'ECD_control',
+    'control_circuit' : 'ECD_control',
     'init' : 'vac',
     'T' : 8, 
     'N' : 100}

@@ -13,11 +13,11 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 import qutip as qt
-from gkp.gkp_tf_env import gkp_init
+from gkp.tf_env import env_init
 from remote_env_tools.remote_env_tools import Client
 
 # Create environment that will produce mock measurement outcomes
-env = gkp_init(simulate='ECD_control', reward_kwargs={'reward_mode' : 'zero'},
+env = env_init(control_circuit='ECD_control', reward_kwargs={'reward_mode' : 'zero'},
                init='vac', T=8, batch_size=10, N=100, episode_length=8)
 
 # connect to the agent

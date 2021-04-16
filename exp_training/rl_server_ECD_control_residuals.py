@@ -29,14 +29,14 @@ server_socket.connect_client()
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'ECD_control_remote',
+    'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
     'T' : 8,
     'N' : 100}
 
 # Evaluation environment params
 eval_env_kwargs = {
-    'simulate' : 'ECD_control_remote',
+    'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
     'T' : 8, 
     'N' : 100}
@@ -115,7 +115,7 @@ PPO.train_eval(
         save_interval = 1,
         checkpoint_interval = None,
         summary_interval = 1,
-        do_evaluation = False,
+        do_evaluation = True,
         # Params for data collection
         train_batch_size = train_batch_size,
         eval_batch_size = eval_batch_size,

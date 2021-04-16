@@ -5,7 +5,7 @@ Created on Fri Mar 19 15:24:51 2021
 @author: Vladimir Sivak
 """
 import tensorflow as tf
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.tf_env.tf_env import GKP
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 

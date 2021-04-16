@@ -10,8 +10,8 @@ approach to quantum circuits.
 
 import tensorflow as tf
 from tensorflow import complex64 as c64
-from gkp.gkp_tf_env.gkp_tf_env import GKP
-from gkp.gkp_tf_env import helper_functions as hf
+from gkp.tf_env.tf_env import GKP
+from gkp.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 from simulator.utils import measurement

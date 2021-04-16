@@ -10,7 +10,7 @@ import tensorflow_probability as tfp
 import numpy as np
 from math import pi, sqrt
 from tensorflow import complex64 as c64
-from gkp.gkp_tf_env.gkp_tf_env import GKP
+from gkp.tf_env.tf_env import GKP
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 
