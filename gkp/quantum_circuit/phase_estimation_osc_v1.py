@@ -11,14 +11,14 @@ operations on the oscillator Hilbert space.
 import tensorflow as tf
 from numpy import sqrt
 from tensorflow.keras.backend import batch_dot
-from gkp.tf_env.tf_env import GKP
+from gkp.tf_env.tf_env import TFEnvironmentQuantumControl
 from gkp.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
 from simulator.utils import measurement
 
 
-class QuantumCircuit(Oscillator, GKP):
+class QuantumCircuit(Oscillator, TFEnvironmentQuantumControl):
     """    
     This implements a  phase estimation cicuit for the oscillator translation
     operator. In this version conditional translation is not symmetric: translate 

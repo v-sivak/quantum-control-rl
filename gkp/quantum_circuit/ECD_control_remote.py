@@ -5,11 +5,11 @@ Created on Fri Mar 19 15:24:51 2021
 @author: Vladimir Sivak
 """
 import tensorflow as tf
-from gkp.tf_env.tf_env import GKP
+from gkp.tf_env.tf_env import TFEnvironmentQuantumControl
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 
-class QuantumCircuit(OscillatorQubit, GKP):
+class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     """
     In the open-loop control case, there are no intermediate observations. 
     Therefore, control sequence can be generated fully from time step 0 to T 

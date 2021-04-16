@@ -21,7 +21,7 @@ from simulator.utils import measurement, expectation, normalize
 from gkp.tf_env import helper_functions as hf
 
 
-class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
+class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMeta):
     """
     Custom environment that follows TensorFlow Agents interface and allows to
     train a reinforcement learning agent to find quantum control policies.
@@ -98,7 +98,7 @@ class GKP(tf_environment.TFEnvironment, metaclass=ABCMeta):
             'const' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
-        super(GKP, self).__init__(time_step_spec, action_spec, self.batch_size)
+        super().__init__(time_step_spec, action_spec, self.batch_size)
         
 
     ### STANDARD
