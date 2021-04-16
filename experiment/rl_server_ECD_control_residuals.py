@@ -16,7 +16,7 @@ import qutip as qt
 from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from remote_env_tools import remote_env_tools as rmt
+from gkp.remote_env_tools import remote_env_tools as rmt
 
 
 

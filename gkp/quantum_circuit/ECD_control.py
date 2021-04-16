@@ -11,7 +11,6 @@ from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 from simulator.utils import measurement
 from math import pi
-from tensorflow import complex64 as c64
 
 class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     """
