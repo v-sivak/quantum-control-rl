@@ -10,5 +10,5 @@ def env_init(control_circuit, **kwargs):
     params = {k: v for k, v in config.__dict__.items() if '__' not in k}
     kwargs = {**params, **kwargs}  # Add/override default params with kwargs
     
-    module_name = 'gkp.quantum_circuit.' + control_circuit
+    module_name = 'gkp.environments.' + control_circuit
     return importlib.import_module(module_name).QuantumCircuit(**kwargs)
