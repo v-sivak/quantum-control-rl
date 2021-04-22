@@ -321,9 +321,10 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                             'pauli', 
                             'fidelity',
                             'overlap',
-                            'Fock',
+                            'fock',
                             'tomography',
-                            'remote']
+                            'tomography_remote',
+                            'fock_remote']
             self.reward_mode = mode
         except: 
             raise ValueError('reward_mode not specified or not supported.') 
@@ -394,10 +395,10 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.calculate_reward = \
                 lambda args: self.reward_overlap(target_projector, postselect_0)
 
-        if mode == 'Fock':
+        if mode == 'fock':
             """
             Required reward_kwargs:
-                reward_mode (str): 'Fock'
+                reward_mode (str): 'fock'
                 target_state (Qobj, type=ket): Qutip object
                 
             """
@@ -405,7 +406,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             target_projector = qt.ket2dm(reward_kwargs['target_state'])
             target_projector = tf.constant(target_projector.full(), dtype=c64)
             self.calculate_reward = \
-                lambda args: self.reward_Fock(target_projector, args)        
+                lambda args: self.reward_fock(target_projector, args)        
 
         if mode == 'tomography':
             """
@@ -455,10 +456,10 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.calculate_reward = lambda args: self.reward_stabilizers_v2(
                 reward_kwargs['beta'], reward_kwargs['Delta'], sample)
 
-        if mode == 'remote':
+        if mode == 'tomography_remote':
             """
             Required reward_kwargs:
-                reward_mode (str): 'remote'
+                reward_mode (str): 'tomography_remote'
                 tomography (str): either 'wigner' or 'CF'
                 target_state (Qobj, type=ket): Qutip state-vector object
                 window_size (float): size of (symmetric) phase space window
@@ -480,10 +481,22 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             target_state = tf.transpose(target_state)
             reward_kwargs['target_state'] = target_state
             
-            self.calculate_reward = lambda x: self.reward_remote(**reward_kwargs)
+            self.calculate_reward = \
+                lambda x: self.reward_tomography_remote(**reward_kwargs)
+        
+        if mode == 'fock_remote':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'fock_remote'
+                fock (int): photon number
+                N_msmt (int): number of measurements per protocol
+                epoch_type (str): either 'training' or 'evaluation'
+            """
+            self.calculate_reward = \
+                lambda x: self.reward_fock_remote(**reward_kwargs)
 
 
-    def reward_Fock(self, target_projector, *args):
+    def reward_fock(self, target_projector, *args):
         """
         Reward only on last time step using the measurement of a given Fock 
         state of the oscillator.
@@ -687,9 +700,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         z = tf.math.reduce_mean(Z, axis=[1,2])
         return z
 
-    def reward_remote(self, target_state, window_size, tomography,
-                      amplitude_type, epoch_type, N_alpha, N_msmt,
-                      sampling_type):
+    def reward_tomography_remote(self, target_state, window_size, tomography,
+                amplitude_type, epoch_type, N_alpha, N_msmt, sampling_type):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
@@ -744,6 +756,48 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # if training, include penalty for measuring m1='e'
         if epoch_type == 'training':
             Z = Z - penalty_coeff * (1-mask)
+        
+        z = tf.math.reduce_mean(Z, axis=[1,2])
+        return z
+
+    def reward_fock_remote(self, fock, N_msmt, epoch_type):
+        """
+        Send the action sequence to remote environment and receive rewards.
+        The data received from the remote env should be sigma_z measurement 
+        outcomes of shape [2, batch_size, N_msmt] where the first measurement 
+        is disentangling and second measurement is target fock projector. 
+        
+        """
+        # return 0 on all intermediate steps of the episode
+        if self._elapsed_steps != self.episode_length:
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+
+        penalty_coeff = 1.0
+        
+        action_batch = {}
+        for a in self.history.keys() - ['msmt']:
+            # reshape to [batch_size, T, action_dim] 
+            action_batch[a] = np.transpose(self.history[a][1:], axes=[1,0,2])
+         
+        # send action sequence and phase space points to remote client
+        message = dict(action_batch=action_batch, 
+                       batch_size=self.batch_size,
+                       N_msmt=N_msmt,
+                       fock=fock,
+                       epoch_type=epoch_type,
+                       epoch=self._epoch)
+        
+        self.server_socket.send_data(message)
+        
+        # receive array of outcomes of shape [2, batch_size, N_msmt]
+        msmt, done = self.server_socket.recv_data()
+        msmt = tf.cast(msmt, tf.float32)
+        mask = tf.where(msmt[0]==1, 1.0, 0.0) # [batch_size, N_msmt]
+
+        # calculate reward. If training, include penalty for measuring m1='e'
+        Z = - msmt[1] * mask
+        if epoch_type == 'training':
+            Z -= penalty_coeff * (1-mask)
         
         z = tf.math.reduce_mean(Z, axis=[1,2])
         return z

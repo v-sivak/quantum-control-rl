@@ -46,7 +46,7 @@ target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
 
 
 reward_kwargs = {
-    'reward_mode' : 'remote',
+    'reward_mode' : 'tomography_remote',
     'tomography' : 'wigner',
     'target_state' : target_state,
     'window_size' : 16,
@@ -58,7 +58,7 @@ reward_kwargs = {
     'sampling_type' : 'abs'}
 
 reward_kwargs_eval = {
-    'reward_mode' : 'remote',
+    'reward_mode' : 'tomography_remote',
     'tomography' : 'wigner',
     'target_state' : target_state,
     'window_size' : 16,
