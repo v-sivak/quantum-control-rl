@@ -13,14 +13,17 @@ from fpga_lib.dsl.result import Results
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.state_prep.state_prep_wigner_tomography\archive'
-fname = '20210413.h5'
-group = 19
+fname = '20210422.h5'
+group = 15
 file_name = os.path.join(exp_dir, fname)
 
 grp_name = str(group)
 res = Results.create_from_file(file_name, grp_name)
-wigner_full = res['m2_postselected_m0_m1'].data
-wigner = np.mean(wigner_full, axis=0)
+wigner_full_g = res['g_m2_postselected_m0_m1'].data
+wigner_full_e = res['e_m2_postselected_m0_m1'].data
+wigner_g = np.mean(wigner_full_g, axis=0)
+wigner_e = np.mean(wigner_full_e, axis=0)
+xs, ys = res['g_m0'].ax_data[1:]
 
-wigner_fname = r'Y:\tmp\for Vlad\from_vlad\wigner_fock1_epoch300.npz'
-np.savez(wigner_fname, wigner=wigner.data)
+wigner_fname = r'Y:\tmp\for Vlad\from_vlad\wigner_fock_4.npz'
+np.savez(wigner_fname, wigner_g=wigner_g.data, wigner_e=wigner_e.data, xs=xs, ys=ys)

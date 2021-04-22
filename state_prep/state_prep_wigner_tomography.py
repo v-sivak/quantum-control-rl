@@ -24,35 +24,49 @@ class state_prep_wigner_tomography(FPGAExperiment):
         C = ECD_control_simple_compiler(tau_ns=self.tau_ns)
 #        C = ECD_control_simple_compiler(alpha_abs=self.alpha_abs)
         self.c_pulse, self.q_pulse = C.make_pulse(beta, phi)
-
+        
+        pulse_len = len(qubit.pulse.make_wave()[0])
+        
         def ECDC_sequence():
             sync()
             qubit.array_pulse(self.q_pulse.real, self.q_pulse.imag)
             cavity.array_pulse(self.c_pulse.real, self.c_pulse.imag)
             sync()
-
-        with system.wigner_tomography(*self.disp_range, result_name='m2'):
-            readout(m0='se')
+        
+        # Start tomography in 'g'
+        with system.wigner_tomography(*self.disp_range, result_name='g_m2'):
+            readout(g_m0='se')
             ECDC_sequence()
-            readout(m1='se')
+            readout(g_m1='se')
+            delay(pulse_len)
+
+        # Start tomography in 'e'        
+        with system.wigner_tomography(*self.disp_range, result_name='e_m2'):
+            readout(e_m0='se')
+            ECDC_sequence()
+            readout(e_m1='se')
+            qubit.flip()
             
     
     def process_data(self):
-        # post-select on m0='g' outcomes
-        init_state = self.results['m0'].threshold()
-        postselected = self.results['m2'].postselect(init_state, [0])[0]
-        self.results['m2_postselected_m0'] = 1 - 2*postselected.threshold()
-        self.results['m2_postselected_m0'].ax_data = self.results['m2'].ax_data
-        self.results['m2_postselected_m0'].labels = self.results['m2'].labels
-        self.results['m2_postselected_m0'].vmin = -1
-        self.results['m2_postselected_m0'].vmax = 1    
+        sign = dict(g=1, e=-1)
+        
+        for s in ['g', 'e']:
+            # post-select on m0='g'
+            init_state = self.results[s+'_m0'].threshold()
+            postselected = self.results[s+'_m2'].postselect(init_state, [0])[0]
+            self.results[s+'_m2_postselected_m0'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_m2_postselected_m0'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_m2_postselected_m0'].vmin = -1
+            self.results[s+'_m2_postselected_m0'].vmax = 1    
 
-
-        # post-select on m1='g' outcomes
-        verification = self.results['m1'].threshold()
-        postselected = self.results['m2_postselected_m0'].postselect(verification, [0])[0]
-        self.results['m2_postselected_m0_m1'] = postselected.threshold()
-        self.results['m2_postselected_m0_m1'].ax_data = self.results['m2'].ax_data
-        self.results['m2_postselected_m0_m1'].labels = self.results['m2'].labels
-        self.results['m2_postselected_m0_m1'].vmin = -1
-        self.results['m2_postselected_m0_m1'].vmax = 1
+            # post-select on m1='g' outcomes
+            verification = self.results[s+'_m1'].threshold()
+            postselected = self.results[s+'_m2_postselected_m0'].postselect(verification, [0])[0]
+            self.results[s+'_m2_postselected_m0_m1'] = postselected.threshold()
+            self.results[s+'_m2_postselected_m0_m1'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0_m1'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_m2_postselected_m0_m1'].vmin = -1
+            self.results[s+'_m2_postselected_m0_m1'].vmax = 1
+        
