@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar 26 13:26:26 2021
+Created on Thu Apr 22 15:53:04 2021
 
 @author: Vladimir Sivak
 """
@@ -9,19 +9,18 @@ import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# append parent 'gkp-rl' directory to path 
+# append 'quantum-control-rl' directory to path 
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
-import qutip as qt
-from math import sqrt, pi
+from math import pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.remote_env_tools import remote_env_tools as rmt
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\remote\1'
 
-# socket for communication with environment
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_4'
+
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
 server_socket.bind((host, port))
@@ -34,32 +33,20 @@ env_kwargs = {
     'T' : 8,
     'N' : 100}
 
-# Evaluation environment params
-eval_env_kwargs = {
-    'control_circuit' : 'ECD_control',
-    'init' : 'vac',
-    'T' : 8, 
-    'N' : 100}
-
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
-
 reward_kwargs = {
-    'reward_mode' : 'tomography_remote',
-    'tomography' : 'wigner',
-    'target_state' : target_state,
-    'window_size' : 16,
-    'server_socket' : server_socket,
-    'amplitude_type' : 'translation',
+    'reward_mode' : 'fock_remote',
+    'fock' : 4,
     'epoch_type' : 'training',
-    'N_alpha' : 100,
-    'N_msmt' : 10,
-    'sampling_type' : 'abs'}
+    'server_socket' : server_socket,
+    'N_msmt' : 100}
 
 reward_kwargs_eval = {
-    'reward_mode' : 'overlap',
-    'target_state' : target_state,
-    'postselect_0' : False}
+    'reward_mode' : 'fock_remote',
+    'fock' : 4,
+    'epoch_type' : 'evaluation',
+    'server_socket' : server_socket,
+    'N_msmt' : 1000}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
@@ -67,7 +54,7 @@ action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
 train_batch_size = 10
-eval_batch_size = 100
+eval_batch_size = 1
 
 learn_residuals = True
 
@@ -82,9 +69,8 @@ collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     to_learn, train_episode_length, learn_residuals, remote=True)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
-    to_learn, eval_episode_length, learn_residuals)
-
+    env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
+    to_learn, eval_episode_length, learn_residuals, remote=True)
 
 PPO.train_eval(
         root_dir = root_dir,
@@ -104,10 +90,11 @@ PPO.train_eval(
         gradient_clipping = 1.0,
         entropy_regularization = 0,
         # Params for log, eval, save
-        eval_interval = 10,
-        save_interval = 10,
-        checkpoint_interval = 10000,
-        summary_interval = 10,
+        eval_interval = 20,
+        save_interval = 1,
+        checkpoint_interval = None,
+        summary_interval = 1,
+        do_evaluation = True,
         # Params for data collection
         train_batch_size = train_batch_size,
         eval_batch_size = eval_batch_size,
@@ -123,3 +110,4 @@ PPO.train_eval(
         actor_lstm_size = (12,),
         value_lstm_size = (12,)
         )
+

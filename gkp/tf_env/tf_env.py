@@ -400,13 +400,15 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             Required reward_kwargs:
                 reward_mode (str): 'fock'
                 target_state (Qobj, type=ket): Qutip object
+                N_msmt (int): number of measurements
+                error_prob (float): with this probability the measurement 
+                    outcome will be replaced with 'g'.
                 
             """
-            assert 'target_state' in reward_kwargs.keys()
-            target_projector = qt.ket2dm(reward_kwargs['target_state'])
-            target_projector = tf.constant(target_projector.full(), dtype=c64)
-            self.calculate_reward = \
-                lambda args: self.reward_fock(target_projector, args)        
+            target_state = reward_kwargs.pop('target_state')
+            projector = tf.constant(qt.ket2dm(target_state).full(), dtype=c64)
+            reward_kwargs['target_projector'] = projector
+            self.calculate_reward = lambda x: self.reward_fock(**reward_kwargs)
 
         if mode == 'tomography':
             """
@@ -491,12 +493,14 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                 fock (int): photon number
                 N_msmt (int): number of measurements per protocol
                 epoch_type (str): either 'training' or 'evaluation'
+                server_socket (Socket): socket for communication
             """
+            self.server_socket = reward_kwargs.pop('server_socket')
             self.calculate_reward = \
                 lambda x: self.reward_fock_remote(**reward_kwargs)
 
 
-    def reward_fock(self, target_projector, *args):
+    def reward_fock(self, target_projector, N_msmt, error_prob):
         """
         Reward only on last time step using the measurement of a given Fock 
         state of the oscillator.
@@ -504,18 +508,31 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         """
         if self._elapsed_steps < self.episode_length:
             z = tf.zeros(self.batch_size, dtype=tf.float32)
-        else:            
-            if self.tensorstate:
-                # measure qubit to disentangle from oscillator
-                psi, _ = measurement(self._state, self.P, sample=True)
-            else:
-                psi = self._state
-            overlap = expectation(psi, target_projector, reduce_batch=False)
-            z = tf.reshape(tf.math.real(overlap), shape=[self.batch_size])
+        else:
+            Z = 0
+            for i in range(N_msmt):
+                if self.tensorstate:
+                    # measure qubit to disentangle from oscillator
+                    psi, m = measurement(self._state, self.P, sample=True)
+                    mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+                else:
+                    psi = self._state
+                    mask = tf.ones([self.batch_size])
 
-            obs = tfp.distributions.Bernoulli(probs=z).sample()
-            obs = 2*obs -1 # convert to {-1,1}
-            z = tf.cast(obs, dtype=tf.float32)
+                # sample observations
+                p_n = expectation(psi, target_projector, reduce_batch=False)
+                p_n = tf.reshape(tf.math.real(p_n), shape=[self.batch_size])
+                obs = tfp.distributions.Bernoulli(probs=p_n).sample()
+                
+                # sample errors and apply them to measurement outcomes
+                e = error_prob * tf.ones_like(p_n)
+                err = tfp.distributions.Bernoulli(probs=e).sample()  
+                obs = tf.where(err==0, obs, 0)
+                obs = 2*tf.cast(obs, dtype=tf.float32)-1 # convert to {-1,1}
+                
+                penalty_coeff = 1.0
+                Z += obs * mask - penalty_coeff * (1-mask)
+            z = Z / N_msmt
         return z
     
 
@@ -799,7 +816,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         if epoch_type == 'training':
             Z -= penalty_coeff * (1-mask)
         
-        z = tf.math.reduce_mean(Z, axis=[1,2])
+        z = tf.math.reduce_mean(Z, axis=[1])
         return z
         
 

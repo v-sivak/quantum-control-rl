@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar 26 13:26:26 2021
+Created on Fri Apr 23 15:37:07 2021
 
-@author: Vladimir Sivak
+@author: qulab
 """
-
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -14,60 +13,51 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 import qutip as qt
+import tensorflow as tf
+import numpy as np
 from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.remote_env_tools import remote_env_tools as rmt
+from gkp.agents import actor_distribution_network_gkp
+from gkp.tf_env import helper_functions as hf
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\remote\1'
+"""
+Train PPO agent to do Fock state N=2 preparation with universal gate sequence.
 
-# socket for communication with environment
-server_socket = rmt.Server()
-(host, port) = ('172.28.142.46', 5555)
-server_socket.bind((host, port))
-server_socket.connect_client()
+The episodes start from vacuum, and characteristic function tomography 
+measurements are performed in the end to assign reward.
+
+"""
+
+root_dir = r'E:\data\gkp_sims\PPO\ECD\fock4_fock'
+root_dir = os.path.join(root_dir,'7')
 
 # Params for environment
 env_kwargs = {
-    'control_circuit' : 'ECD_control_remote',
-    'init' : 'vac',
-    'T' : 8,
-    'N' : 100}
-
-# Evaluation environment params
-eval_env_kwargs = {
     'control_circuit' : 'ECD_control',
     'init' : 'vac',
     'T' : 8, 
-    'N' : 100}
+    'N' : 50}
 
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
+target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
 
-reward_kwargs = {
-    'reward_mode' : 'tomography_remote',
-    'tomography' : 'wigner',
-    'target_state' : target_state,
-    'window_size' : 16,
-    'server_socket' : server_socket,
-    'amplitude_type' : 'translation',
-    'epoch_type' : 'training',
-    'N_alpha' : 100,
-    'N_msmt' : 10,
-    'sampling_type' : 'abs'}
+reward_kwargs = {'reward_mode' : 'fock',
+                 'target_state' : target_state,
+                 'N_msmt' : 10,
+                 'error_prob' : 0.5}
 
-reward_kwargs_eval = {
-    'reward_mode' : 'overlap',
-    'target_state' : target_state,
-    'postselect_0' : False}
+reward_kwargs_eval = {'reward_mode' : 'overlap',
+                      'target_state' : target_state,
+                      'postselect_0' : False}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
 action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 10
-eval_batch_size = 100
+train_batch_size = 50
+eval_batch_size = 1000
 
 learn_residuals = True
 
@@ -79,10 +69,10 @@ from gkp.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 
-    to_learn, train_episode_length, learn_residuals, remote=True)
+    to_learn, train_episode_length, learn_residuals)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
+    env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
     to_learn, eval_episode_length, learn_residuals)
 
 
