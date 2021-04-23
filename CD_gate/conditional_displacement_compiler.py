@@ -43,8 +43,12 @@ class ConditionalDisplacementCompiler():
         return (tau_ns, alpha, phi_g, phi_e)
 
     def CD_params_fixed_alpha(self, beta, alpha_abs):
+        tau_min = 4
         tau = 2. / (2*np.pi*cavity.chi) * np.arcsin(np.abs(beta/alpha_abs/4.))
-        tau_ns = int(round(tau*1e9))
+        tau_ns = int(round(tau*1e9)) - tau_min
+        if tau_ns <= 0:
+            tau_ns = 0
+            alpha_abs = np.abs(beta) / 4. / np.sin(2*np.pi*cavity.chi*tau_min*1e-9)
         alpha_phase = np.angle(beta) + np.pi/2
         alpha = alpha_abs * np.exp(1j*alpha_phase)
         phi_g = np.zeros_like(alpha)
@@ -100,8 +104,7 @@ class ConditionalDisplacementCompiler():
         """
         i, q = pulse.make_wave(zero_pad=zero_pad)
         f = pulse.detune
-        assert len(i) <= 24 # assumes pulse is no longer than 24 ns
-        t_offset = (24 - len(i)) / 2 
+        t_offset = (24 - len(i)) / 2 if len(i)<24 else 0
         t = (np.arange(len(i)) + t_offset)*1e-9
         i_prime = np.cos(2*np.pi*f*t)*i + np.sin(2*np.pi*f*t)*q
         q_prime = np.cos(2*np.pi*f*t)*q - np.sin(2*np.pi*f*t)*i

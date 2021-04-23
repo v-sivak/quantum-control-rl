@@ -29,27 +29,25 @@ class state_prep_wigner_tomography(FPGAExperiment):
 #        self.q_pulse = data['qubit_dac_pulse']
 #        self.c_pulse = data['cavity_dac_pulse']     
         
-        pulse_len = len(qubit.pulse.make_wave()[0])
-        
         def ECDC_sequence():
             sync()
             qubit.array_pulse(self.q_pulse.real, self.q_pulse.imag)
             cavity.array_pulse(self.c_pulse.real, self.c_pulse.imag)
             sync()
         
-        # Start tomography in 'g'
-        with system.wigner_tomography(*self.disp_range, result_name='g_m2'):
+        # map odd parity to 'e'
+        with system.wigner_tomography(*self.disp_range, result_name='g_m2',
+                                      invert_axis=False):
             readout(g_m0='se')
             ECDC_sequence()
             readout(g_m1='se')
-            delay(pulse_len)
 
-        # Start tomography in 'e'        
-        with system.wigner_tomography(*self.disp_range, result_name='e_m2'):
+        # map odd parity to 'g'  
+        with system.wigner_tomography(*self.disp_range, result_name='e_m2',
+                                      invert_axis=True):
             readout(e_m0='se')
             ECDC_sequence()
             readout(e_m1='se')
-            qubit.flip()
             
     
     def process_data(self):

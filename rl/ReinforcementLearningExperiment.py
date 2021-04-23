@@ -50,7 +50,7 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         raise NotImplementedError
 
 
-    def update_pulse_params(self):
+    def update_exp_params(self):
         raise NotImplementedError
 
 
@@ -62,9 +62,9 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         self.connect_to_RL_agent()
         done = False
         while not done:
-            action, done = self.recv_action_data()
+            message, done = self.recv_action_data()
             if done: break
-            self.update_pulse_params(action)
+            self.update_exp_params(message)
             if self.compile_flag:
                 self.write_tables()
                 logger.info('Updated tables.')
@@ -80,16 +80,15 @@ class ReinforcementLearningExperiment(FPGAExperiment):
 
 
     def recv_action_data(self):
-        data, done = self.client_socket.recv_data()
+        message, done = self.client_socket.recv_data()
         logger.info('Received data from RL agent server.')
         if not done:
-            self.batch_size = data['batch_size']
-            self.reps = data['reps']
-            self.epoch = data['epoch']
-            self.compile_flag = data['compile_flag']
-            self.epoch_type = data['type']
-            logger.info('Start %s epoch %d' %(data['type'], data['epoch']))
-            return (data['action'], done)
+            self.batch_size = message['batch_size']
+            self.epoch = message['epoch']
+            self.compile_flag = message['compile_flag']
+            self.epoch_type = message['epoch_type']
+            logger.info('Start %s epoch %d' %(self.epoch_type, self.epoch))
+            return (message, done)
         else:
             logger.info('Training finished.')
             return (None, done)
@@ -111,7 +110,8 @@ class ReinforcementLearningExperiment(FPGAExperiment):
         appending pulses to WaveMemory in the same order as during the original
         compilation, but replacing the trainable pulses with new versions. This
         way they go to the same memory location, and there is no need to 
-        re-compile the sequence of instructions.
+        re-compile the sequence of instructions (instructions only know about
+        pulses through their wave memory addresses).
         
         """
         waves_list = self.dsl_state.iq_table.waves_list
