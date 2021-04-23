@@ -48,9 +48,9 @@ class ReinforcementLearningExperiment():
         message, done = self.client_socket.recv_data()
         logger.info('Received message from RL agent server.')
         if not done:
-            self.batch_size = message['batch_size']
-            self.epoch = message['epoch']
-            self.epoch_type = message['epoch_type']
+            self.batch_size = message.pop('batch_size')
+            self.epoch = message.pop('epoch')
+            self.epoch_type = message.pop('epoch_type')
             logger.info('Start %s epoch %d' %(self.epoch_type, self.epoch))
             return (message, done)
         else:

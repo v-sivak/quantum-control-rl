@@ -25,6 +25,10 @@ class state_prep_wigner_tomography(FPGAExperiment):
 #        C = ECD_control_simple_compiler(alpha_abs=self.alpha_abs)
         self.c_pulse, self.q_pulse = C.make_pulse(beta, phi)
         
+#        data = np.load(r'Y:\tmp\for Vlad\from_vlad\vlad_params_fock_4_alpha_7.000.npz')
+#        self.q_pulse = data['qubit_dac_pulse']
+#        self.c_pulse = data['cavity_dac_pulse']     
+        
         pulse_len = len(qubit.pulse.make_wave()[0])
         
         def ECDC_sequence():
