@@ -38,14 +38,14 @@ from fpga_lib.dsl.result import Results
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.out_and_back_amp_phase_sweep\archive'
-fname = '20210103.h5'
+fname = '20210423.h5'
 file_name = os.path.join(exp_dir, fname)
 
 
 qubit_states = ['g', 'e']
-groups = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-time = np.array([24, 48, 72, 96, 120, 144, 168, 192, 216, 240]) # [ns]
-nbar = np.linspace(25, 1000, 51)
+groups = [1, 3, 5, 8, 7, 6, 4, 2, 0]
+time = np.array([48, 72, 100, 120, 144, 168, 192, 216, 240]) # [ns]
+nbar = np.linspace(4, 400, 45)
 
 time_points = len(time)
 nbar_points = len(nbar)
@@ -100,7 +100,7 @@ for s in qubit_states:
 # Plot linear fit for all nbars in separate panels
 fig, axes = plt.subplots(7,7, sharex=True, sharey=True, figsize=(25,14))
 axes = axes.ravel()
-for j in range(49):
+for j in range(45):
     for s in ['g']:
         for i in [j]:
             mean_phase = phase[s][:,i]
@@ -109,3 +109,6 @@ for j in range(49):
                     linestyle='-', marker=None, color='red')
 plt.tight_layout()
 
+np.save(r'Y:\tmp\for Vlad\from_vlad\nbar.npy', nbar)
+np.save(r'Y:\tmp\for Vlad\from_vlad\freq_e.npy', freq_fits['e'])
+np.save(r'Y:\tmp\for Vlad\from_vlad\freq_g.npy', freq_fits['g'])

@@ -17,15 +17,19 @@ __all__ = ['state_prep_wigner_reward']
 
 class state_prep_wigner_reward(ReinforcementLearningExperiment):
     """ State preparation with Wigner reward. """
+    def __init__(self):
+        super(state_prep_wigner_reward, self).__init__()
+        self.batch_axis = 1
+        self.max_mini_batch_size = 10
+    
+    def update_exp_params(self):
 
-    def update_exp_params(self, message):
-
-        action_batch = message['action_batch']
+        action_batch = self.message['action_batch']
         beta, phi = action_batch['beta'], action_batch['phi'] # shape=[B,T,2]
-        self.alphas = np.array(message['mini_buffer'])
-        self.targets = np.array(message['targets'])
-        self.N_alpha = message['N_alpha']
-        self.N_msmt = message['N_msmt']
+        self.alphas = np.array(self.message['mini_buffer'])
+        self.targets = np.array(self.message['targets'])
+        self.N_alpha = self.message['N_alpha']
+        self.N_msmt = self.message['N_msmt']
         
         C = ECD_control_simple_compiler(tau_ns=24)
         self.cavity_pulses, self.qubit_pulses = [], []
@@ -52,10 +56,10 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
                  'loop_delay' : 4e6})
 
 
-    def create_reward_data(self, results):
+    def create_reward_data(self):
         # expected shape of the results is [N_msmt, B, N_alpha]
-        m1 = 1. - 2*results['m1'].threshold().data
-        m2 = 1. - 2*results['m2'].threshold().data
+        m1 = 1. - 2*self.results['m1'].threshold().data
+        m2 = 1. - 2*self.results['m2'].threshold().data
         if self.batch_size == 1: 
             m1 = np.expand_dims(m1, 1)
             m2 = np.expand_dims(m2, 1)

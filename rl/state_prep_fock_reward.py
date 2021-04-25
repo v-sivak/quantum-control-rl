@@ -4,7 +4,6 @@ Created on Thu Apr 22 14:01:53 2021
 
 @author: qulab
 """
-from init_script import *
 import numpy as np
 from rl_client import ReinforcementLearningExperiment
 from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler
@@ -18,17 +17,25 @@ __all__ = ['state_prep_fock_reward']
 class state_prep_fock_reward(ReinforcementLearningExperiment):
     """ State preparation with Fock reward. """
 
-    def update_exp_params(self, message):
+    def __init__(self):
+        self.max_mini_batch_size = 10
+        self.batch_axis = 1
 
-        action_batch = message['action_batch']
+    def update_exp_params(self):
+
+        action_batch = self.message['action_batch']
         beta, phi = action_batch['beta'], action_batch['phi'] # shape=[B,T,2]
-        self.N_msmt = message['N_msmt']
-        self.fock = message['fock']
+        self.N_msmt = self.message['N_msmt']
+        self.fock = self.message['fock']
+        mini_batch_size = self.mini_batches[self.mini_batch_idx]
+        i_offset = sum(self.mini_batches[:self.mini_batch_idx])
         
         C = ECD_control_simple_compiler(tau_ns=24)
+#        C = ECD_control_simple_compiler(alpha_abs=20)
         self.cavity_pulses, self.qubit_pulses = [], []
-        for i in range(self.batch_size):
-            C_pulse, Q_pulse = C.make_pulse(beta[i], phi[i])
+        for i in range(mini_batch_size):
+            I = i_offset + i
+            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I])
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Compiled pulses.')
@@ -41,7 +48,7 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
                 'gkp_exp.rl.state_prep_fock_reward_fpga', from_gui=True)
         
         self.exp.set_params(
-                {'batch_size' : self.batch_size,
+                {'batch_size' : mini_batch_size,
                  'opt_file' : opt_file,
                  'n_blocks' : self.N_msmt / 2,
                  'averages_per_block' : 2,
@@ -49,11 +56,12 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
                  'loop_delay' : 4e6})
 
 
-    def create_reward_data(self, results):
+    def create_reward_data(self):
+        mini_batch_size = self.mini_batches[self.mini_batch_idx]
         # expected shape of the results is [N_msmt, B]
-        m1 = 1. - 2*results['m1'].threshold().data
-        m2 = 1. - 2*results['m2'].threshold().data
-        if self.batch_size == 1: 
+        m1 = 1. - 2*self.results['m1'].threshold().data
+        m2 = 1. - 2*self.results['m2'].threshold().data
+        if mini_batch_size == 1: 
             m1 = np.expand_dims(m1, 1)
             m2 = np.expand_dims(m2, 1)
         m1 = np.transpose(m1, axes=[1,0])

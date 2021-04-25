@@ -14,19 +14,20 @@ class state_prep_fock_reward_fpga(FPGAExperiment):
     opt_file = StringParameter('')
     fock = IntParameter(4)
 
-    self.qubit = qubit_ef
-
     def sequence(self):
         # load pulse sequences and phase space points from file
-        params = np.load(self.opt_file)
+        params = np.load(self.opt_file, allow_pickle=True)
         self.qubit_pulses = [(p.real, p.imag) for p in params['qubit_pulses']]
         self.cavity_pulses = [(p.real, p.imag) for p in params['cavity_pulses']]
+
+        detune = - self.fock * cavity.chi
+        self.qubit = qubit_ef
 
         @subroutine
         def reward_circuit():
             readout(m1='se')
             sync()
-            self.qubit.flip(selective=True, detune=-self.fock*cavity.chi)
+            self.qubit.flip(selective=True, detune=detune)
             sync()
             readout(m2='se')
             delay(self.loop_delay)
