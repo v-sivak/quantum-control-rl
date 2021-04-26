@@ -214,13 +214,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         x = np.linspace(-lim, lim, pts)
         y = np.linspace(-lim, lim, pts)
 
-        x = tf.constant(x, dtype=c64)
-        y = tf.constant(y, dtype=c64)
-        
-        one = tf.constant([1]*len(y), dtype=c64)
-        onej = tf.constant([1j]*len(x), dtype=c64)
-        
-        grid = tf.tensordot(x, one, axes=0) + tf.tensordot(onej, y, axes=0)
+        xs_mesh, ys_mesh = np.meshgrid(x, y, indexing='ij')
+        grid = tf.cast(xs_mesh + 1j*ys_mesh, c64)
         grid_flat = tf.reshape(grid, [-1])
         
         # Calculate and plot the phase space representation

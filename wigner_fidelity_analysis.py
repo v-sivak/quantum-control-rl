@@ -24,11 +24,16 @@ from tensorflow import complex64 as c64
 scale = 2/pi
 
 wigner = {}
-data = np.load(r'Z:\tmp\for Vlad\from_vlad\wigner_fock_4.npz')
-wigner['g'] = data['wigner_g'] * scale
-wigner['e'] = data['wigner_e'] * scale
+data1 = np.load(r'Z:\tmp\for Vlad\from_vlad\wigner_fock_4_yo_1.npz')
+data2 = np.load(r'Z:\tmp\for Vlad\from_vlad\wigner_fock_4_yo_2.npz')
+wigner['g'] = (data1['wigner_g']+data2['wigner_g']) / 2 * scale
+wigner['e'] = (data1['wigner_e']+data2['wigner_e']) / 2 * scale
+
+# wigner['g'] = data2['wigner_g'] * scale
+# wigner['e'] = data2['wigner_e'] * scale
+
 wigner['avg'] = (wigner['g'] + wigner['e']) / 2
-xs, ys = data['xs'], data['ys']
+xs, ys = data1['xs'], data1['ys']
 
 # find the area of elementary square in phase space
 A = (xs[-1] - xs[0]) / (len(xs)-1) * (ys[-1] - ys[0]) / (len(ys)-1)

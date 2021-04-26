@@ -19,7 +19,7 @@ from tf_agents.networks import actor_distribution_network
 from gkp.remote_env_tools import remote_env_tools as rmt
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_4'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_3'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,7 @@ reward_kwargs = {
     'fock' : 4,
     'epoch_type' : 'training',
     'server_socket' : server_socket,
-    'N_msmt' : 100}
+    'N_msmt' : 10}
 
 reward_kwargs_eval = {
     'reward_mode' : 'fock_remote',
@@ -53,7 +53,7 @@ action_script = 'ECD_control_residuals'
 action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 10
+train_batch_size = 50
 eval_batch_size = 1
 
 learn_residuals = True
@@ -75,7 +75,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 300,
+        num_epochs = 400,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -90,7 +90,7 @@ PPO.train_eval(
         gradient_clipping = 1.0,
         entropy_regularization = 0,
         # Params for log, eval, save
-        eval_interval = 20,
+        eval_interval = 50,
         save_interval = 1,
         checkpoint_interval = None,
         summary_interval = 1,
