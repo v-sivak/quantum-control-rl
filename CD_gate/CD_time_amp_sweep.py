@@ -33,8 +33,8 @@ class CD_time_amp_sweep(FPGAExperiment):
         self.alpha_const_chi, self.alpha_from_cal = [], []
         for tau in tau_ns:
             # predicted optimal displacement amplitudes
-            self.alpha_const_chi.append(C.CD_params(self.beta, tau)[0])
-            self.alpha_from_cal.append(C.CD_params_improved(self.beta, tau)[0])
+            self.alpha_const_chi.append(np.abs(C.CD_params_fixed_tau(self.beta, tau)[1]))
+#            self.alpha_from_cal.append(C.CD_params_improved(self.beta, tau)[0])
             # create CD pulse whose displacement amplitude will be scanned
             cavity_pulse, qubit_pulse = C.make_pulse(tau, 1., 0., 0.)
             cavity_pulse = [cavity_pulse[s]/cavity.displace.unit_amp for s in [0,1]]
@@ -87,12 +87,15 @@ class CD_time_amp_sweep(FPGAExperiment):
         # NOTE: fitting to gaussian is not correct, but taking argmax is noisy
         optimal_amps = np.zeros_like(times)
         for i, t in enumerate(times):
-            name = 'time_slice_' + str(t) + '_ns'
-            p0 = (10., 10., 5., 0.01 if self.flip_qubit else -0.01)
-            popt, pcov = curve_fit(self.fit_gaussian,
-                                   self.results[name].ax_data[0],
-                                   self.results[name].data.real,p0=p0)
-            optimal_amps[i] = popt[0]
+            try:
+                name = 'time_slice_' + str(t) + '_ns'
+                p0 = (10., 10., 5., 0.01 if self.flip_qubit else -0.01)
+                popt, pcov = curve_fit(self.fit_gaussian,
+                                       self.results[name].ax_data[0],
+                                       self.results[name].data.real,p0=p0)
+                optimal_amps[i] = popt[0]
+            except: 
+                optimal_amps[i] = None
         self.results['optimal_amp'] = Result()
         self.results['optimal_amp'].data = optimal_amps
         self.results['optimal_amp'].ax_data = [self.results['default'].ax_data[1]]
@@ -108,8 +111,8 @@ class CD_time_amp_sweep(FPGAExperiment):
         ax.set_ylabel('Amplitude')
         ax.pcolormesh(times, amps, np.transpose(self.results['postselected'].data))
         # plot predictions of optimal amplitude
-        ax.plot(times, self.results['optimal_amp'].data, marker='o', label='exp optimal', color='black')
-        ax.plot(times, self.alpha_const_chi, label='const chi')
-        ax.plot(times, self.alpha_from_cal, label='from chi cal')
+#        ax.plot(times, self.results['optimal_amp'].data, marker='o', label='exp optimal', color='black')
+        ax.plot(times, self.alpha_const_chi, label='const chi', color='black')
+#        ax.plot(times, self.alpha_from_cal, label='from chi cal')
         ax.set_ylim(amps.min(),amps.max())
         ax.legend()

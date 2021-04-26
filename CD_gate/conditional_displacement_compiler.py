@@ -6,12 +6,15 @@ Created on Mon Jan  4 22:53:11 2021
 """
 import os
 import numpy as np
+import math
 from scipy.optimize import curve_fit, minimize
 from scipy.interpolate import CubicSpline
 from init_script import cavity, qubit
 
 class ConditionalDisplacementCompiler():
-    
+    """
+    This uses the definition CD(beta) = D(sigma_z*beta/2).
+    """
     def __init__(self, cal_dir=None, qubit_pulse_shift=0, qubit_pulse_pad=0,
                  pad_clock_cycle=True):
         """
@@ -32,68 +35,47 @@ class ConditionalDisplacementCompiler():
     def CD_params_fixed_tau(self, beta, tau_ns):
         """
         Find parameters for CD gate based on simple constant chi model.
-        This uses the definition CD(beta) = D(sigma_z*beta/2).
         The displacements can be complex-valued here.
         Angles are taken in the counter-clockwise direction, so normally
         phi_e will be positive and phi_g will be negative.
         """
-        alpha = beta / 4. / np.sin(2*np.pi*cavity.chi*tau_ns*1e-9) * 1j
+        alpha = beta / 2. / np.sin(2*np.pi*cavity.chi*tau_ns*1e-9) * 1j
+        if np.abs(alpha)*cavity.displace.unit_amp > 0.95:
+            alpha *= (0.95/cavity.displace.unit_amp) / np.abs(alpha)
         phi_g = np.zeros_like(alpha)
         phi_e = np.zeros_like(alpha)
         return (tau_ns, alpha, phi_g, phi_e)
 
     def CD_params_fixed_alpha(self, beta, alpha_abs):
-        tau_min = 4
-        tau = 2. / (2*np.pi*cavity.chi) * np.arcsin(np.abs(beta/alpha_abs/4.))
-        tau_ns = int(round(tau*1e9)) - tau_min
-        if tau_ns <= 0:
-            tau_ns = 0
-            alpha_abs = np.abs(beta) / 4. / np.sin(2*np.pi*cavity.chi*tau_min*1e-9)
+        tau = 1. / (2*np.pi*cavity.chi) * np.arcsin(np.abs(beta/alpha_abs/2.))
+        tau_ns = int(math.ceil(tau*1e9))
+        alpha_abs = np.abs(beta) / 2. / np.sin(2*np.pi*cavity.chi*tau_ns*1e-9)
         alpha_phase = np.angle(beta) + np.pi/2
         alpha = alpha_abs * np.exp(1j*alpha_phase)
         phi_g = np.zeros_like(alpha)
         phi_e = np.zeros_like(alpha)
         return (tau_ns, alpha, phi_g, phi_e)
 
+    def CD_params_fixed_tau_from_cal(self, beta, tau_ns):
+        """
+        Find parameters for CD gate based on simple calibration.
+        Calibration gives a linear fit "alpha = a * beta + b" for a fixed tau,
+        this can be obtained from 'CD_fixed_time_amp_cal' experiment.
+        The displacements can be complex-valued here.
+        Angles are taken in the counter-clockwise direction, so normally
+        phi_e will be positive and phi_g will be negative.
+        """
+        data = np.load(os.path.join(self.cal_dir, 'linear_fit.npz'))
+        a, b = data['a'], data['b']
+        assert tau_ns == data['tau_ns']
+        alpha_abs = a * np.abs(beta) + b
+        alpha_abs_max = 0.95/cavity.displace.unit_amp
+        alpha_abs = np.min([alpha_abs, alpha_abs_max])
+        alpha = alpha_abs * np.exp(1j*(np.pi/2 + np.angle(beta)))
+        phi_g = np.zeros_like(alpha)
+        phi_e = np.zeros_like(alpha)
+        return (tau_ns, alpha, phi_g, phi_e)
 
-    # TODO: check this for consistency of directions of displacements
-    def CD_params_improved(self, beta, tau, interpolation='quartic_fit'):
-        """Find parameters for CD gate based on calibration of cavity rotation
-        frequency vs nbar."""
-        # load cavity rotation frequency vs nbar data
-        nbar = np.load(os.path.join(self.cal_dir, 'nbar.npy'))
-        freq_e_exp = np.load(os.path.join(self.cal_dir, 'freq_e.npy'))
-        freq_g_exp = np.load(os.path.join(self.cal_dir, 'freq_g.npy'))
-
-        if interpolation == 'quartic_fit':
-            # fit experimental data to 4-th order polynomial in nbar
-            def quartic_fit(n, c0, c1, c2, c3, c4):
-                return c0 + c1*n + c2*n**2 + c3*n**3 + c4*n**4
-            popt_g, _ = curve_fit(quartic_fit, nbar, freq_g_exp)
-            popt_e, _ = curve_fit(quartic_fit, nbar, freq_e_exp)
-    
-            freq_g = lambda a: quartic_fit(a**2, *popt_g)
-            freq_e = lambda a: quartic_fit(a**2, *popt_e)
-        
-        if interpolation == 'cubic_spline':
-            freq_g = lambda a: CubicSpline(nbar, freq_g_exp)(a**2)
-            freq_e = lambda a: CubicSpline(nbar, freq_e_exp)(a**2)
-
-        # use Nelder-Mead to find optimal alpha for each tau
-        def cost_fn(a):
-            phi = 2*np.pi*(freq_g(a)-freq_e(a))*tau*1e-9
-            return (beta - 2*a*np.sin(phi))**2
-
-        def find_alpha(beta, tau):
-            alpha_guess = beta / 2. / np.sin(2*np.pi*cavity.chi*tau*1e-9)
-            res = minimize(cost_fn, x0=alpha_guess, method='Nelder-Mead')
-            return res.x
-
-        alpha = find_alpha(beta, tau)
-        phi_g = 2*np.pi * freq_g(alpha) * tau*1e-9
-        phi_e = 2*np.pi * freq_e(alpha) * tau*1e-9
-
-        return (alpha, phi_g, phi_e)
     
     def get_calibrated_pulse(self, pulse, zero_pad=False):
         """ 

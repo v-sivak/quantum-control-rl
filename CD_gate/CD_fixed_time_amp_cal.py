@@ -39,8 +39,8 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
         self.alpha_const_chi, self.alpha_from_cal = [], []
         for beta in np.linspace(*self.beta_range):
             # predicted optimal displacement amplitudes
-            self.alpha_const_chi.append(C.CD_params(beta, self.tau)[0])
-            self.alpha_from_cal.append(C.CD_params_improved(beta, self.tau)[0])
+            self.alpha_const_chi.append(np.abs(C.CD_params_fixed_tau(beta, self.tau)[1]))
+#            self.alpha_from_cal.append(C.CD_params_improved(beta, self.tau)[0])
 
         
         with scan_amplitude(cavity.chan, *self.alpha_range, 
@@ -117,7 +117,7 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
         ax.pcolormesh(betas, alphas, self.results['postselected'].data)
         # plot predictions of optimal amplitude
         ax.plot(betas, self.results['optimal_amp'].data, marker='o', label='exp optimal', color='black')
-        ax.plot(betas, self.alpha_const_chi, label='const chi')
-        ax.plot(betas, self.alpha_from_cal, label='from chi cal')
+        ax.plot(betas, self.alpha_const_chi, label='const chi', color='green')
+#        ax.plot(betas, self.alpha_from_cal, label='from chi cal')
         ax.set_ylim(alphas.min(),alphas.max())
-        ax.legend()
+        ax.legend(loc='lower right')

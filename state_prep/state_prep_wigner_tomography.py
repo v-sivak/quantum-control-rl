@@ -4,7 +4,7 @@ Created on Mon Apr 12 16:03:29 2021
 
 @author: qulab
 """
-from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler
+from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler, ConditionalDisplacementCompiler
 from init_script import *
 
 class state_prep_wigner_tomography(FPGAExperiment):
@@ -17,13 +17,19 @@ class state_prep_wigner_tomography(FPGAExperiment):
     tau_ns = IntParameter(24)
     alpha_abs = FloatParameter(8.0)
     filename = StringParameter(r'C:\code\gkp_exp\state_prep\fock4.npz')
+    cal_dir = StringParameter('')
 
     def sequence(self):
         data = np.load(self.filename, allow_pickle=True)
         beta, phi = data['beta'], data['phi']
-        C = ECD_control_simple_compiler(tau_ns=self.tau_ns)
+#        C = ECD_control_simple_compiler(tau_ns=self.tau_ns)
 #        C = ECD_control_simple_compiler(alpha_abs=self.alpha_abs)
-        self.c_pulse, self.q_pulse = C.make_pulse(beta, phi)
+
+        ECD_control_compiler = ECD_control_simple_compiler()
+        CD_compiler = ConditionalDisplacementCompiler(pad_clock_cycle=False, cal_dir=self.cal_dir)
+        ECD_control_compiler.CD_params_func = lambda x: CD_compiler.CD_params_fixed_tau_from_cal(x, self.tau_ns)
+        
+        self.c_pulse, self.q_pulse = ECD_control_compiler.make_pulse(beta, phi)
 
 #        data = np.load(r'Y:\tmp\for Vlad\from_vlad\vlad_params_fock_4_alpha_7.000.npz')
 #        self.q_pulse = data['qubit_dac_pulse']

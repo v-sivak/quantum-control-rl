@@ -28,7 +28,7 @@ class CD_time_sweep(FPGAExperiment):
         C = ConditionalDisplacementCompiler(cal_dir=self.cal_dir)
 
         for tau in tau_ns:
-            alpha, phi_g, phi_e = C.CD_params_improved(self.beta, tau)
+            tau, alpha, phi_g, phi_e = C.CD_params_fixed_tau(self.beta, tau)
             self.cavity_pulse, self.qubit_pulse = C.make_pulse(tau, alpha, phi_g, phi_e)
             extra_phase = phi_g + phi_e
 
