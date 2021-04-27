@@ -4,7 +4,7 @@ Created on Mon Apr 12 16:03:29 2021
 
 @author: qulab
 """
-from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler, ConditionalDisplacementCompiler
+from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler
 from init_script import *
 
 class state_prep_wigner_tomography(FPGAExperiment):
@@ -22,12 +22,10 @@ class state_prep_wigner_tomography(FPGAExperiment):
     def sequence(self):
         data = np.load(self.filename, allow_pickle=True)
         beta, phi = data['beta'], data['phi']
-#        C = ECD_control_simple_compiler(tau_ns=self.tau_ns)
-#        C = ECD_control_simple_compiler(alpha_abs=self.alpha_abs)
 
-        ECD_control_compiler = ECD_control_simple_compiler()
-        CD_compiler = ConditionalDisplacementCompiler(pad_clock_cycle=False, cal_dir=self.cal_dir)
-        ECD_control_compiler.CD_params_func = lambda x: CD_compiler.CD_params_fixed_tau_from_cal(x, self.tau_ns)
+        CD_compiler_kwargs = dict(cal_dir=self.cal_dir)
+        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)        
+        ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
         
         self.c_pulse, self.q_pulse = ECD_control_compiler.make_pulse(beta, phi)
 
