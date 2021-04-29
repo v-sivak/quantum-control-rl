@@ -1,2 +1,2 @@
-# gkp-rl
-Reinforcement learning for quantum error correction with GKP code.
+# Model-Free Quantum Control with Reinforcement Learning
+This repo is under active development.
