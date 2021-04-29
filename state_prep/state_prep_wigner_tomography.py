@@ -58,20 +58,47 @@ class state_prep_wigner_tomography(FPGAExperiment):
         sign = dict(g=1, e=-1)
 
         for s in ['g', 'e']:
+
             # post-select on m0='g'
-            init_state = self.results[s+'_m0'].threshold()
-            postselected = self.results[s+'_m2'].postselect(init_state, [0])[0]
-            self.results[s+'_m2_postselected_m0'] = sign[s]*(1 - 2*postselected.threshold())
+            # meaning that the whole state prep sequence STARTS from VACUUM
+            init_state_g = self.results[s+'_m0'].multithresh()[0]
+            postselected = self.results[s+'_m2'].postselect(init_state_g, [1])[0]
+            self.results[s+'_m2_postselected_m0'] = postselected
             self.results[s+'_m2_postselected_m0'].ax_data = self.results[s+'_m2'].ax_data
             self.results[s+'_m2_postselected_m0'].labels = self.results[s+'_m2'].labels
-            self.results[s+'_m2_postselected_m0'].vmin = -1
-            self.results[s+'_m2_postselected_m0'].vmax = 1
+
+            self.results[s+'_sz_postselected_m0'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0'].vmin = -1
+            self.results[s+'_sz_postselected_m0'].vmax = 1
+
 
             # post-select on m1='g' outcomes
-            verification = self.results[s+'_m1'].threshold()
-            postselected = self.results[s+'_m2_postselected_m0'].postselect(verification, [0])[0]
-            self.results[s+'_m2_postselected_m0_m1'] = postselected.threshold()
+            # meaning that the whole state prep sequence ENDS in VACUUM
+            verification_g = self.results[s+'_m1'].multithresh()[0]
+            postselected = self.results[s+'_m2_postselected_m0'].postselect(verification_g, [1])[0]
+            self.results[s+'_m2_postselected_m0_m1'] = postselected
             self.results[s+'_m2_postselected_m0_m1'].ax_data = self.results[s+'_m2'].ax_data
             self.results[s+'_m2_postselected_m0_m1'].labels = self.results[s+'_m2'].labels
-            self.results[s+'_m2_postselected_m0_m1'].vmin = -1
-            self.results[s+'_m2_postselected_m0_m1'].vmax = 1
+
+            self.results[s+'_sz_postselected_m0_m1'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0_m1'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0_m1'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0_m1'].vmin = -1
+            self.results[s+'_sz_postselected_m0_m1'].vmax = 1
+
+
+            # post-select on m2='g'or'e' outcomes
+            # meaning that we eliminate leakage error during tomography
+            tomo_not_ge = self.results[s+'_m2'].multithresh()[2]
+            postselected = self.results[s+'_m2_postselected_m0_m1'].postselect(tomo_not_ge, [0])[0]
+            self.results[s+'_m2_postselected_m0_m1_m2'] = postselected
+            self.results[s+'_m2_postselected_m0_m1_m2'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0_m1_m2'].labels = self.results[s+'_m2'].labels
+
+            self.results[s+'_sz_postselected_m0_m1_m2'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0_m1_m2'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0_m1_m2'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0_m1_m2'].vmin = -1
+            self.results[s+'_sz_postselected_m0_m1_m2'].vmax = 1
