@@ -26,7 +26,7 @@ scale = 2/pi
 
 def get_normalized_exp_wigner():
     wigner = {}
-    data = np.load(r'Z:\tmp\for Vlad\from_vlad\wigner_fock_4_improved.npz')
+    data = np.load(r'Z:\tmp\for Vlad\from_vlad\wigner_fock_4.npz')
     wigner['g'] = data['wigner_g'] * scale
     wigner['e'] = data['wigner_e'] * scale
     wigner['avg'] = (wigner['g'] + wigner['e']) / 2
@@ -130,10 +130,9 @@ axes[1].set_title('Reconstructed')
 axes[0].set_aspect('equal')
 axes[1].set_aspect('equal')
 
-axes[0].pcolormesh(xs, ys, np.transpose(wigner_exp), 
-                   cmap='RdBu_r', vmin=-scale, vmax=scale)
-axes[1].pcolormesh(xs, ys, np.transpose(wigner_reconstructed), 
-                   cmap='RdBu_r', vmin=-scale, vmax=scale)
+plot_kwargs = dict(cmap='RdBu_r', vmin=-1, vmax=1)
+axes[0].pcolormesh(xs, ys, np.transpose(wigner_exp), **plot_kwargs)
+axes[1].pcolormesh(xs, ys, np.transpose(wigner_reconstructed), **plot_kwargs)
 
 
 # Plot density matrix
@@ -144,8 +143,8 @@ axes[1].set_title('Imag')
 axes[0].set_aspect('equal')
 axes[1].set_aspect('equal')
 
-axes[0].pcolormesh(np.transpose(rho_re), cmap='RdBu_r', vmin=-1, vmax=1)
-axes[1].pcolormesh(np.transpose(rho_im), cmap='RdBu_r', vmin=-1, vmax=1)
+axes[0].pcolormesh(np.transpose(rho_re), **plot_kwargs)
+axes[1].pcolormesh(np.transpose(rho_im), **plot_kwargs)
 
 
 # Purity

@@ -18,10 +18,11 @@ import h5py
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import qutip as qt
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
+from gkp.tf_env import tf_env_wrappers as wrappers
+from gkp.tf_env import env_init
 import gkp.action_script as action_scripts
 import plot_config
+import importlib
 
 root_dir = r'E:\data\gkp_sims\PPO\examples\gkp_T9'
 deltas = [0.45, 0.35, 0.25, 0.15]
@@ -107,17 +108,26 @@ ax.legend(ncol=1, prop={'size': 6}, loc='upper left')
 avg_ideal_stabilizer, delta_effective = {}, {}
 
 for Delta in deltas:
-    reward_kwargs = {'reward_mode' : 'stabilizers_v2',
-                     'Delta' : 0.0, 'beta' : sqrt(pi),
-                     'sample' : False}
     
-    env = gkp_init(simulate='snap_and_displacement', reward_kwargs=reward_kwargs,
-                    init='vac', H=1, T=9, attn_step=1, batch_size=1, N=200, episode_length=9)
+    # from gkp.tf_env import helper_functions as hf
+    # target_state = hf.GKP_1D_state(False, 200, Delta*sqrt(2))
+    # reward_kwargs = {'reward_mode' : 'overlap',
+    #                   'target_state' : target_state,
+    #                   'postselect_0' : False}
+    
+    reward_kwargs = {'reward_mode' : 'stabilizers_v2',
+                      'Delta' : 0.0, 'beta' : sqrt(pi),
+                      'sample' : False}
+    
+    env = env_init(control_circuit='snap_and_displacement', reward_kwargs=reward_kwargs,
+                   init='vac', T=9, batch_size=1, N=200, episode_length=9)
     
     action_script = 'snap_and_displacements'
     action_scale = {'alpha':6, 'theta':pi}
     to_learn = {'alpha':True, 'theta':True}
-    action_script = action_scripts.__getattribute__(action_script)
+    
+    module_name = 'gkp.action_script.' + action_script
+    action_script = importlib.import_module(module_name)
     env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
     delta_dir = os.path.join(root_dir, 'delta' + str(Delta))
@@ -158,4 +168,4 @@ ax1.xaxis.set_tick_params(labelsize=7)
 ax1.yaxis.set_tick_params(labelsize=7)
 
 fig.tight_layout()
-fig.savefig(figname)
+# fig.savefig(figname)
