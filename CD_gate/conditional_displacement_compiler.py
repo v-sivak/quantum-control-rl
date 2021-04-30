@@ -144,7 +144,14 @@ class ConditionalDisplacementCompiler():
 class ECD_control_simple_compiler():
     
     def __init__(self, CD_compiler_kwargs={}, CD_params_func_kwargs={}):
-        
+        """
+        Args:
+            CD_compiler_kwargs (dict): to be used on initialization of the
+                'ConditionalDisplacementCompiler' instance.
+            CD_params_func_kwargs (dict): should contain 'name' of the method
+                used for CD_params_func; the rest of the keys will be passed
+                to that method as arguments. 
+        """
         CD_compiler_kwargs['pad_clock_cycle'] = False
         self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
         self.pi_pulse = get_calibrated_pulse(qubit.pulse)
@@ -190,66 +197,68 @@ class ECD_control_simple_compiler():
 
 
 # TODO: this needs to be re-written after updating the CD compiler functions.
-class sBs_compiler():
+class SBS_simple_compiler():
     
-    def __init__(self, tau_small, tau_big, cal_dir=None):
-        self.C = ConditionalDisplacementCompiler(cal_dir=cal_dir, 
-                                                 pad_clock_cycle=False)
-        self.tau_small = tau_small
-        self.tau_big = tau_big
+    def __init__(self, CD_compiler_kwargs={}, CD_params_func_kwargs={}):
+        """
+        Args:
+            CD_compiler_kwargs (dict): to be used on initialization of the
+                'ConditionalDisplacementCompiler' instance.
+            CD_params_func_kwargs (dict): should contain 'name' of the method
+                used for CD_params_func; the rest of the keys will be passed
+                to that method as arguments. 
+        """
+        CD_compiler_kwargs['pad_clock_cycle'] = False
+        self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
+        self.pi_pulse = get_calibrated_pulse(qubit.pulse)
+        
+        func = getattr(self.CD, CD_params_func_kwargs.pop('name'))
+        self.CD_params_func = lambda beta: func(beta, **CD_params_func_kwargs)
     
     def make_pulse(self, eps1, eps2, beta):
-        phase = 0.0 # Keep track of the global oscillator rotation
-        CD_params_func = self.C.CD_params # will predict (alpha, phi_g, phi_e)
+        phase = 0.0 # Keep track of the global oscillator rotation (anti-clockwise)
         
-        # 1) Start in |g>, put the qubit in |+>
+        # 1) Start in |g>, put the qubit in |+> with Y90
         X90 = get_calibrated_pulse(qubit.pi2_pulse)
-        sbs_qb = X90 * np.exp(1j*np.pi/2.0)
-        sbs_cav = np.zeros_like(X90)
+        Q_pulse = X90 * np.exp(1j*np.pi/2.0)
+        C_pulse = np.zeros_like(X90)
 
-        # 2a) apply 1st "small" CD gate
-        (alpha, phi_g, phi_e) = CD_params_func(eps1, self.tau_small)
-        cav_CD, qb_CD = self.C.make_pulse(self.tau_small, alpha, phi_g, phi_e)
-        qb_pulse_complex = qb_CD[0] + 1j * qb_CD[1]
-        cav_pulse_complex = (cav_CD[0] + 1j * cav_CD[1]) * np.exp(1j*phase)
+        # 2) apply 1st "small" CD gate
+        (tau, alpha, phi_g, phi_e) = self.CD_params_func(eps1)
+        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
+        Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
         phase += phi_g + phi_e
-        sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
-        sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
         
         # 3) qubit X180 + X90 rotation (combined in single rotation)
-        sbs_qb = np.concatenate([sbs_qb, X90*np.exp(1j*np.pi)])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
+        Q_pulse = np.concatenate([Q_pulse, X90*np.exp(1j*np.pi)])
+        C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
         
-        # 4a) apply "big" CD gate (with stabilizer amplitude)
-        (alpha, phi_g, phi_e) = CD_params_func(beta, self.tau_big)
-        alpha = complex(alpha) * np.exp(-1j*np.pi/2.0)
-        cav_CD, qb_CD = self.C.make_pulse(self.tau_big, alpha, phi_g, phi_e)
-        qb_pulse_complex = qb_CD[0] + 1j * qb_CD[1]
-        cav_pulse_complex = (cav_CD[0] + 1j * cav_CD[1]) * np.exp(1j*phase)
+        # 4) apply "big" CD gate (with stabilizer amplitude)
+        (tau, alpha, phi_g, phi_e) = self.CD_params_func(beta)
+        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
+        Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
         phase += phi_g + phi_e
-        sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
-        sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
 
         # 5) qubit X180 - X90 rotation (combined in single rotation)
-        sbs_qb = np.concatenate([sbs_qb, X90])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
+        Q_pulse = np.concatenate([Q_pulse, X90])
+        C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
 
-        # 6a) apply 2nd "small" CD gate
-        (alpha, phi_g, phi_e) = CD_params_func(eps2, self.tau_small)
-        cav_CD, qb_CD = self.C.make_pulse(self.tau_small, alpha, phi_g, phi_e)
-        qb_pulse_complex = qb_CD[0] + 1j * qb_CD[1]
-        cav_pulse_complex = (cav_CD[0] + 1j * cav_CD[1]) * np.exp(1j*phase)
+        # 6) apply 2nd "small" CD gate
+        (tau, alpha, phi_g, phi_e) = self.CD_params_func(eps2)
+        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
+        Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
         phase += phi_g + phi_e
-        sbs_qb = np.concatenate([sbs_qb, qb_pulse_complex])
-        sbs_cav = np.concatenate([sbs_cav, cav_pulse_complex])
 
         # 7) Qubit Y180 - Y90 rotation (combined in single rotation)
         # this rotates the qubit to be preferentially in |g>
-        sbs_qb = np.concatenate([sbs_qb, X90 * np.exp(1j*np.pi/2.0)])
-        sbs_cav = np.concatenate([sbs_cav, np.zeros_like(X90)])
+        Q_pulse = np.concatenate([Q_pulse, X90 * np.exp(1j*np.pi/2.0)])
+        C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
 
-        zero_pad = np.zeros(4 - (len(sbs_cav) % 4))
-        sbs_cav = np.concatenate([sbs_cav, zero_pad])
-        sbs_qb = np.concatenate([sbs_qb, zero_pad])
+        zero_pad = np.zeros(4 - (len(C_pulse) % 4))
+        C_pulse = np.concatenate([C_pulse, zero_pad])
+        Q_pulse = np.concatenate([Q_pulse, zero_pad])
         
-        return (sbs_cav.real, sbs_cav.imag), (sbs_qb.real, sbs_qb.imag)
+        return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)

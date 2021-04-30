@@ -5,24 +5,27 @@ Created on Thu Feb  4 20:55:46 2021
 @author: qulab
 """
 from init_script import *
-from gkp_exp.CD_gate.conditional_displacement_compiler import sBs_compiler
+from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler
 import numpy as np
 
 class sbs_step_wigner(FPGAExperiment):
-
-    cal_dir = StringParameter(r'C:\code\gkp_exp\CD_gate\storage_rotation_freq_vs_nbar')
     disp_range = RangeParameter((-4.0, 4.0, 101))
-    tau_small = IntParameter(12)
-    tau_big = IntParameter(50)
+    tau_ns = IntParameter(36)
+
     eps1 = FloatParameter(0.2)
     eps2 = FloatParameter(0.2)
+    beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
 
+    cal_dir = StringParameter('')
 
 
     def sequence(self):
+        CD_compiler_kwargs = dict(cal_dir=self.cal_dir)
+        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)
+        C = SBS_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
 
-        C = sBs_compiler(cal_dir=self.cal_dir, tau_small=self.tau_small, tau_big=self.tau_big)
-        cavity_pulse, qubit_pulse = C.make_pulse(self.eps1, self.eps2, np.sqrt(2*np.pi))
+        cavity_pulse, qubit_pulse = C.make_pulse(
+                self.eps1/2.0, self.eps2/2.0, -1j*self.beta)
 
         with system.wigner_tomography(*self.disp_range):
             readout(init='se')
