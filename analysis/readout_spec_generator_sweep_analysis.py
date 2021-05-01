@@ -11,8 +11,8 @@ import analysis_functions as af
 import matplotlib.pyplot as plt
 
 
-filename = r'D:\DATA\exp\gkp_exp.fpga_exp.readout_spec_generator_sweep\archive\20201103.h5'
-grp = '3'
+filename = r'D:\DATA\exp\gkp_exp.fpga_exp.readout_spec_generator_sweep\archive\20210430.h5'
+grp = '2'
 
 # create figure
 fig = plt.figure()
@@ -41,7 +41,7 @@ for s in ['g', 'e']:
     
     # fit data
     data = re - 1j*im
-    popt = af.fit_complex_a_out(freq, data, f_0=9.170e9, kc=0.5e6, ki=0.1e6, T=-1e-6)
+    popt = af.fit_complex_a_out(freq, data, f_0=9.170e9, kc=0.5e6, ki=0.1e6, T=-60e-9)
     f0[s], kc[s], ki[s], _, _ = popt
     
     # plot data

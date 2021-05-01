@@ -24,24 +24,42 @@ class qubit_cooling_sweep(FPGAExperiment):
                               (ssb0 + self.qubit_detune_range[1]) / 1e3,
                               self.qubit_detune_range[2])
 
-        with scan_register(*qubit_detune_range) as ssbreg:
-            with scan_amplitude(readout.chan, *self.readout_amp_range):
-                if self.flip_qubit:
-                    qubit.flip()
-                sync()
-                qubit.set_ssb(ssbreg)
-                delay(500)
-                sync()
-                readout.smoothed_constant_pulse(self.pump_time, amp='dynamic',
-                                       detune=self.readout_detune_MHz*1e6,
-                                       sigma_t=self.smooth_sigma_t)
-                qubit.smoothed_constant_pulse(self.pump_time, amp=self.qubit_amp,
-                                        sigma_t=self.smooth_sigma_t)
-                sync()
-                qubit.pi2_pulse(phase=np.pi/2)
-                sync()
-                delay(self.wait_time)
-                sync()
-                readout()
-                sync()
-                delay(self.loop_delay)
+        self.qubit_detuned = qubit_ef
+        self.qubit = qubit
+        
+        def exp(res_name, flip_qubit):
+            with scan_register(*qubit_detune_range, 
+                               plot_label='ssb frequency (kHz)') as ssbreg:
+                with scan_amplitude(readout.chan, *self.readout_amp_range):
+                    if flip_qubit:
+                        self.qubit.flip()
+                    sync()
+                    self.qubit_detuned.set_ssb(ssbreg)
+                    delay(500)
+                    sync()
+                    readout.smoothed_constant_pulse(self.pump_time, amp='dynamic',
+                                           detune=self.readout_detune_MHz*1e6,
+                                           sigma_t=self.smooth_sigma_t)
+                    self.qubit_detuned.smoothed_constant_pulse(self.pump_time, amp=self.qubit_amp,
+                                            sigma_t=self.smooth_sigma_t)
+#                    sync()
+#                    self.qubit.pi2_pulse(phase=np.pi/2)
+                    sync()
+                    delay(self.wait_time)
+                    sync()
+                    readout(**{res_name:'se'})
+                    sync()
+                    delay(self.loop_delay)
+        
+        exp('g', False)
+        exp('e', True)
+                    
+    
+    def process_data(self):
+
+        g_sz = 1 - 2*self.results['g'].threshold()
+        e_sz = 1 - 2*self.results['e'].threshold()
+        
+        self.results['avg_sz'] = (g_sz + e_sz) / 2.0
+        self.results['avg_sz'].ax_data = self.results['g'].ax_data
+        self.results['avg_sz'].labels = self.results['g'].labels
