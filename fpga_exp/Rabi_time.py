@@ -9,7 +9,7 @@ from init_script import *
 class Rabi_time(FPGAExperiment):
     amp = FloatParameter(0.5)
     time_range = RangeParameter((0,200,11))
-    loop_delay=0.5e6
+    loop_delay= IntParameter(1e6)
     fit_func = 'sine'
     fixed_fit_params = {'phi': -np.pi/2}
 
