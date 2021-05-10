@@ -13,8 +13,8 @@ from fpga_lib.dsl.result import Results
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.state_prep.state_prep_wigner_tomography\archive'
-fname = '20210427.h5'
-group = 7
+fname = '20210509.h5'
+group = 0
 file_name = os.path.join(exp_dir, fname)
 
 grp_name = str(group)

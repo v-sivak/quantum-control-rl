@@ -18,9 +18,8 @@ __all__ = ['state_prep_wigner_reward']
 class state_prep_wigner_reward(ReinforcementLearningExperiment):
     """ State preparation with Wigner reward. """
     def __init__(self):
-        super(state_prep_wigner_reward, self).__init__()
-        self.batch_axis = 1
         self.max_mini_batch_size = 10
+        self.batch_axis = 1
     
     def update_exp_params(self):
 
@@ -30,17 +29,24 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
         self.targets = np.array(self.message['targets'])
         self.N_alpha = self.message['N_alpha']
         self.N_msmt = self.message['N_msmt']
+        mini_batch_size = self.mini_batches[self.mini_batch_idx]
+        i_offset = sum(self.mini_batches[:self.mini_batch_idx])
+
         
-        C = ECD_control_simple_compiler(tau_ns=24)
+        CD_compiler_kwargs = dict(cal_dir=r'D:\DATA\exp\2021-03-26_cooldown\CD_fixed_time_amp_cal\tau=16ns')
+        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=16)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
+
         self.cavity_pulses, self.qubit_pulses = [], []
-        for i in range(self.batch_size):
-            C_pulse, Q_pulse = C.make_pulse(beta[i], phi[i])
+        for i in range(mini_batch_size):
+            I = i_offset + i
+            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I])
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Compiled pulses.')
         
         # save phase space points and pulse sequences to file
-        opt_file = r'D:\DATA\exp\2021-03-26_cooldown\state_prep_wigner_reward\opt_data.npz'
+        opt_file = r'D:\DATA\exp\2021-04-19_cooldown\state_prep_fock_reward\opt_data.npz'
         np.savez(opt_file, alphas=self.alphas, targets=self.targets,
                  cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
         
@@ -48,7 +54,7 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
                 'gkp_exp.rl.state_prep_wigner_reward_fpga', from_gui=True)
         
         self.exp.set_params(
-                {'batch_size' : self.batch_size,
+                {'batch_size' : mini_batch_size,
                  'N_alpha' : self.N_alpha,
                  'opt_file' : opt_file,
                  'n_blocks' : self.N_msmt / 2,
@@ -57,10 +63,11 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
 
 
     def create_reward_data(self):
+        mini_batch_size = self.mini_batches[self.mini_batch_idx]
         # expected shape of the results is [N_msmt, B, N_alpha]
         m1 = 1. - 2*self.results['m1'].threshold().data
         m2 = 1. - 2*self.results['m2'].threshold().data
-        if self.batch_size == 1: 
+        if mini_batch_size == 1: 
             m1 = np.expand_dims(m1, 1)
             m2 = np.expand_dims(m2, 1)
         m1 = np.transpose(m1, axes=[1,2,0])
@@ -73,4 +80,3 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
         logger.info('Average reward %.3f' %R)
         
         return reward_data
-        

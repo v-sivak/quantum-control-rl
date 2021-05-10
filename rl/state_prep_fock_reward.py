@@ -29,9 +29,12 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
         self.fock = self.message['fock']
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
+
+
+        CD_compiler_kwargs = dict(cal_dir=r'D:\DATA\exp\2021-03-26_cooldown\CD_fixed_time_amp_cal\tau=16ns')
+        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=16)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
         
-        C = ECD_control_simple_compiler(tau_ns=24)
-#        C = ECD_control_simple_compiler(alpha_abs=20)
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
@@ -41,7 +44,7 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
         logger.info('Compiled pulses.')
         
         # save phase space points and pulse sequences to file
-        opt_file = r'D:\DATA\exp\2021-03-26_cooldown\state_prep_fock_reward\opt_data.npz'
+        opt_file = r'D:\DATA\exp\2021-04-19_cooldown\state_prep_fock_reward\opt_data.npz'
         np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
         
         self.exp = get_experiment(
@@ -61,7 +64,7 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
         # expected shape of the results is [N_msmt, B]
         m1 = 1. - 2*self.results['m1'].threshold().data
         m2 = 1. - 2*self.results['m2'].threshold().data
-        if mini_batch_size == 1: 
+        if mini_batch_size == 1:
             m1 = np.expand_dims(m1, 1)
             m2 = np.expand_dims(m2, 1)
         m1 = np.transpose(m1, axes=[1,0])
