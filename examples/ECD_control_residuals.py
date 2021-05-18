@@ -20,7 +20,7 @@ from math import sqrt, pi
 from gkp.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from gkp.agents import actor_distribution_network_gkp
-from gkp.gkp_tf_env import helper_functions as hf
+from gkp.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do Fock state N=2 preparation with universal gate sequence.
@@ -31,11 +31,11 @@ measurements are performed in the end to assign reward.
 """
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\fock4_wigner'
-root_dir = os.path.join(root_dir,'4')
+root_dir = os.path.join(root_dir,'test')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'ECD_control',
+    'control_circuit' : 'ECD_control',
     'init' : 'vac',
     'T' : 8, 
     'N' : 50}
@@ -72,6 +72,9 @@ if 0: # GKP
 reward_kwargs = {'reward_mode' : 'tomography',
                   'tomography' : 'wigner',
                   'target_state' : target_state,
+                  'sampling_type' : 'abs',
+                  'N_alpha' : 100,
+                  'N_msmt' : 10,
                   'window_size' : 16}
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',

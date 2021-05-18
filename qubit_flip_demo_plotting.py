@@ -73,7 +73,12 @@ def update(i):
     string = string.replace('[', '')
     string = string.replace(']', '')
     string = '\n'.join(string)
-    ax.text(0.02*i, 0.5, string, va='center')
+    
+    string0 = string.replace('1', '')
+    string1 = string.replace('0', '')
+    
+    ax.text(0.02*i, 0.5, string0, va='center', color='red')
+    ax.text(0.02*i, 0.5, string1, va='center', color='green')
 
 anim = FuncAnimation(fig, update, frames=np.arange(0, epochs-1), interval=200)
 anim.save(savename, writer='imagemagick', dpi=600, 
@@ -124,9 +129,9 @@ text2 = ax.text(12, 0.35, 'F=%.3f'%fidelity[0])
 
 def update(i):
     line.set_xdata(np.arange(i))
-    line.set_ydata(fidelity[:i])    
+    line.set_ydata(fidelity[:i])
     text1.set_text('a=%.3f'%a[i])
-    text2.set_text('F=%.5f'%fidelity[i])    
+    text2.set_text('F=%.5f'%fidelity[i])
     return line, text1, text2
 
 anim = FuncAnimation(fig, update, frames=np.arange(0, steps), interval=200)

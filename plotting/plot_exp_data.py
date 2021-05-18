@@ -11,11 +11,11 @@ from scipy.optimize import curve_fit
 
 # load and plot experimental data
 dac_cal_coeff = 1
-nbar = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\nbar.npy') / dac_cal_coeff
-freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\freq_g.npy')
-freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\new2\freq_e.npy')
+nbar = np.load(r'Z:\tmp\for Vlad\from_vlad\nbar.npy') / dac_cal_coeff
+freq_g = np.load(r'Z:\tmp\for Vlad\from_vlad\freq_g.npy')
+freq_e = np.load(r'Z:\tmp\for Vlad\from_vlad\freq_e.npy')
 
-fig, ax = plt.subplots(1,1,figsize=(3.375,2))
+fig, ax = plt.subplots(1,1,figsize=(3.375,2), dpi=200)
 ax.set_xlabel('nbar')
 ax.set_ylabel('Rotation freq (kHz)')
 ax.plot(nbar, freq_g*1e-3, marker='.', linestyle='none', label='g')
@@ -28,11 +28,11 @@ plt.tight_layout()
 avg_freq = (freq_g + freq_e)/2.0
 def avg_freq_fit_func(n, Kerr, Delta):
     return  Delta + Kerr * n
-fit_pts = 17
+fit_pts = 21
 popt, pcov = curve_fit(avg_freq_fit_func, nbar[:fit_pts], avg_freq[:fit_pts])
 Kerr, Delta = popt
 
-fig, ax = plt.subplots(1,1,figsize=(3.375,2.2))
+fig, ax = plt.subplots(1,1,figsize=(3.375,2.2), dpi=200)
 ax.set_xlabel('nbar')
 ax.set_ylabel('Avg rotation freq (kHz)')
 ax.plot(nbar, avg_freq*1e-3, marker='.',linestyle='none')
@@ -49,7 +49,7 @@ def diff_freq_fit_func(n, chi, chi_prime):
 popt, pcov = curve_fit(diff_freq_fit_func, nbar[:fit_pts], diff_freq[:fit_pts])
 chi, chi_prime = popt
 
-fig, ax = plt.subplots(1,1,figsize=(3.375,2.2))
+fig, ax = plt.subplots(1,1,figsize=(3.375,2.2), dpi=200)
 ax.set_xlabel('nbar')
 ax.set_ylabel('Diff rotation freq (kHz)')
 ax.plot(nbar, diff_freq*1e-3, marker='.',linestyle='none')
@@ -65,7 +65,7 @@ def quartic_fit(n, c0, c1, c2, c3, c4):
 popt_g, _ = curve_fit(quartic_fit, nbar, freq_g)
 popt_e, _ = curve_fit(quartic_fit, nbar, freq_e)
 
-fig, ax = plt.subplots(1,1,figsize=(3.375,2))
+fig, ax = plt.subplots(1,1,figsize=(3.375,2), dpi=200)
 ax.set_xlabel('nbar')
 ax.set_ylabel('Rotation freq (kHz)')
 ax.plot(nbar, freq_g*1e-3, marker='.', linestyle='none', label='g')

@@ -29,8 +29,8 @@ measurements are performed in the end to assign reward.
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\fock4_fock'
-root_dir = os.path.join(root_dir,'7')
+root_dir = r'E:\data\gkp_sims\PPO\ECD\test'
+root_dir = os.path.join(root_dir,'14')
 
 # Params for environment
 env_kwargs = {
@@ -45,18 +45,18 @@ target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
 reward_kwargs = {'reward_mode' : 'fock',
                  'target_state' : target_state,
                  'N_msmt' : 10,
-                 'error_prob' : 0.5}
+                 'error_prob' : 0.4}
 
 reward_kwargs_eval = {'reward_mode' : 'overlap',
                       'target_state' : target_state,
-                      'postselect_0' : False}
+                      'postselect_0' : True}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
+action_scale = {'beta':3/4, 'phi':pi/4}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 50
+train_batch_size = 10
 eval_batch_size = 1000
 
 learn_residuals = True
@@ -79,12 +79,12 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 300,
+        num_epochs = 2000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 1e-4,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
