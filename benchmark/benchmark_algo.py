@@ -22,7 +22,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-# from gkp.utils.rl_train_utils import save_log
+# from rl_tools.utils.rl_train_utils import save_log
 from . import utils, displace
 
 # Import/initialize MPI if we detect running in slurm with multiple tasks

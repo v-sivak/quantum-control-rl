@@ -14,9 +14,9 @@ sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 import qutip as qt
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.remote_env_tools import remote_env_tools as rmt
+from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
@@ -83,7 +83,7 @@ train_episode_length = lambda x: env_kwargs['T']
 eval_episode_length = lambda x: env_kwargs['T']
 
 # Create drivers for data collection
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 

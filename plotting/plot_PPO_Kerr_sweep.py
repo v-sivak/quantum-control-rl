@@ -12,10 +12,10 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import numpy as  np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import gkp_init
-from gkp.action_script import v2_hexagonal_phase_estimation_6round as action_script
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import env_init
+from rl_tools.action_script import v2_hexagonal_phase_estimation_6round as action_script
+from rl_tools.tf_env import tf_env_wrappers as wrappers
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep_4000'
 
@@ -47,14 +47,14 @@ for i in range(len(names)):
         # Additional simulation parameters
         kwargs = {'K_osc' : K, 't_gate' : 1.2e-6/np.sqrt(np.sqrt(K)), 'T1_osc' : 250e-6}
         if 'perfect' in names[i]:
-            kwargs['simulate'] = 'oscillator'
+            kwargs['control_circuit'] = 'oscillator'
         else:
-            kwargs['simulate'] = 'oscillator_qubit'
+            kwargs['control_circuit'] = 'oscillator_qubit'
             T1_qb = int(names[i][:names[i].find('us')])
             kwargs['T1_qb'] = T1_qb*1e-6
         
         # Initialize environment
-        env = gkp_init(init='X+', H=1, T=6, attn_step=1, batch_size=3000, 
+        env = env_init(init='X+', H=1, T=6, attn_step=1, batch_size=3000, 
                    episode_length=200, reward_mode = 'fidelity',
                    quantum_circuit_type='v2', encoding='hexagonal', **kwargs)
         env = wrappers.ActionWrapper(env, action_script, to_learn)

@@ -13,8 +13,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 import qutip as qt
-from gkp.tf_env import env_init
-from gkp.remote_env_tools.remote_env_tools import Client
+from rl_tools.tf_env import env_init
+from rl_tools.remote_env_tools.remote_env_tools import Client
 
 # Create environment that will produce mock measurement outcomes
 env = env_init(control_circuit='ECD_control', reward_kwargs={'reward_mode' : 'zero'},

@@ -14,10 +14,10 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.agents import actor_distribution_network_gkp
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.agents import actor_distribution_network_gkp
+from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do quantum error correction with autonomous sBs protocol 
@@ -33,7 +33,7 @@ root_dir = os.path.join(root_dir,'gkp_qec_autonomous_sBs_stabilizers')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'gkp_qec_autonomous_sBs_osc_qb',
+    'control_circuit' : 'gkp_qec_autonomous_sBs_osc_qb',
     'encoding' : 'square',
     'init' : 'random',
     'H' : 1,
@@ -54,7 +54,7 @@ train_batch_size = 100
 eval_batch_size = 1000
 
 # Create drivers for data collection
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, 

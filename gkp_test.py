@@ -15,12 +15,12 @@ import qutip as qt
 import numpy as np
 from math import pi, sqrt
 import matplotlib.pyplot as plt
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import env_init
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
 from simulator.utils import expectation
-import gkp.action_script as action_scripts
+import rl_tools.action_script as action_scripts
 
 # N=50
 # target_state = (qt.basis(N,9)+sqrt(3)*qt.basis(N,3)).unit()
@@ -30,7 +30,7 @@ import gkp.action_script as action_scripts
 #                   'postselect_0' : False
 #                   }
 
-# env = gkp_init(simulate='snap_and_displacement', 
+# env = env_init(control_circuit='snap_and_displacement', 
 #                 reward_kwargs=reward_kwargs,
 #                 init='vac', H=1, T=5, attn_step=1, batch_size=1, N=N, episode_length=5)
 
@@ -45,12 +45,12 @@ import gkp.action_script as action_scripts
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+# env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
 #                 reward_kwargs={'reward_mode':'zero'},
 #                 init='vac', H=1, T=2, attn_step=1, batch_size=1, episode_length=2,
 #                 encoding='square')
 
-# from gkp.action_script import gkp_qec_autonomous_sBs_2round as action_script
+# from rl_tools.action_script import gkp_qec_autonomous_sBs_2round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
@@ -76,12 +76,12 @@ import gkp.action_script as action_scripts
 #                   'target_state' : target_state,
 #                   'postselect_0' : False}
 
-# env = gkp_init(simulate='ECD_control',
+# env = env_init(control_circuit='ECD_control',
 #                 reward_kwargs=reward_kwargs,
 #                 init='vac', H=1, T=16, attn_step=1, batch_size=1, N=N, 
 #                 episode_length=16)
 
-# from gkp.action_script import ECD_control_residuals as action_script
+# from rl_tools.action_script import ECD_control_residuals as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
@@ -91,7 +91,7 @@ import gkp.action_script as action_scripts
 #                   'postselect_0' : False
 #                   }
 
-# env = gkp_init(simulate='snap_and_displacement_miscalibrated', 
+# env = env_init(control_circuit='snap_and_displacement_miscalibrated', 
 #                 reward_kwargs=reward_kwargs,
 #                 init='vac', H=1, T=5, attn_step=1, batch_size=1, N=N, episode_length=5)
 
@@ -111,7 +111,7 @@ import gkp.action_script as action_scripts
 #                  'Delta' : 0.0, 'beta' : sqrt(pi),
 #                  'sample' : False}
 
-# env = gkp_init(simulate='snap_and_displacement', 
+# env = env_init(control_circuit='snap_and_displacement', 
 #                 reward_kwargs=reward_kwargs,
 #                 init='vac', H=1, T=6, attn_step=1, batch_size=1, N=N, episode_length=6)
 
@@ -134,7 +134,7 @@ import gkp.action_script as action_scripts
 #                   'postselect_0' : False
 #                   }
 
-# env = gkp_init(simulate='ECD_control',
+# env = env_init(control_circuit='ECD_control',
 #                 reward_kwargs=reward_kwargs,
 #                 init='vac', H=1, T=8, attn_step=1, batch_size=1, N=N, 
 #                 episode_length=8)
@@ -159,7 +159,7 @@ reward_kwargs = {'reward_mode' : 'overlap',
                   'postselect_0' : True
                   }
 
-env = env_init(simulate='ECD_control', reward_kwargs=reward_kwargs,
+env = env_init(control_circuit='ECD_control', reward_kwargs=reward_kwargs,
                init='vac', T=8, batch_size=1, N=N, episode_length=8,
                phase_space_rep='characteristic_fn')
 
@@ -174,7 +174,7 @@ root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP\fock4\run_2'
 policy_dir = r'policy\000300'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
-# from gkp.action_script import ECD_control_residuals as action_script
+# from rl_tools.action_script import ECD_control_residuals as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 

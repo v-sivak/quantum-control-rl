@@ -21,10 +21,10 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
-from gkp.tf_env import env_init
-from gkp.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import tf_env_wrappers as wrappers
 import tensorflow as tf
-import gkp.action_script as action_scripts
+import rl_tools.action_script as action_scripts
 from math import pi
 import numpy as np
 import importlib
@@ -51,7 +51,7 @@ policy_str= '000500'
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 
-action_script_obj = importlib.import_module('gkp.action_script.' + action_script)
+action_script_obj = importlib.import_module('rl_tools.action_script.' + action_script)
 env = wrappers.ActionWrapper(env, action_script_obj, action_scale, to_learn,
                               learn_residuals=True)
 

@@ -15,7 +15,7 @@ import qutip as qt
 import tensorflow as tf
 from numpy import sqrt,pi
 
-#from gkp.gkp_tf_env import helper_functions as hf
+#from rl_tools.tf_env import helper_functions as hf
 
 fontsize = 9 #6 #1.5
 fontsize_tick = 8 #6 #4 #15

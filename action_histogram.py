@@ -15,17 +15,17 @@ import matplotlib.pyplot as plt
 from time import time
 import tensorflow as tf
 
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import policy as plc
-import gkp.action_script as action_scripts
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
+import rl_tools.action_script as action_scripts
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 ### Initialize env and policy
 
-env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
                 reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
                 init='X+', H=1, T=2, attn_step=1, batch_size=100, episode_length=12,
                 encoding='square')
@@ -42,7 +42,7 @@ policy_dir = r'policy\001100'
 policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+# from rl_tools.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------

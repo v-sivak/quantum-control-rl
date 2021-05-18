@@ -13,7 +13,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
-from gkp_tf_env import GKP
+from tf_env import GKP
 import policy as plc
 from time import time
 

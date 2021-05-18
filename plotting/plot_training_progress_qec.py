@@ -19,11 +19,11 @@ import matplotlib.pyplot as plt
 from time import time
 import tensorflow as tf
 import qutip as qt
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import policy as plc
-import gkp.action_script as action_scripts
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
+import rl_tools.action_script as action_scripts
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import expectation
 import h5py

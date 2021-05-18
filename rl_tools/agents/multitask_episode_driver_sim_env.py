@@ -7,10 +7,10 @@ Created on Tue Oct 27 13:27:01 2020
 """
 
 from tf_agents.drivers import dynamic_episode_driver
-from gkp.utils.version_helper import TFPolicy
-from gkp.gkp_tf_env import env_init
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-import gkp.action_script as action_scripts
+from rl_tools.utils.version_helper import TFPolicy
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+import rl_tools.action_script as action_scripts
 
 
 class PolicyPlaceholder(TFPolicy):
@@ -52,7 +52,7 @@ class MultitaskEpisodeDriverSimEnv:
         self.episode_length_list = episode_length_list
         for env_kwargs, rew_kwargs in zip(env_kwargs_list, rew_kwargs_list):
             # Create training env and wrap it
-            env = gkp_init(batch_size=batch_size, reward_kwargs=rew_kwargs,
+            env = env_init(batch_size=batch_size, reward_kwargs=rew_kwargs,
                            **env_kwargs)
             action_script_m = action_scripts.__getattribute__(action_script)
             env = wrappers.ActionWrapper(env, action_script_m, action_scale, 

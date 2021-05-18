@@ -15,8 +15,8 @@ sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 from math import pi
 import tensorflow as tf
-from gkp.agents import PPO
-from gkp.agents import actor_distribution_network_gkp
+from rl_tools.agents import PPO
+from rl_tools.agents import actor_distribution_network_gkp
 
 """
 Train PPO agent calibrate CD gate. This is a total overkill to use PPO here,
@@ -28,7 +28,7 @@ root_dir = r'E:\data\gkp_sims\PPO\examples\CD_cal\100_phi'
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'conditional_displacement_cal',
+    'control_circuit' : 'conditional_displacement_cal',
     'init' : 'vac',
     'T' : 1, 
     'N' : 50,
@@ -52,7 +52,7 @@ train_episode_length = lambda x: 1
 eval_episode_length = lambda x: 1
 
 # Create drivers for data collection
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, 

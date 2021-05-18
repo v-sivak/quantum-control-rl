@@ -10,18 +10,18 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import matplotlib.pyplot as plt
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import env_init
 from time import time
 import tensorflow as tf 
 from math import sqrt, pi
 
 # initialize environment and policy
-env = gkp_init(simulate='oscillator',
+env = env_init(control_circuit='oscillator',
                 init='Z+', H=1, batch_size=2000, episode_length=30, 
                 reward_mode='fidelity', quantum_circuit_type='v2')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+from rl_tools.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 # collect trajectories

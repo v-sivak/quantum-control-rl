@@ -13,10 +13,10 @@ import qutip as qt
 import tensorflow as tf
 import numpy as np
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.agents import actor_distribution_network_gkp
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.agents import actor_distribution_network_gkp
+from rl_tools.tf_env import helper_functions as hf
 
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\tomography_reward'

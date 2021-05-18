@@ -10,7 +10,7 @@ import tensorflow_probability as tfp
 import numpy as np
 from math import pi, sqrt
 from tensorflow import complex64 as c64
-from gkp.tf_env.tf_env import GKP
+from rl_tools.tf_env.tf_env import GKP
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 
@@ -156,14 +156,14 @@ class QuantumCircuit(OscillatorQubit, GKP):
         self.analytic_sim = PhaseSpaceSimulator(self.batch_size)
 
     @property
-    def _quantum_circuit_spec(self):
+    def _control_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[1], dtype=tf.float32),
                 'phi_g' : specs.TensorSpec(shape=[1], dtype=tf.float32),
                 'phi_e' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     # @tf.function
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states

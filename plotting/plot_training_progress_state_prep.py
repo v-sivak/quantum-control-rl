@@ -20,11 +20,11 @@ import matplotlib.pyplot as plt
 from time import time
 import tensorflow as tf
 import qutip as qt
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import policy as plc
-import gkp.action_script as action_scripts
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
+import rl_tools.action_script as action_scripts
 from tensorflow.keras.backend import batch_dot
 from simulator.utils import expectation
 #-----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ mpl.rcParams['legend.markerscale'] = 2.0
 ### Initialize the environment and simulation/training parameters
 N=40
 
-env = gkp_init(simulate='snap_and_displacement', channel='quantum_jumps',
+env = env_init(control_circuit='snap_and_displacement', channel='quantum_jumps',
                init='vac', H=1, T=3, attn_step=1, batch_size=1, N=N,
                episode_length=3, phase_space_rep='wigner')
 

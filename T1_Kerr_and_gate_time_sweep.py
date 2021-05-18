@@ -14,9 +14,9 @@ from numpy import sqrt, pi, exp
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import env_init
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -55,16 +55,16 @@ lifetimes = {state : np.zeros(len(Kerr)) for state in states}
 savepath = r'E:\VladGoogleDrive\Qulab\GKP\sims\Kerr\hexagonal_sweep\no_rotation_perfect_qubit'
 
 # Initialize environment and policy
-env = gkp_init(simulate='oscillator', encoding='hexagonal', 
+env = env_init(control_circuit='oscillator', encoding='hexagonal', 
                init='X+', H=1, batch_size=2000, episode_length=200, 
                reward_mode='fidelity', quantum_circuit_type='v2')
 
-from gkp.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
+from rl_tools.action_script import hexagonal_phase_estimation_symmetric_6round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 for k in range(len(Kerr)):
 
-    env = gkp_init(simulate='oscillator', encoding='hexagonal', 
+    env = env_init(control_circuit='oscillator', encoding='hexagonal', 
                    init='X+', H=1, batch_size=2000, episode_length=200, 
                    reward_mode='fidelity', quantum_circuit_type='v2',
                    K_osc=Kerr[k], t_gate=t_gate[k])  

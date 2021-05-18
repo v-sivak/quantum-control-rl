@@ -93,12 +93,12 @@ for i, protocol in enumerate(log.keys()):
 # them with finite-duration SNAP.
 import tensorflow as tf
 import qutip as qt
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import env_init
 from math import pi
-import gkp.action_script as action_scripts
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+import rl_tools.action_script as action_scripts
+from rl_tools.tf_env import tf_env_wrappers as wrappers
 
-env_kwargs = dict(simulate='snap_and_displacement_miscalibrated', init='vac',
+env_kwargs = dict(control_circuit='snap_and_displacement_miscalibrated', init='vac',
                   H=1, T=5, attn_step=1, N=50, batch_size=1000, episode_length=5)
 
 target_state = qt.tensor(qt.basis(2,0), qt.basis(50,3))
@@ -120,7 +120,7 @@ rewards = {t:{} for t in gate_times}
 norms = {t:{} for t in gate_times}
 
 for t in gate_times:
-    env = gkp_init(**env_kwargs, reward_kwargs=reward_kwargs)
+    env = env_init(**env_kwargs, reward_kwargs=reward_kwargs)
     env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
     env._env.SNAP_miscalibrated.T = t
     env._env.bit_string = None # '00000'

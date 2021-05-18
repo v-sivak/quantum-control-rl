@@ -10,8 +10,8 @@ approach to quantum circuits.
 
 import tensorflow as tf
 from tensorflow import complex64 as c64
-from gkp.tf_env.tf_env import GKP
-from gkp.tf_env import helper_functions as hf
+from rl_tools.tf_env.tf_env import GKP
+from rl_tools.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 from simulator.utils import measurement
@@ -50,7 +50,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         super().__init__(*args, **kwargs)
 
     @property
-    def _quantum_circuit_spec(self):
+    def _control_circuit_spec(self):
         spec = {'beta' : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'eps1' : specs.TensorSpec(shape=[2], dtype=tf.float32),
                 'eps2' : specs.TensorSpec(shape=[2], dtype=tf.float32),
@@ -59,7 +59,7 @@ class QuantumCircuit(OscillatorQubit, GKP):
         return spec
 
     @tf.function
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states

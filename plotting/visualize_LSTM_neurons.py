@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os  
 import policy as plc
-from gkp_tf_env import GKP
+from tf_env import GKP
 """
 Adapted from:
 https://fairyonice.github.io/Extract-weights-from-Keras's-LSTM-and-calcualte-hidden-and-cell-states.html

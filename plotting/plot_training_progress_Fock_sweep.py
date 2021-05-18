@@ -18,9 +18,9 @@ import h5py
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import qutip as qt
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
-import gkp.action_script as action_scripts
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+import rl_tools.action_script as action_scripts
 import plot_config
 
 root_dir = r'E:\data\gkp_sims\PPO\paper_data\Fock_sweep_large_nn'
@@ -31,7 +31,7 @@ fock_states = [1,2,3,4,5,6,7,8,9,10]
 #-----------------------------------------------------------------------------
 
 # # Initialize the environment and simulation/training parameters
-# env = gkp_init(simulate='snap_and_displacement_miscalibrated', 
+# env = env_init(control_circuit='snap_and_displacement_miscalibrated', 
 #                 init='vac', H=1, T=5, attn_step=1, batch_size=1, N=100,
 #                 episode_length=5)
 

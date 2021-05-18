@@ -10,8 +10,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import tensorflow as tf
-from gkp.agents import PPO
-from gkp.agents import actor_distribution_network_gkp
+from rl_tools.agents import PPO
+from rl_tools.agents import actor_distribution_network_gkp
 
 
 root_dir = r'E:\VladGoogleDrive\Qulab\GKP\sims\PPO\Kerr_sweep_4000\perfect_qubit_with_rotation_v2'

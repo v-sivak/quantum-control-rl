@@ -18,9 +18,9 @@ import h5py
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import qutip as qt
-from gkp.tf_env import tf_env_wrappers as wrappers
-from gkp.tf_env import env_init
-import gkp.action_script as action_scripts
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+import rl_tools.action_script as action_scripts
 import plot_config
 import importlib
 
@@ -109,7 +109,7 @@ avg_ideal_stabilizer, delta_effective = {}, {}
 
 for Delta in deltas:
     
-    # from gkp.tf_env import helper_functions as hf
+    # from rl_tools.tf_env import helper_functions as hf
     # target_state = hf.GKP_1D_state(False, 200, Delta*sqrt(2))
     # reward_kwargs = {'reward_mode' : 'overlap',
     #                   'target_state' : target_state,
@@ -126,7 +126,7 @@ for Delta in deltas:
     action_scale = {'alpha':6, 'theta':pi}
     to_learn = {'alpha':True, 'theta':True}
     
-    module_name = 'gkp.action_script.' + action_script
+    module_name = 'rl_tools.action_script.' + action_script
     action_script = importlib.import_module(module_name)
     env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 

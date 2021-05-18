@@ -18,14 +18,14 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 import numpy as np
 import matplotlib.pyplot as plt
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import env_init
 from time import time
 from tensorflow.keras.backend import batch_dot
 from math import sqrt, pi
 import tensorflow as tf
 from scipy.optimize import curve_fit
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.tf_env import helper_functions as hf
 
 
 #-----------------------------------------------------------------------------
@@ -33,12 +33,12 @@ from gkp.gkp_tf_env import helper_functions as hf
 #-----------------------------------------------------------------------------
 
 # initialize environment and policy
-env = gkp_init(simulate='oscillator',
+env = env_init(control_circuit='oscillator',
                 init='X+', H=1, batch_size=6000, episode_length=31, 
                 reward_mode='zero', quantum_circuit_type='v2',
                 encoding='square')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+from rl_tools.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
@@ -94,12 +94,12 @@ for k in range(1,6):
 #-----------------------------------------------------------------------------
 # This part simulates oscillator_qubit and post-selects trajectories
 
-env = gkp_init(simulate='oscillator_qubit', 
+env = env_init(control_circuit='oscillator_qubit', 
                 init='X+', H=1, batch_size=2000, episode_length=100, 
                 reward_mode = 'fidelity', quantum_circuit_type='v2',
                 encoding='square')
 
-from gkp.action_script import phase_estimation_symmetric_with_trim_4round as action_script
+from rl_tools.action_script import phase_estimation_symmetric_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 

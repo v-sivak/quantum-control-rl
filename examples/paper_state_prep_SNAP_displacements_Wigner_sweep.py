@@ -17,10 +17,10 @@ import qutip as qt
 import tensorflow as tf
 import numpy as np
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.agents import actor_distribution_network_gkp
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.agents import actor_distribution_network_gkp
+from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do cat-state preparation with universal gate 
@@ -40,7 +40,7 @@ for seed in random_seeds:
     sim_dir = os.path.join(root_dir,'seed'+str(seed))
     # Params for environment
     env_kwargs = {
-        'simulate' : 'snap_and_displacement',
+        'control_circuit' : 'snap_and_displacement',
         'init' : 'vac',
         'H' : 1,
         'T' : 5, 
@@ -76,7 +76,7 @@ for seed in random_seeds:
     eval_episode_length = lambda x: 5
     
     # Create drivers for data collection
-    from gkp.agents import dynamic_episode_driver_sim_env
+    from rl_tools.agents import dynamic_episode_driver_sim_env
     
     collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
         env_kwargs, reward_kwargs, train_batch_size, 

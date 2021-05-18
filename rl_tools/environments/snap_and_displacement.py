@@ -8,8 +8,8 @@ Qubit is included in the Hilbert space. Simulation is done with a gate-based
 approach to quantum circuits.
 """
 import tensorflow as tf
-from gkp.tf_env.tf_env import TFEnvironmentQuantumControl
-from gkp.tf_env import helper_functions as hf
+from rl_tools.tf_env.tf_env import TFEnvironmentQuantumControl
+from rl_tools.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
 

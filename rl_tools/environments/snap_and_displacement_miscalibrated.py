@@ -9,8 +9,8 @@ approach to quantum circuits.
 """
 import tensorflow as tf
 from numpy import pi
-from gkp.tf_env.tf_env import GKP
-from gkp.tf_env import helper_functions as hf
+from rl_tools.tf_env.tf_env import GKP
+from rl_tools.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 from simulator.utils import measurement, normalize

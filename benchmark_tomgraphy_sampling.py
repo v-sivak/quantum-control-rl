@@ -15,7 +15,7 @@ import tensorflow_probability as tfp
 from tensorflow import complex64 as c64
 from math import pi
 import matplotlib.pyplot as plt
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.tf_env import helper_functions as hf
 from simulator.utils import expectation, basis, measurement, normalize, batch_dot
 from simulator import operators as ops
 import numpy as np

@@ -14,10 +14,10 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.agents import actor_distribution_network_gkp
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.agents import actor_distribution_network_gkp
+from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent on two tasks: 
@@ -35,7 +35,7 @@ stabilizers, pauli, states, code_map = hf.GKP_state(False, 100)
 target_state = states['X+']
 
 # First environment: train on fidelity reward "in simulation"
-env_kwargs_0 = dict(simulate='snap_and_displacement', 
+env_kwargs_0 = dict(control_circuit='snap_and_displacement', 
                     init='vac', H=1, T=5, attn_step=1, N=100)
 
 rew_kwargs_0 = dict(reward_mode='overlap', target_state=target_state)
@@ -44,7 +44,7 @@ episode_length_0 =  lambda x: 5
 
 
 # Second environment: train on Wigner reward "in experiment"
-env_kwargs_1 = dict(simulate='snap_and_displacement', 
+env_kwargs_1 = dict(control_circuit='snap_and_displacement', 
                     init='vac', H=1, T=5, attn_step=1, N=100)
 
 rew_kwargs_1 = dict(reward_mode = 'tomography',
@@ -76,12 +76,12 @@ eval_batch_size = 1000
 
 
 # Create drivers for data collection
-from gkp.agents import multitask_episode_driver_sim_env
+from rl_tools.agents import multitask_episode_driver_sim_env
 collect_driver = multitask_episode_driver_sim_env.MultitaskEpisodeDriverSimEnv(
     env_kwargs_list, rew_kwargs_list, train_batch_size, 
     action_script, action_scale, to_learn, episode_length_list, env_schedule=env_schedule)
 
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs_0, rew_kwargs_0, eval_batch_size, 
     action_script, action_scale, to_learn, episode_length_0)

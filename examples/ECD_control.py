@@ -17,9 +17,9 @@ import qutip as qt
 import tensorflow as tf
 import numpy as np
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.gkp_tf_env import helper_functions as hf
+from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do state preparation with Echoed Conditional Displacement
@@ -35,7 +35,7 @@ root_dir = os.path.join(root_dir,'test_fock2_schedule_2')
 
 # Params for environment
 env_kwargs = {
-    'simulate' : 'ECD_control',
+    'control_circuit' : 'ECD_control',
     'init' : 'vac',
     'H' : 1,
     'T' : 8, 
@@ -78,7 +78,7 @@ train_episode_length = lambda x: env_kwargs['T']
 eval_episode_length = lambda x: env_kwargs['T']
 
 # Create drivers for data collection
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 

@@ -14,20 +14,20 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from time import time
 from math import pi
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import env_init
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
                 reward_kwargs={'reward_mode':'zero'},
                 init='vac', H=1, T=2, attn_step=1, batch_size=2000, episode_length=60,
                 encoding='square')
 
-from gkp.action_script import gkp_qec_autonomous_sBs_2round as action_script
+from rl_tools.action_script import gkp_qec_autonomous_sBs_2round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------

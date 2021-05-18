@@ -11,18 +11,18 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 import tensorflow as tf
 from math import pi
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-import gkp.action_script as action_scripts
-from gkp.gkp_tf_env import policy as plc
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+import rl_tools.action_script as action_scripts
+from rl_tools.tf_env import policy as plc
+from rl_tools.tf_env import env_init
 
-# env = gkp_init(simulate='phase_estimation_osc_qb_v2', 
+# env = env_init(control_circuit='phase_estimation_osc_qb_v2', 
 #                 reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
 #                 init='X+', H=1, T=4, attn_step=1, batch_size=1000, episode_length=100,
 #                 encoding='square')
 
-env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb', 
+env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
                 reward_kwargs={'reward_mode':'fidelity', 'code_flips':True},
                 init='X+', H=1, T=2, attn_step=1, batch_size=500, episode_length=60,
                 encoding='square')
@@ -50,9 +50,9 @@ env = gkp_init(simulate='gkp_qec_autonomous_sBs_osc_qb',
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# from gkp.action_script import gkp_qec_autonomous_BsB_2round as action_script
-from gkp.action_script import gkp_qec_autonomous_sBs_2round as action_script
-# from gkp.action_script import v2_phase_estimation_with_trim_4round as action_script
+# from rl_tools.action_script import gkp_qec_autonomous_BsB_2round as action_script
+from rl_tools.action_script import gkp_qec_autonomous_sBs_2round as action_script
+# from rl_tools.action_script import v2_phase_estimation_with_trim_4round as action_script
 policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 #-----------------------------------------------------------------------------

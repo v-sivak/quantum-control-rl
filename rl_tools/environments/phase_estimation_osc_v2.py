@@ -10,8 +10,8 @@ operations on the oscillator Hilbert space.
 
 import tensorflow as tf
 from tensorflow.keras.backend import batch_dot
-from gkp.tf_env.tf_env import TFEnvironmentQuantumControl
-from gkp.tf_env import helper_functions as hf
+from rl_tools.tf_env.tf_env import TFEnvironmentQuantumControl
+from rl_tools.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import Oscillator
 from simulator.utils import measurement
@@ -48,7 +48,7 @@ class QuantumCircuit(Oscillator, TFEnvironmentQuantumControl):
         super().__init__(*args, **kwargs)
 
     @property
-    def _quantum_circuit_spec(self):
+    def _control_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[1], dtype=tf.float32),
@@ -56,7 +56,7 @@ class QuantumCircuit(Oscillator, TFEnvironmentQuantumControl):
         return spec
 
     @tf.function
-    def _quantum_circuit(self, psi, action):
+    def _control_circuit(self, psi, action):
         """
         Args:
             psi (Tensor([batch_size,N], c64)): batch of states

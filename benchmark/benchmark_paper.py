@@ -26,7 +26,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from plotting import plot_config
-from gkp.utils.rl_train_utils import save_log
+from rl_tools.utils.rl_train_utils import save_log
 from benchmark import utils, displace
 
 

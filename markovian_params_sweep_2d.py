@@ -15,10 +15,10 @@ from time import time
 from numpy import sqrt, pi, exp
 from scipy.optimize import curve_fit
 
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import policy as plc
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
 
 
 class ActionScript(object):
@@ -42,7 +42,7 @@ class ActionScript(object):
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 
-env = gkp_init(simulate='oscillator',
+env = env_init(control_circuit='oscillator',
                init='Z+', H=1, batch_size=800, episode_length=60, 
                reward_mode = 'fidelity', quantum_circuit_type='v2',
                encoding = 'square')

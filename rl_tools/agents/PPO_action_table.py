@@ -10,7 +10,7 @@ from tf_agents.trajectories import policy_step
 from tf_agents.drivers import dynamic_episode_driver
 from tf_agents.policies import greedy_policy
 
-from gkp.utils.version_helper import TFPolicy
+from rl_tools.utils.version_helper import TFPolicy
 
 
 def binary_encoding(x, H):

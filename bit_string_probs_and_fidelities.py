@@ -13,15 +13,15 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import tensorflow as tf
 import numpy as np
 import qutip as qt
-from gkp.gkp_tf_env import gkp_init
+from rl_tools.tf_env import env_init
 from math import pi
-import gkp.action_script as action_scripts
-from gkp.gkp_tf_env import tf_env_wrappers as wrappers
+import rl_tools.action_script as action_scripts
+from rl_tools.tf_env import tf_env_wrappers as wrappers
 import matplotlib.pyplot as plt
 from plotting import plot_config
 
 # CREATE THE ENVIRONMENT
-env_kwargs = dict(simulate='snap_and_displacement_miscalibrated', init='vac',
+env_kwargs = dict(control_circuit='snap_and_displacement_miscalibrated', init='vac',
                   H=1, T=5, attn_step=1, N=50, batch_size=1, episode_length=5)
 
 target_state = qt.tensor(qt.basis(2,0), qt.basis(50,3))
@@ -34,7 +34,7 @@ action_scale = {'alpha':4, 'theta':pi}
 to_learn = {'alpha':True, 'theta':True}
 action_script = action_scripts.__getattribute__(action_script)
 
-env = gkp_init(**env_kwargs, reward_kwargs=reward_kwargs)
+env = env_init(**env_kwargs, reward_kwargs=reward_kwargs)
 env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
 
 env._env.SNAP_miscalibrated.T = 0.4e-6

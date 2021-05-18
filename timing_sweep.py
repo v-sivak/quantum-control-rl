@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 from numpy import sqrt, pi, exp
 from scipy.optimize import curve_fit
 
-from gkp.gkp_tf_env import helper_functions as hf
-from gkp.gkp_tf_env import gkp_init
-from gkp.gkp_tf_env import policy as plc
+from rl_tools.tf_env import helper_functions as hf
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
 
 
 def add_plot_to_zip(fig, filename, savepath, zipname):
@@ -77,7 +77,7 @@ gax.set_xlabel('Time')
 
 for j in range(len(params)):
     t = time()
-    env = gkp_init(simulate='oscillator_qubit',
+    env = env_init(control_circuit='oscillator_qubit',
                init='Z+', H=1, batch_size=2500, episode_length=200,
                reward_mode = 'fidelity', quantum_circuit_type='v2',
                encoding = 'hexagonal', t_feedback = params[j])
