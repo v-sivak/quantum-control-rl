@@ -16,10 +16,10 @@ import qutip as qt
 import tensorflow as tf
 import numpy as np
 from math import sqrt, pi
-from gkp.agents import PPO
+from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from gkp.agents import actor_distribution_network_gkp
-from gkp.tf_env import helper_functions as hf
+from rl_tools.agents import actor_distribution_network_gkp
+from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do Fock state N=2 preparation with universal gate sequence.
@@ -65,7 +65,7 @@ train_episode_length = lambda x: env_kwargs['T']
 eval_episode_length = lambda x: env_kwargs['T']
 
 # Create drivers for data collection
-from gkp.agents import dynamic_episode_driver_sim_env
+from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 

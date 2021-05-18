@@ -18,7 +18,7 @@ from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 from scipy.integrate import quad
 
-from gkp.utils.version_helper import TFPolicy
+from rl_tools.utils.version_helper import TFPolicy
 
 __all__ = ['IdlePolicy', 'ScriptedPolicy', 'BayesianFeedbackPolicy',
            'SupervisedNeuralNet']

@@ -18,7 +18,7 @@ from tf_agents.agents.ppo import ppo_agent
 from tf_agents.utils import timer
 from tf_agents.metrics import tf_metrics
 
-from gkp.utils.rl_train_utils import save_log
+from rl_tools.utils.rl_train_utils import save_log
 
 def train_eval(
         root_dir,

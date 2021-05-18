@@ -7,9 +7,9 @@ Created on Tue Oct 27 13:27:01 2020
 """
 
 from tf_agents.drivers import dynamic_episode_driver
-from gkp.utils.version_helper import TFPolicy
-from gkp.tf_env import env_init
-from gkp.tf_env import tf_env_wrappers as wrappers
+from rl_tools.utils.version_helper import TFPolicy
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import tf_env_wrappers as wrappers
 import importlib
 
 
@@ -52,7 +52,7 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         # Create training env and wrap it
         env = env_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
-        module_name = 'gkp.action_script.' + action_script
+        module_name = 'rl_tools.action_script.' + action_script
         action_script = importlib.import_module(module_name)
         env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,
                                      learn_residuals=learn_residuals)
