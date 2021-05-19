@@ -12,11 +12,11 @@ from scipy.optimize import curve_fit
 
 class CD_fixed_time_amp_cal(FPGAExperiment):
     """
-    This experiment sweeps the amplitudes of displacement in CD gate (alpha) 
+    This experiment sweeps the amplitudes of displacement in CD gate (alpha)
     and of return displacement (beta/2) to bring the blob to origin.
-    
-    The CD gate is simple with no amplitude or phase corrections. 
-    After CD gate the cavity is returned to vacuum with a displacement, 
+
+    The CD gate is simple with no amplitude or phase corrections.
+    After CD gate the cavity is returned to vacuum with a displacement,
     and selective qubit pulses is used to verify this.
 
     """
@@ -27,7 +27,7 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
     beta_range = RangeParameter((0,3,11))
     reps = IntParameter(1)
     cal_dir = StringParameter(r'C:\code\gkp_exp\CD_gate\storage_rotation_freq_vs_nbar')
-    
+
     def sequence(self):
         return_phase = np.pi/2.0 if not self.flip_qubit else -np.pi/2.0
         C = ConditionalDisplacementCompiler(cal_dir=self.cal_dir)
@@ -42,11 +42,11 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
             self.alpha_const_chi.append(np.abs(C.CD_params_fixed_tau(beta, self.tau)[1]))
 #            self.alpha_from_cal.append(C.CD_params_improved(beta, self.tau)[0])
 
-        
-        with scan_amplitude(cavity.chan, *self.alpha_range, 
+
+        with scan_amplitude(cavity.chan, *self.alpha_range,
                             scale=cavity.displace.unit_amp,
                             plot_label='alpha'):
-            with scan_amplitude(cavity_1.chan, *self.beta_range, 
+            with scan_amplitude(cavity_1.chan, *self.beta_range,
                                 scale=cavity_1.displace.unit_amp / 2.0,
                                 plot_label='beta'):
                 readout(init_state='se')
@@ -94,10 +94,16 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
         for i, beta in enumerate(betas):
             name = 'beta_slice_' + '%.2f' %beta
             try:
-                p0 = (10., 5., 0., -0.01 if self.flip_qubit else 0.01)
+                this_data = self.results[name].data.real
+
+                # guess for thie fit
+                x0_guess = self.results[name].ax_data[0][np.argmax(this_data)]
+                offset_guess = np.min(this_data)
+                amp_guess = np.max(this_data)-np.min(this_data)
+                p0 = (x0_guess, 5., offset_guess, amp_guess)
                 popt, pcov = curve_fit(self.fit_gaussian,
                                        self.results[name].ax_data[0],
-                                       self.results[name].data.real,p0=p0)
+                                       self.results[name].data.real, p0=p0)
                 optimal_amps[i] = popt[0]
             except:
                 optimal_amps[i] = None

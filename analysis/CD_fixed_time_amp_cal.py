@@ -15,8 +15,8 @@ from scipy.optimize import curve_fit
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.CD_fixed_time_amp_cal\archive'
-fname = '20210426.h5'
-group = 23
+fname = '20210517.h5'
+group = 10
 file_name = os.path.join(exp_dir, fname)
 
 grp_name = str(group)
@@ -43,7 +43,7 @@ popt, pcov = curve_fit(linear, betas, optimal_amps)
 a, b = popt
 ax.plot(betas_new, linear(betas_new, a, b))
 
-calibrations_dir = r'D:\DATA\exp\2021-03-26_cooldown\CD_fixed_time_amp_cal'
+calibrations_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
 calibrations_dir = os.path.join(calibrations_dir, 'tau='+ str(tau)+'ns')
 if not os.path.isdir(calibrations_dir):
     os.mkdir(calibrations_dir)

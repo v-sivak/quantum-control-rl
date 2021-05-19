@@ -64,8 +64,8 @@ class Wigner_with_cooling(FPGAExperiment):
             sync()
 
             cavity.displace(self.alpha)
-#            cool_Murch()
-            delay(self.duration + 2 * self.qubit_ramp_t)
+            cool_Murch()
+#            delay(self.duration + 2 * self.qubit_ramp_t)
 
 
     def plot(self, fig, data):
