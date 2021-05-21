@@ -44,7 +44,8 @@ class qubit_cooling_time_sweep(FPGAExperiment):
             self.qubit_detuned.set_detune(self.qubit_detune_MHz*1e6)
             self.qubit.set_detune(0)
             sync()
-        
+            
+#            for tau in np.linspace(*self.time_range):
             with scan_length(*self.time_range) as tau:
                 sync()
                 if self.flip_qubit:

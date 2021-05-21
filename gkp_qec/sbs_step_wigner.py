@@ -20,7 +20,7 @@ class sbs_step_wigner(FPGAExperiment):
 
 
     def sequence(self):
-        CD_compiler_kwargs = dict(cal_dir=self.cal_dir)
+        CD_compiler_kwargs = dict(cal_dir=self.cal_dir, qubit_pulse_pad=4)
         CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)
         C = SBS_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
 
@@ -33,6 +33,7 @@ class sbs_step_wigner(FPGAExperiment):
             cavity.array_pulse(*cavity_pulse)
             qubit.array_pulse(*qubit_pulse)
             sync()
+            delay(24)
             readout(msmt='se')
             sync()
 

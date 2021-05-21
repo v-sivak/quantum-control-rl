@@ -15,8 +15,8 @@ from scipy.optimize import curve_fit
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.CD_fixed_time_amp_cal\archive'
-fname = '20210517.h5'
-group = 10
+fname = '20210521.h5'
+group = 11
 file_name = os.path.join(exp_dir, fname)
 
 grp_name = str(group)
@@ -32,16 +32,33 @@ fig, ax = plt.subplots(1, 1)
 ax.pcolormesh(ax_data[1], ax_data[0], data)
 ax.set_xlabel(labels[1])
 ax.set_ylabel(labels[0])
-ax.plot(betas, optimal_amps, color='black')
+ax.plot(betas, optimal_amps, color='black', marker='o')
 
 def linear(beta, a, b):
     return a * beta + b
 
-betas_new = np.linspace(0, 2, 10)
-ind = np.where(optimal_amps == np.nan)
+
+# first clean up NaN from the array (where fit failed)
+mask = np.isnan(optimal_amps)
+optimal_amps = optimal_amps[np.where(mask==False)]
+betas = betas[np.where(mask==False)]
+
+# now clean up ouliers
+if 1:
+    popt, pcov = curve_fit(linear, betas, optimal_amps)
+    a, b = popt
+    
+    sigma = np.abs(optimal_amps - linear(betas, *popt))
+    mask = sigma>np.mean(sigma)
+    optimal_amps = optimal_amps[np.where(mask==False)]
+    betas = betas[np.where(mask==False)]
+
+# now fit this to a linear function
 popt, pcov = curve_fit(linear, betas, optimal_amps)
 a, b = popt
-ax.plot(betas_new, linear(betas_new, a, b))
+
+betas_new = np.linspace(0, 0.5, 10)
+ax.plot(betas_new, linear(betas_new, a, b), color='red')
 
 calibrations_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
 calibrations_dir = os.path.join(calibrations_dir, 'tau='+ str(tau)+'ns')
