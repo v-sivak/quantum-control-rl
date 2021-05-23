@@ -32,18 +32,16 @@ class ConditionalDisplacementCompiler():
     """
     This uses the definition CD(beta) = D(sigma_z*beta/2).
     """
-    def __init__(self, cal_dir=None, qubit_pulse_shift=0, qubit_pulse_pad=0,
+    def __init__(self, qubit_pulse_shift=0, qubit_pulse_pad=0,
                  pad_clock_cycle=True):
         """
         Args:
-            cal_dir (str): directory with calibrations. 
             qubit_pulse_shift (int): by how much to advance or delay the qubit 
                 pulse relative to the cavity pulse (in nanoseconds).
             qubit_pulse_pad (int): by how much to pad the qubit pulse on each
                 side with zeros (in nanoseconds).
             pad_clock_cycle (bool): flag to pad the gate to be multiple of 4 ns
         """
-        self.cal_dir = cal_dir
         self.qubit_pulse_shift = qubit_pulse_shift
         self.qubit_pulse_pad = qubit_pulse_pad
         self.pad_clock_cycle = pad_clock_cycle
@@ -72,7 +70,7 @@ class ConditionalDisplacementCompiler():
         phi_e = np.zeros_like(alpha)
         return (tau_ns, alpha, phi_g, phi_e)
 
-    def CD_params_fixed_tau_from_cal(self, beta, tau_ns):
+    def CD_params_fixed_tau_from_cal(self, beta, tau_ns, cal_dir):
         """
         Find parameters for CD gate based on simple calibration.
         Calibration gives a linear fit "alpha = a * beta + b" for a fixed tau,
@@ -81,7 +79,7 @@ class ConditionalDisplacementCompiler():
         Angles are taken in the counter-clockwise direction, so normally
         phi_e will be positive and phi_g will be negative.
         """
-        data = np.load(os.path.join(self.cal_dir, 'linear_fit.npz'))
+        data = np.load(os.path.join(cal_dir, 'linear_fit.npz'))
         a, b = data['a'], data['b']
         assert tau_ns == data['tau_ns']
         alpha_abs = a * np.abs(beta) + b
@@ -196,10 +194,11 @@ class ECD_control_simple_compiler():
         return C_pulse, Q_pulse
 
 
-# TODO: this needs to be re-written after updating the CD compiler functions.
+
 class SBS_simple_compiler():
     
-    def __init__(self, CD_compiler_kwargs={}, CD_params_func_kwargs={}):
+    def __init__(self, CD_compiler_kwargs={}, 
+                 s_CD_params_func_kwargs={}, b_CD_params_func_kwargs={}):
         """
         Args:
             CD_compiler_kwargs (dict): to be used on initialization of the
@@ -208,12 +207,17 @@ class SBS_simple_compiler():
                 used for CD_params_func; the rest of the keys will be passed
                 to that method as arguments. 
         """
-        CD_compiler_kwargs['pad_clock_cycle'] = False
-        self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
         self.pi_pulse = get_calibrated_pulse(qubit.pulse)
         
-        func = getattr(self.CD, CD_params_func_kwargs.pop('name'))
-        self.CD_params_func = lambda beta: func(beta, **CD_params_func_kwargs)
+        # compiler for small conditional isplacements
+        CD_compiler_kwargs['pad_clock_cycle'] = False
+        self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
+        
+        func = getattr(self.CD, s_CD_params_func_kwargs.pop('name'))
+        self.s_CD_params_func = lambda beta: func(beta, **s_CD_params_func_kwargs)
+
+        func = getattr(self.CD, b_CD_params_func_kwargs.pop('name'))
+        self.b_CD_params_func = lambda beta: func(beta, **b_CD_params_func_kwargs)
     
     def make_pulse(self, eps1, eps2, beta):
         phase = 0.0 # Keep track of the global oscillator rotation (anti-clockwise)
@@ -224,7 +228,7 @@ class SBS_simple_compiler():
         C_pulse = np.zeros_like(X90)
 
         # 2) apply 1st "small" CD gate
-        (tau, alpha, phi_g, phi_e) = self.CD_params_func(eps1)
+        (tau, alpha, phi_g, phi_e) = self.s_CD_params_func(eps1)
         cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
@@ -235,7 +239,7 @@ class SBS_simple_compiler():
         C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
         
         # 4) apply "big" CD gate (with stabilizer amplitude)
-        (tau, alpha, phi_g, phi_e) = self.CD_params_func(beta)
+        (tau, alpha, phi_g, phi_e) = self.b_CD_params_func(beta)
         cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
@@ -246,7 +250,7 @@ class SBS_simple_compiler():
         C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
 
         # 6) apply 2nd "small" CD gate
-        (tau, alpha, phi_g, phi_e) = self.CD_params_func(eps2)
+        (tau, alpha, phi_g, phi_e) = self.s_CD_params_func(eps2)
         cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])

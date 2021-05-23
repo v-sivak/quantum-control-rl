@@ -22,6 +22,7 @@ class Wigner_with_cooling(FPGAExperiment):
     qubit_ramp_t = IntParameter(200)
     readout_ramp_t = IntParameter(50)
     duration = IntParameter(1000)
+    additional_delay = IntParameter(0)
 
     def sequence(self):
 
@@ -66,6 +67,7 @@ class Wigner_with_cooling(FPGAExperiment):
             cavity.displace(self.alpha)
             cool_Murch()
 #            delay(self.duration + 2 * self.qubit_ramp_t)
+            delay(self.additional_delay)
 
 
     def plot(self, fig, data):
@@ -79,30 +81,36 @@ class Wigner_with_cooling(FPGAExperiment):
         mean_sigmaz = sigmaz.mean(axis=0).data
 
         data = mean_sigmaz.ravel()
-
-        ind = np.unravel_index(np.argmax(mean_sigmaz, axis=None), mean_sigmaz.shape)
-        initial_guess = (0.7, axis[ind[1]], axis[ind[0]], 0.5, 0.5, 0, 0)
-        popt1, pcov1 = curve_fit(gaussian2D, (x, y), data, p0=initial_guess)
-
-        ind = np.unravel_index(np.argmin(mean_sigmaz, axis=None), mean_sigmaz.shape)
-        initial_guess = (-0.7, axis[ind[1]], axis[ind[0]], 0.5, 0.5, 0, 0)
-        popt2, pcov2 = curve_fit(gaussian2D, (x, y), data, p0=initial_guess)
-
-        if np.sum(np.abs(pcov1)) > np.sum(np.abs(pcov2)):
-            popt = popt2
-        else:
-            popt = popt1
-
-        data_fitted = gaussian2D((x, y), *popt)
-        self.popt = popt
+        ind_max = np.unravel_index(np.argmax(mean_sigmaz, axis=None), mean_sigmaz.shape)
+        ind_min = np.unravel_index(np.argmin(mean_sigmaz, axis=None), mean_sigmaz.shape)
 
         # plot data and fit
         ax = fig.add_subplot(111)
         im = ax.imshow(np.transpose(data.reshape(points, points)), origin='bottom',
                   extent=(x.min(), x.max(), y.min(), y.max()))
-        ax.contour(x, y, np.transpose(data_fitted.reshape(points, points)), 2, colors='k')
-        ax.set_title('(x,y)=(%.2f, %.2f)' %(popt[1], popt[2]), fontsize = 15)
+        
+        ax.scatter([axis[ind_min[0]]],axis[ind_min[1]])
+        ax.scatter([axis[ind_max[0]]],axis[ind_max[1]])
         fig.colorbar(im)
+
+        try:
+            initial_guess = (0.7, axis[ind_max[1]], axis[ind_max[0]], 0.5, 0.5, 0, 0)
+            popt1, pcov1 = curve_fit(gaussian2D, (x, y), data, p0=initial_guess)
+            self.popt1, self.pcov1 = popt1, pcov1
+            
+            initial_guess = (-0.7, axis[ind_min[0]], axis[ind_min[1]], 0.5, 0.5, 0, 0)
+            popt2, pcov2 = curve_fit(gaussian2D, (x, y), data, p0=initial_guess)
+            self.popt2, self.pcov2 = popt2, pcov2
+        except:
+            pass
+        finally:
+            self.popt = self.popt1
+            data_fitted = gaussian2D((x, y), *self.popt)
+            
+            ax.contour(x, y, np.transpose(data_fitted.reshape(points, points)), 2, colors='k')
+            ax.set_title('(x,y)=(%.2f, %.2f)' %(self.popt[1], self.popt[2]), fontsize = 15)
+
+
 
 
 def gaussian2D((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):

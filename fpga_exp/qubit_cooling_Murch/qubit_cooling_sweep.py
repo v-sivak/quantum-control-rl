@@ -42,6 +42,7 @@ class qubit_cooling_sweep(FPGAExperiment):
                             self.pump_time, amp=self.qubit_amp,
                             sigma_t=self.qubit_ramp_t)
                     sync()
+                    delay(24)
                     readout(**{res_name:'se'})
                     sync()
                     delay(self.loop_delay)
@@ -58,5 +59,5 @@ class qubit_cooling_sweep(FPGAExperiment):
         self.results['avg_sz'] = (g_sz + e_sz) / 2.0
         self.results['avg_sz'].ax_data = self.results['g'].ax_data
         self.results['avg_sz'].labels = self.results['g'].labels
-        self.results['avg_sz'].vmin = -1
-        self.results['avg_sz'].vmax = +1
+        #self.results['avg_sz'].vmin = -1
+        #self.results['avg_sz'].vmax = +1

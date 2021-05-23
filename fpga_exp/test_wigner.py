@@ -11,11 +11,13 @@ import numpy as np
 class test_wigner(FPGAExperiment):
     alpha = FloatParameter(2.0)
     disp_range = RangeParameter((-4.0, 4.0, 101))
+    additional_delay = IntParameter(0)
 
     def sequence(self):
         with system.wigner_tomography(*self.disp_range):
             #delay(2000)
             cavity.displace(self.alpha)
+            delay(self.additional_delay)
 
     def plot(self, fig, data):
         # create phase space grid

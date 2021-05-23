@@ -14,11 +14,13 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
     reps = IntParameter(5)
 
     # Baptiste sbs stabilization parameters
-    tau_ns = IntParameter(36)
+    s_tau_ns = IntParameter(20)
+    b_tau_ns = IntParameter(50)
     eps1 = FloatParameter(0.2)
     eps2 = FloatParameter(0.2)
     beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
-    cal_dir = StringParameter('')
+    s_CD_cal_dir = StringParameter('')
+    b_CD_cal_dir = StringParameter('')
 
     # Murch cooling parameters
     cool_duration_ns = IntParameter(1000)
@@ -28,7 +30,9 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
     qubit_amp = FloatParameter(0.2)
     readout_detune_MHz = FloatParameter(50.4)
     qubit_detune_MHz = FloatParameter(8.0)
-
+    
+    # SNAP parameters
+    additional_delay = IntParameter(0)
 
 
     def sequence(self):
@@ -36,7 +40,7 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
         self.readout = readout
         self.qubit = qubit
         self.cavity = cavity
-        
+
         # setup Murch cooling ------------------------------------------------
         # --------------------------------------------------------------------
         self.qubit_detuned = qubit_ef
@@ -59,9 +63,13 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
         # --------------------------------------------------------------------
 
         # setup sBs step -----------------------------------------------------
-        CD_compiler_kwargs = dict(cal_dir=self.cal_dir)
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)
-        C = SBS_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
+        s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', 
+                                       tau_ns=self.s_tau_ns, cal_dir=self.s_CD_cal_dir)
+        b_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', 
+                                       tau_ns=self.b_tau_ns, cal_dir=self.b_CD_cal_dir)
+        C = SBS_simple_compiler(CD_compiler_kwargs, 
+                                s_CD_params_func_kwargs, b_CD_params_func_kwargs)
 
         cavity_pulse, qubit_pulse = C.make_pulse(self.eps1/2.0, self.eps2/2.0, -1j*self.beta)
 
@@ -74,9 +82,14 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
             sync()
         # --------------------------------------------------------------------
 
+        def snap():
+            delay(self.additional_delay)
+
+
         def step(s):
             sbs_step(s)
             cooling()
+            snap()
 
 
         with system.wigner_tomography(*self.disp_range, result_name='m2'):

@@ -10,27 +10,36 @@ import numpy as np
 
 class sbs_step_wigner(FPGAExperiment):
     disp_range = RangeParameter((-4.0, 4.0, 101))
-    tau_ns = IntParameter(36)
+    s_tau_ns = IntParameter(20)
+    b_tau_ns = IntParameter(50)
 
     eps1 = FloatParameter(0.2)
     eps2 = FloatParameter(0.2)
     beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
 
-    cal_dir = StringParameter('')
+    s_CD_cal_dir = StringParameter('')
+    b_CD_cal_dir = StringParameter('')
 
 
     def sequence(self):
-        CD_compiler_kwargs = dict(cal_dir=self.cal_dir, qubit_pulse_pad=4)
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)
-        C = SBS_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
+        s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
+                                       tau_ns=self.s_tau_ns, cal_dir=self.s_CD_cal_dir)
+        b_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
+                                       tau_ns=self.b_tau_ns, cal_dir=self.b_CD_cal_dir)
+        C = SBS_simple_compiler(CD_compiler_kwargs,
+                                s_CD_params_func_kwargs, b_CD_params_func_kwargs)
 
         cavity_pulse, qubit_pulse = C.make_pulse(
                 self.eps1/2.0, self.eps2/2.0, -1j*self.beta)
 
+
+        self.cavity = cavity_1
+
         with system.wigner_tomography(*self.disp_range):
             readout(init='se')
             sync()
-            cavity.array_pulse(*cavity_pulse)
+            self.cavity.array_pulse(*cavity_pulse)
             qubit.array_pulse(*qubit_pulse)
             sync()
             delay(24)
