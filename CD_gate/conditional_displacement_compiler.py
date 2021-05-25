@@ -10,6 +10,7 @@ import math
 from scipy.optimize import curve_fit, minimize
 from scipy.interpolate import CubicSpline
 from init_script import cavity, qubit
+from ECD_control.ECD_pulse_construction.ECD_pulse_construction import FakeStorage, conditional_displacement_circuit
 
 def get_calibrated_pulse(pulse, zero_pad=False):
     """ 
@@ -194,7 +195,7 @@ class ECD_control_simple_compiler():
         return C_pulse, Q_pulse
 
 
-
+# TODO: this whole thing can be done using the ECD_control_simple_compiler
 class SBS_simple_compiler():
     
     def __init__(self, CD_compiler_kwargs={}, 
@@ -256,13 +257,74 @@ class SBS_simple_compiler():
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
         phase += phi_g + phi_e
 
-        # 7) Qubit Y180 - Y90 rotation (combined in single rotation)
+        # 7) Qubit X180 - Y90 rotation (combined in single rotation)
         # this rotates the qubit to be preferentially in |g>
-        Q_pulse = np.concatenate([Q_pulse, X90 * np.exp(1j*np.pi/2.0)])
+        Q_pulse = np.concatenate([Q_pulse, X90 * np.exp(-1j*np.pi/2.0)])
         C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
 
         zero_pad = np.zeros(4 - (len(C_pulse) % 4))
         C_pulse = np.concatenate([C_pulse, zero_pad])
         Q_pulse = np.concatenate([Q_pulse, zero_pad])
         
+        return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)
+
+    
+class ECD_control_Alec_compiler():
+    
+    
+    def __init__(self, alpha_CD, buffer_time):
+        """
+        Args:
+            alpha_CD (float): the alpha used during the ECD gates.
+            buffer_time (float): buffer time between R and ECD pulses.
+        """
+        epsilon_m = 1e9 / np.trapz(cavity.displace.make_wave()[0])
+        
+        # naming conventions, sign conventions and factors of 2 are different
+        storage_params = {'chi_kHz': -cavity.chi*1e-3, 
+                          'chi_prime_Hz': -cavity.chi_prime/2.0, 
+                          'Ks_Hz': cavity.kerr/2.0, 
+                          'epsilon_m_MHz': epsilon_m*1e-6, 
+                          'unit_amp': cavity.displace.unit_amp, 
+                          'sigma': cavity.displace.sigma, 
+                          'chop': cavity.displace.chop}
+        self.storage = FakeStorage(**storage_params)
+        self.qubit = qubit
+        
+        self.alpha = alpha_CD
+        self.buffer_time = buffer_time
+      
+    def make_pulse(self, beta, phi):
+        """
+        Args:
+            beta (array([T,2], flaot32)): Re and Im part of the displacement
+            phi  (array([T,2], float32)): phase and angle of qubit rotation
+        """
+        betas = beta[:,0] + 1j*beta[:,1]
+        phis, thetas = phi[:,0], phi[:,1]
+        print(betas)
+        cd_circuit_dict = conditional_displacement_circuit(betas, phis, thetas, 
+                    self.storage, self.qubit, self.alpha,  buffer_time=self.buffer_time, 
+                    kerr_correction=False, chi_prime_correction=True, final_disp=False, pad=True)
+        
+        cavity_dac_pulse, qubit_dac_pulse, = cd_circuit_dict['cavity_dac_pulse'], cd_circuit_dict['qubit_dac_pulse']
+        return cavity_dac_pulse, qubit_dac_pulse
+    
+
+
+
+class SBS_Alec_compiler():
+    def __init__(self, ECD_control_kwargs={}):
+        self.C = ECD_control_Alec_compiler(**ECD_control_kwargs)
+    
+    def make_pulse(self, eps1, eps2, beta):
+        
+        betas = np.array([eps1, beta, eps2, 0])
+        phis = np.array([np.pi/2, 0, 0, -np.pi/2])
+        thetas = np.array([np.pi/2, -np.pi/2, np.pi/2, np.pi/2])
+        
+        beta_sbs = np.stack([betas.real, betas.imag], axis=1)
+        phi_sbs =  np.stack([phis, thetas], axis=1)
+
+        C_pulse, Q_pulse = self.C.make_pulse(beta_sbs, phi_sbs)
         return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)

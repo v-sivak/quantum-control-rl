@@ -30,7 +30,7 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
     qubit_amp = FloatParameter(0.2)
     readout_detune_MHz = FloatParameter(50.4)
     qubit_detune_MHz = FloatParameter(8.0)
-    
+
     # SNAP parameters
     additional_delay = IntParameter(0)
 
@@ -64,14 +64,14 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
 
         # setup sBs step -----------------------------------------------------
         CD_compiler_kwargs = dict(qubit_pulse_pad=4)
-        s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', 
+        s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
                                        tau_ns=self.s_tau_ns, cal_dir=self.s_CD_cal_dir)
-        b_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', 
+        b_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
                                        tau_ns=self.b_tau_ns, cal_dir=self.b_CD_cal_dir)
-        C = SBS_simple_compiler(CD_compiler_kwargs, 
+        C = SBS_simple_compiler(CD_compiler_kwargs,
                                 s_CD_params_func_kwargs, b_CD_params_func_kwargs)
 
-        cavity_pulse, qubit_pulse = C.make_pulse(self.eps1/2.0, self.eps2/2.0, -1j*self.beta)
+        cavity_pulse, qubit_pulse = C.make_pulse(1j*self.eps1/2.0, 1j*self.eps2/2.0, self.beta)
 
         cavity_pulse = {'x': cavity_pulse, 'p': (-cavity_pulse[1], cavity_pulse[0])}
 
