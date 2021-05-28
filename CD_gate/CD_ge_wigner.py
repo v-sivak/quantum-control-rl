@@ -12,13 +12,19 @@ import numpy as np
 
 class CD_ge_wigner(FPGAExperiment):
     disp_range = RangeParameter((-4.0, 4.0, 101))
-    tau = IntParameter(90)
-    alpha = FloatParameter(10.0)
+    
     flip_qubit = BoolParameter(False)
 
+    # Parameters of the CD
+    tau = IntParameter(50)
+    beta = FloatParameter(1.0)
+    cal_dir = StringParameter('')
+
     def sequence(self):
-        C = ConditionalDisplacementCompiler()
-        cavity_pulse, qubit_pulse = C.make_pulse(self.tau, self.alpha, 0., 0.)
+        
+        C = ConditionalDisplacementCompiler(qubit_pulse_pad=4)
+        (tau, alpha, phi_g, phi_e) = C.CD_params_fixed_tau_from_cal(self.beta, self.tau, self.cal_dir)
+        cavity_pulse, qubit_pulse = C.make_pulse(tau, alpha, 0., 0.)
 
         with system.wigner_tomography(*self.disp_range):
             sync()

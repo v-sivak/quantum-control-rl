@@ -96,9 +96,14 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
                 this_data = self.results[name].data.real
 
                 # guess for thie fit
-                x0_guess = self.results[name].ax_data[0][np.argmax(this_data)]
+                if self.flip_qubit:
+                    x0_guess = self.results[name].ax_data[0][np.argmin(this_data)]
+                    amp_guess = np.min(this_data)-np.max(this_data)
+                else:
+                    x0_guess = self.results[name].ax_data[0][np.argmax(this_data)]
+                    amp_guess = np.max(this_data)-np.min(this_data)
                 offset_guess = np.min(this_data)
-                amp_guess = np.max(this_data)-np.min(this_data)
+                
                 p0 = (x0_guess, 2., offset_guess, amp_guess)
                 popt, pcov = curve_fit(self.fit_gaussian,
                                        self.results[name].ax_data[0],

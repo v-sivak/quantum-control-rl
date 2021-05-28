@@ -41,6 +41,7 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
         self.qubit = qubit
         self.cavity = cavity
 
+
         # setup Murch cooling ------------------------------------------------
         # --------------------------------------------------------------------
         self.qubit_detuned = qubit_ef
@@ -51,18 +52,14 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
         self.qubit_detuned.set_detune(self.qubit_detune_MHz*1e6)
         sync()
 
-        readout_pump_time = self.cool_duration_ns+2*self.qubit_ramp_ns-2*self.readout_ramp_ns
 
-        def cooling():
-            sync()
-            self.readout_detuned.smoothed_constant_pulse(
-                    readout_pump_time, amp=self.readout_amp, sigma_t=self.readout_ramp_ns)
-            self.qubit_detuned.smoothed_constant_pulse(
-                    self.cool_duration_ns, amp=self.qubit_amp, sigma_t=self.qubit_ramp_ns)
-            sync()
+        reset = lambda: self.cooling_Murch(self.cool_duration_ns, self.qubit_ramp_ns, 
+                            self.readout_ramp_ns, self.qubit_amp, self.readout_amp)
+        # --------------------------------------------------------------------
         # --------------------------------------------------------------------
 
-        # setup sBs step -----------------------------------------------------
+
+        # setup SBS step -----------------------------------------------------
         CD_compiler_kwargs = dict(qubit_pulse_pad=4)
         s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
                                        tau_ns=self.s_tau_ns, cal_dir=self.s_CD_cal_dir)
@@ -73,34 +70,67 @@ class sbs_Murch_cooling_wigner(FPGAExperiment):
 
         cavity_pulse, qubit_pulse = C.make_pulse(1j*self.eps1/2.0, 1j*self.eps2/2.0, self.beta)
 
-        cavity_pulse = {'x': cavity_pulse, 'p': (-cavity_pulse[1], cavity_pulse[0])}
+        qubit_pulse_sbs = qubit_pulse
+        cavity_pulse_sbs = {'x': cavity_pulse,
+                            'p': (-cavity_pulse[1], cavity_pulse[0])}
 
         def sbs_step(s):
             sync()
-            self.cavity.array_pulse(*cavity_pulse[s])
-            self.qubit.array_pulse(*qubit_pulse)
+            self.cavity.array_pulse(*cavity_pulse_sbs[s])
+            self.qubit.array_pulse(*qubit_pulse_sbs)
             sync()
+        # --------------------------------------------------------------------
         # --------------------------------------------------------------------
 
         def snap():
             delay(self.additional_delay)
 
-
         def step(s):
             sbs_step(s)
-            cooling()
+            reset()
             snap()
 
-
-        with system.wigner_tomography(*self.disp_range, result_name='m2'):
-            readout(m0='se')
+        def exp():
             sync()
             with Repeat(self.reps):
                 step('x')
                 step('p')
             sync()
+
+
+        with system.wigner_tomography(*self.disp_range, result_name='m2'):
+            readout(m0='se')
+            exp()
             readout(m1='se')
 
+
+    @subroutine
+    def cooling_Murch(self, cool_duration_ns, qubit_ramp_ns, readout_ramp_ns,
+                qubit_amp, readout_amp):
+        """
+        Autonomous qubit cooling based on this Murch paper:
+        https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.109.183602
+
+        Args:
+            cool_duration_ns (int): how long in [ns] to hold the constant
+                Rabi drive on the qubit after ramping it up.
+            qubit_ramp_ns (int): duration in [ns] of the qubit Rabi drive
+                ramp up/down.
+            readout_ramp_ns (int): duration in [ns] of the detuned readout
+                drive ramp up/down. This can typically be shorter than the
+                qubit ramp because the pulse is far detuned.
+            qubit_amp (float): amplitude of the qubit Rabi pulse.
+            readout_amp (float): amplitude of the detuned readout pulse.
+        """
+        # calculate the duration of the constant part of the readout pulse
+        readout_pump_time = cool_duration_ns+2*qubit_ramp_ns-2*readout_ramp_ns
+
+        sync()
+        self.readout_detuned.smoothed_constant_pulse(
+                readout_pump_time, amp=readout_amp, sigma_t=readout_ramp_ns)
+        self.qubit_detuned.smoothed_constant_pulse(
+                cool_duration_ns, amp=qubit_amp, sigma_t=qubit_ramp_ns)
+        sync()
 
 
     def process_data(self):

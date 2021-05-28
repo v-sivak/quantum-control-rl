@@ -9,12 +9,16 @@ from conditional_displacement_compiler import ConditionalDisplacementCompiler
 
 class CD_cat_wigner(FPGAExperiment):
     disp_range = RangeParameter((-4.0, 4.0, 101))
-    tau = IntParameter(100)
-    alpha = FloatParameter(6.0)
+
+    # Parameters of the CD
+    tau = IntParameter(50)
+    beta = FloatParameter(1.0)
+    cal_dir = StringParameter('')
 
     def sequence(self):
-        C = ConditionalDisplacementCompiler()
-        cavity_pulse, qubit_pulse = C.make_pulse(self.tau, self.alpha, 0., 0.)
+        C = ConditionalDisplacementCompiler(qubit_pulse_pad=4)
+        (tau, alpha, phi_g, phi_e) = C.CD_params_fixed_tau_from_cal(self.beta, self.tau, self.cal_dir)
+        cavity_pulse, qubit_pulse = C.make_pulse(tau, alpha, 0., 0.)
 
         with system.wigner_tomography(*self.disp_range):
             readout(init='se')
@@ -35,6 +39,8 @@ class CD_cat_wigner(FPGAExperiment):
         for i in [0,1]:
             for j in [0,1]:
                 result = self.results['default'].postselect(init, [i])[0].postselect(msmt, [j])[0]
-                self.results['postselected'+str(i)+str(j)] = result.thresh_mean().data
+                self.results['postselected'+str(i)+str(j)] = 1 - 2*result.thresh_mean().data
                 self.results['postselected'+str(i)+str(j)].ax_data = self.results['msmt'].ax_data[1:]
                 self.results['postselected'+str(i)+str(j)].labels = self.results['msmt'].labels[1:]
+                self.results['postselected'+str(i)+str(j)].vmin = -1
+                self.results['postselected'+str(i)+str(j)].vmax = +1
