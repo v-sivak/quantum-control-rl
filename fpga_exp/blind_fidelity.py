@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class blind_fidelity(FPGAExperiment):
-
+    alpha = FloatParameter(0.0)
     delay_time = IntParameter(5e3)
     loop_delay= IntParameter(1e6)
     threshold = FloatParameter(0)
@@ -18,6 +18,7 @@ class blind_fidelity(FPGAExperiment):
 
     def sequence(self):
 
+        cavity.displace(self.alpha)
         sync()
         qubit.flip(selective=self.selective)
         readout(traj_e='rel', state_e='se0')
@@ -25,6 +26,7 @@ class blind_fidelity(FPGAExperiment):
         readout(traj_e='rel', state_e='se0')
         delay(self.loop_delay)
 
+        cavity.displace(self.alpha)
         sync()
         readout(traj_g='rel', state_g='se0')
         delay(self.delay_time)
@@ -61,6 +63,7 @@ class blind_fidelity(FPGAExperiment):
         ax3 = fig.add_subplot(325, sharex=ax1)
         env = data['opt_env'].data
         ax3.set_title('optimal envelope')
+        ax3.plot(np.arange(len(g)), np.zeros(len(g)), color='k')
         ax3.plot(np.arange(len(g)), env.real, label='Re')
         ax3.plot(np.arange(len(g)), env.imag, label='Im')
         ax3.plot(np.arange(len(e)), np.abs(env), label='abs')
