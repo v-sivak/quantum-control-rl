@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sun May 30 11:48:57 2021
+
+@author: qulab
+"""
+
+
+# -*- coding: utf-8 -*-
+"""
 Created on Tue Feb  9 14:21:02 2021
 
 @author: qulab
@@ -9,7 +17,7 @@ import numpy as np
 from gkp_exp.gkp_qec.GKP import GKP
 
 
-class sbs_Murch_cooling_wigner(FPGAExperiment, GKP):
+class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
 
     disp_range = RangeParameter((-4.0, 4.0, 101))
     reps = IntParameter(5)
@@ -23,17 +31,9 @@ class sbs_Murch_cooling_wigner(FPGAExperiment, GKP):
     s_CD_cal_dir = StringParameter('')
     b_CD_cal_dir = StringParameter('')
 
-    # Murch cooling parameters
-    cool_duration_ns = IntParameter(1000)
-    qubit_ramp_ns = IntParameter(200)
-    readout_ramp_ns = IntParameter(60)
-    readout_amp = FloatParameter(0.22)
-    qubit_amp = FloatParameter(0.2)
-    readout_detune_MHz = FloatParameter(50.4)
-    qubit_detune_MHz = FloatParameter(8.0)
-
-    # SNAP parameters
-    snap_length = IntParameter(0)
+    # Feedback cooling parameters
+    echo_delay = IntParameter(0)
+    final_delay = IntParameter(0)
 
 
     def sequence(self):
@@ -42,20 +42,14 @@ class sbs_Murch_cooling_wigner(FPGAExperiment, GKP):
         self.qubit = qubit
         self.cavity = cavity
 
-        reset = self.reset_autonomous_Murch(qubit_ef, readout_aux, self.cool_duration_ns,
-                                         self.qubit_ramp_ns, self.readout_ramp_ns,
-                                         self.qubit_amp, self.readout_amp,
-                                         self.qubit_detune_MHz, self.readout_detune_MHz)
+        reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
 
-        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
+        sbs_step = self.sbs(self.eps1, self.eps2, self.beta, 
                             self.s_tau_ns, self.b_tau_ns, self.s_CD_cal_dir, self.b_CD_cal_dir)
-
-        snap = lambda: self.snap(self.snap_length)
 
         def step(s):
             sbs_step(s)
             reset()
-            snap()
 
         def exp():
             sync()
@@ -117,3 +111,8 @@ class sbs_Murch_cooling_wigner(FPGAExperiment, GKP):
         self.results['sz_postselected_m0_m1_m2'].labels = self.results['m2'].labels
         self.results['sz_postselected_m0_m1_m2'].vmin = -1
         self.results['sz_postselected_m0_m1_m2'].vmax = 1
+        
+
+
+    
+    
