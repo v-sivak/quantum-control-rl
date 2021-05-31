@@ -15,25 +15,25 @@ class GKP():
     @subroutine
     def reset_feedback_with_echo(self, echo_delay, final_delay):
         """
-        Simple feedback reset with echo.
+        Feedback reset with echo during readout.
         
         Args:
-            echo_delay (int): delay in [ns] after the qubit echo pulse
+            echo_delay (int): delay in [ns] from the beginning of the readout
+                to the qubit echo pulse.
             final_delay (int): delay in [ns] after the feedback to cancel 
                 deterministic (state-independent) cavity rotation.
         """
         sync()
-        self.readout(wait_result=True, log=False)
-        sync()
+        delay(echo_delay, channel=self.qubit.chan)
         self.qubit.flip() # echo pulse
+        readout(wait_result=True, log=False, sync_at_beginning=False)
         sync()
-        delay(echo_delay)
-        if_then_else(qubit.measured_low(), 'flip', 'wait')
+        if_then_else(self.qubit.measured_low(), 'flip', 'wait')
         label_next('flip')
         self.qubit.flip()
         goto('continue')
         label_next('wait')
-        delay(qubit.pulse.length)
+        delay(self.qubit.pulse.length)
         label_next('continue')
         delay(final_delay)
         sync()

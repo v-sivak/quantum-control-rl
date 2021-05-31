@@ -20,14 +20,31 @@ class Wigner_with_reset_echo(FPGAExperiment):
 
     def sequence(self):
 
+#        @subroutine
+#        def reset_with_echo():
+#            sync()
+#            readout(wait_result=True, log=False)
+#            sync()
+#            qubit.flip() # echo pulse
+#            sync()
+#            delay(self.echo_delay)
+#            if_then_else(qubit.measured_low(), 'flip', 'wait')
+#            label_next('flip')
+#            qubit.flip()
+#            goto('continue')
+#            label_next('wait')
+#            delay(qubit.pulse.length)
+#            label_next('continue')
+#            delay(self.final_delay)
+#            sync()
+
         @subroutine
         def reset_with_echo():
             sync()
-            readout(wait_result=True, log=False)
-            sync()
+            delay(self.echo_delay, channel=qubit.chan)
             qubit.flip() # echo pulse
+            readout(wait_result=True, log=False, sync_at_beginning=False)
             sync()
-            delay(self.echo_delay)
             if_then_else(qubit.measured_low(), 'flip', 'wait')
             label_next('flip')
             qubit.flip()
@@ -43,10 +60,9 @@ class Wigner_with_reset_echo(FPGAExperiment):
 
             sync()
             if self.flip_qubit:
-                #qubit.flip()
-                qubit.pi2_pulse()
+                qubit.flip()
             else:
-                delay(24)
+                delay(qubit.pulse.length)
             sync()
 
             cavity.displace(self.alpha)
