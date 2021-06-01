@@ -12,21 +12,23 @@ from scipy.interpolate import CubicSpline
 from init_script import cavity, qubit
 from ECD_control.ECD_pulse_construction.ECD_pulse_construction import FakeStorage, conditional_displacement_circuit
 
-def get_calibrated_pulse(pulse, zero_pad=False):
+def get_calibrated_pulse(pulse, zero_pad=None, detune=0):
     """ 
     Get calibrated pulse with correct dac amplitude, detuning etc.
     For qubit this is a pi-pulse, for cavity this is a unit displacement.
+    
     If the pulse is shorter than 24 ns, fpga_lib will pad it to 24, and
-    this function strips that padding.
+    this function strips that padding and optionally adds its own padding.
     """
-    i, q = pulse.make_wave(zero_pad=zero_pad)
-    f = pulse.detune
+    i, q = pulse.make_wave(zero_pad=False)
+    f = pulse.detune + detune
     t_offset = (24 - len(i)) / 2 if len(i)<24 else 0
-    t = (np.arange(len(i)) + t_offset)*1e-9
+    t = (np.arange(len(i)) + t_offset)*1e-9 # convert to ns
     i_prime = np.cos(2*np.pi*f*t)*i + np.sin(2*np.pi*f*t)*q
     q_prime = np.cos(2*np.pi*f*t)*q - np.sin(2*np.pi*f*t)*i
-    A_complex = i_prime + 1j * q_prime
-    A_complex *= pulse.unit_amp
+    A_complex = pulse.unit_amp * (i_prime + 1j * q_prime)
+    if zero_pad is not None:
+        A_complex = np.pad(A_complex, zero_pad, 'constant')
     return A_complex
 
 class ConditionalDisplacementCompiler():
@@ -47,6 +49,7 @@ class ConditionalDisplacementCompiler():
         self.qubit_pulse_pad = qubit_pulse_pad
         self.pad_clock_cycle = pad_clock_cycle
     
+    # TODO: update to match make_pulse arguments
     def CD_params_fixed_tau(self, beta, tau_ns):
         """
         Find parameters for CD gate based on simple constant chi model.
@@ -61,6 +64,7 @@ class ConditionalDisplacementCompiler():
         phi_e = np.zeros_like(alpha)
         return (tau_ns, alpha, phi_g, phi_e)
 
+    # TODO: update to match make_pulse arguments
     def CD_params_fixed_alpha(self, beta, alpha_abs):
         tau = 1. / (2*np.pi*cavity.chi) * np.arcsin(np.abs(beta/alpha_abs/2.))
         tau_ns = int(math.ceil(tau*1e9))
@@ -73,60 +77,57 @@ class ConditionalDisplacementCompiler():
 
     def CD_params_fixed_tau_from_cal(self, beta, tau_ns, cal_dir):
         """
-        Find parameters for CD gate based on simple calibration.
+        Find parameters for CD gate based on a simple calibration.
         Calibration gives a linear fit "alpha = a * beta + b" for a fixed tau,
         this can be obtained from 'CD_fixed_time_amp_cal' experiment.
         The displacements can be complex-valued here.
         Angles are taken in the counter-clockwise direction, so normally
         phi_e will be positive and phi_g will be negative.
         """
-        data = np.load(os.path.join(cal_dir, 'linear_fit.npz'))
-        a, b = data['a'], data['b']
+        data = np.load(os.path.join(cal_dir, 'quadratic_fit.npz'))
+        a, b, c = data['a'], data['b'], data['c']
         assert tau_ns == data['tau_ns']
-        alpha_abs = a * np.abs(beta) + b
-        alpha_abs_max = 0.95/cavity.displace.unit_amp
+        alpha_abs = a + b * np.abs(beta) + c * np.abs(beta)**2
+        alpha_abs_max = 0.95 / cavity.displace.unit_amp
         alpha_abs = np.min([alpha_abs, alpha_abs_max])
-        alpha = alpha_abs * np.exp(1j*(np.pi/2 + np.angle(beta)))
-        phi_g = np.zeros_like(alpha)
-        phi_e = np.zeros_like(alpha)
-        return (tau_ns, alpha, phi_g, phi_e)
-    
-    def make_pulse(self, tau, alpha, phi_g, phi_e):
-        """ Build cavity and qubit sequences for CD gate."""
-        # calculate parameters for the pulse        
-        phi_diff = phi_e - phi_g
-        phi_sum = phi_e + phi_g
+        alpha = alpha_abs * np.exp(1j*(np.pi/2.0 + np.angle(beta)))
+        CD_params = (alpha, -alpha, -alpha, alpha, tau_ns, tau_ns, 0, np.pi, 0)
+        return CD_params
 
-        r1 = np.cos(phi_diff/2.)
-        r2 = np.cos(phi_diff)
-        phase1 = np.pi + phi_sum/2.
-        phase2 = phi_sum
-        
-        Q_complex = get_calibrated_pulse(qubit.pulse)
-        Q_complex = np.concatenate([np.zeros(self.qubit_pulse_pad), 
-                                    Q_complex, np.zeros(self.qubit_pulse_pad)])
+
+    def make_pulse(self, alpha1, alpha2, alpha3, alpha4, 
+                    tau1, tau2, phi, theta, Delta):
+        """ Build cavity and qubit sequences for CD gate.
+
+        Args: 
+            alpha1-alpha4 (complex): cavity displacement amplitudes
+            tau1-tau2 (int): wait times for cavity rotation
+            phi, theta (float): phase and angle of qubit rotation
+            Delta (float): qubit pulse detuning in MHz
+
+        In the ideal case, we would have the following settings:
+            alpha1 = -alpha2 = -alpha3 = alpha4 = alpha
+            tau1 = tau2 = tau
+            phi, theta = [0, pi]
+            Delta = 0
+        """
+        pi_pulse = get_calibrated_pulse(qubit.pulse, 
+                                zero_pad=self.qubit_pulse_pad, detune=Delta)
         D_complex = get_calibrated_pulse(cavity.displace)
 
-        delay_tau = np.zeros(int(round(tau)))
-
         #----- first build cavity pulse ------------
-        C_pulse = D_complex * alpha
-        C_pulse = np.concatenate([C_pulse, delay_tau])
-        D1 = D_complex * alpha * r1 * np.exp(1j*phase1)
-        C_pulse = np.concatenate([C_pulse, D1])
-        C_pulse = np.concatenate([C_pulse, np.zeros(len(Q_complex))])
-        C_pulse = np.concatenate([C_pulse, D1])
-        C_pulse = np.concatenate([C_pulse, delay_tau])
-        D2 = D_complex * alpha * r2 * np.exp(1j*phase2)
-        C_pulse = np.concatenate([C_pulse, D2])
-        #----------------------------------------
+        C_pulse = D_complex * alpha1
+        C_pulse = np.concatenate([C_pulse, np.zeros(int(round(tau1)))])
+        C_pulse = np.concatenate([C_pulse, D_complex * alpha2])
+        C_pulse = np.concatenate([C_pulse, np.zeros(len(pi_pulse))])
+        C_pulse = np.concatenate([C_pulse, D_complex * alpha3])
+        C_pulse = np.concatenate([C_pulse, np.zeros(int(round(tau2)))])
+        C_pulse = np.concatenate([C_pulse, D_complex * alpha4])
 
         #----- now build qubit pulse ------------
-        flip_delay = (len(C_pulse) - len(Q_complex)) / 2
-        Q_pulse = np.zeros(flip_delay)
-        Q_pulse = np.concatenate([Q_pulse, Q_complex])
-        Q_pulse = np.concatenate([Q_pulse, np.zeros(flip_delay)])
-        #----------------------------------------
+        Q_complex = pi_pulse * theta / np.pi * np.exp(1j*phi)
+        flip_delay = (len(C_pulse) - len(pi_pulse)) / 2
+        Q_pulse = np.concatenate([np.zeros(flip_delay), Q_complex, np.zeros(flip_delay)])
         
         # shift the qubit pulse to compensate electrical delay
         Q_pulse = np.roll(Q_pulse, self.qubit_pulse_shift)
@@ -138,7 +139,7 @@ class ConditionalDisplacementCompiler():
             Q_pulse = np.concatenate([Q_pulse, zero_pad])
 
         return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)
-        
+
 
 class ECD_control_simple_compiler():
     
@@ -153,7 +154,7 @@ class ECD_control_simple_compiler():
         """
         CD_compiler_kwargs['pad_clock_cycle'] = False
         self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
-        self.pi_pulse = get_calibrated_pulse(qubit.pulse)
+        self.pi_pulse = get_calibrated_pulse(qubit.pulse) # TODO: add zero-padding 
         
         func = getattr(self.CD, CD_params_func_kwargs.pop('name'))
         self.CD_params_func = lambda beta: func(beta, **CD_params_func_kwargs)
@@ -177,8 +178,8 @@ class ECD_control_simple_compiler():
             # Then create the CD gate
             beta_t = beta[t,0] + 1j*beta[t,1]
             if t < T-1:
-                (tau, alpha, phi_g, phi_e) = self.CD_params_func(beta_t)
-                cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+                CD_params = self.CD_params_func(beta_t)
+                cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
                 C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
                 Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
             elif t == T-1:
@@ -210,7 +211,7 @@ class SBS_simple_compiler():
         """
         self.pi_pulse = get_calibrated_pulse(qubit.pulse)
         
-        # compiler for small conditional isplacements
+        # compiler for small conditional displacements
         CD_compiler_kwargs['pad_clock_cycle'] = False
         self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
         
@@ -221,41 +222,36 @@ class SBS_simple_compiler():
         self.b_CD_params_func = lambda beta: func(beta, **b_CD_params_func_kwargs)
     
     def make_pulse(self, eps1, eps2, beta):
-        phase = 0.0 # Keep track of the global oscillator rotation (anti-clockwise)
-        
         # 1) Start in |g>, put the qubit in |+> with Y90
         X90 = get_calibrated_pulse(qubit.pi2_pulse)
         Q_pulse = X90 * np.exp(1j*np.pi/2.0)
         C_pulse = np.zeros_like(X90)
 
         # 2) apply 1st "small" CD gate
-        (tau, alpha, phi_g, phi_e) = self.s_CD_params_func(eps1)
-        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        CD_params = self.s_CD_params_func(eps1)
+        cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
-        phase += phi_g + phi_e
         
         # 3) qubit X180 + X90 rotation (combined in single rotation)
         Q_pulse = np.concatenate([Q_pulse, X90*np.exp(1j*np.pi)])
         C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
         
         # 4) apply "big" CD gate (with stabilizer amplitude)
-        (tau, alpha, phi_g, phi_e) = self.b_CD_params_func(beta)
-        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        CD_params = self.b_CD_params_func(beta)
+        cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
-        phase += phi_g + phi_e
 
         # 5) qubit X180 - X90 rotation (combined in single rotation)
         Q_pulse = np.concatenate([Q_pulse, X90])
         C_pulse = np.concatenate([C_pulse, np.zeros_like(X90)])
 
         # 6) apply 2nd "small" CD gate
-        (tau, alpha, phi_g, phi_e) = self.s_CD_params_func(eps2)
-        cav_CD, qb_CD = self.CD.make_pulse(tau, alpha, phi_g, phi_e)
+        CD_params = self.s_CD_params_func(eps2)
+        cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
         C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
         Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
-        phase += phi_g + phi_e
 
         # 7) Qubit X180 - Y90 rotation (combined in single rotation)
         # this rotates the qubit to be preferentially in |g>

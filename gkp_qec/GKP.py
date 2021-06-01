@@ -136,10 +136,10 @@ class GKP():
 
     def stabilizer_phase_estimation(self, tau_ns, CD_cal_dir):
         
-        C = ConditionalDisplacementCompiler(qubit_pulse_pad=4)
-        (tau, alpha, phi_g, phi_e) = C.CD_params_fixed_tau_from_cal(
+        C = ConditionalDisplacementCompiler()
+        CD_params = C.CD_params_fixed_tau_from_cal(
                 np.sqrt(2*np.pi), tau_ns, CD_cal_dir)
-        cavity_pulse, qubit_pulse = C.make_pulse(tau, alpha, 0., 0.)
+        cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
 
         qubit_stabilizer_CD_pulse = qubit_pulse
         cavity_stabilizer_CD_pulse = {'x': (cavity_pulse[0], cavity_pulse[1]), 
