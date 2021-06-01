@@ -155,7 +155,7 @@ class GKP():
             self.qubit.pi2_pulse(phase=np.pi/2.0)
             sync()
             delay(24)
-            readout()
+            readout(**{s:'se'})
             sync()
         
         return stabilizer_phase_estimation

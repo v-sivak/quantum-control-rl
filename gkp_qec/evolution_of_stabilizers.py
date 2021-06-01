@@ -8,7 +8,7 @@ from init_script import *
 import numpy as np
 from gkp_exp.gkp_qec.GKP import GKP
 
-class stabilization_stabilizers(FPGAExperiment, GKP):
+class evolution_of_stabilizers(FPGAExperiment, GKP):
 
     reps = IntParameter(5)
 
@@ -37,7 +37,8 @@ class stabilization_stabilizers(FPGAExperiment, GKP):
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
 
         sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
-                            self.s_tau_ns, self.b_tau_ns, self.s_CD_cal_dir, self.b_CD_cal_dir)
+                            self.s_tau_ns, self.b_tau_ns, 
+                            self.s_CD_cal_dir, self.b_CD_cal_dir)
 
         def step(s):
             sbs_step(s)
@@ -50,17 +51,27 @@ class stabilization_stabilizers(FPGAExperiment, GKP):
                 step('p')
             sync()
 
-        stabilizer_phase_estimation = self.stabilizer_phase_estimation(self.b_tau_ns, self.b_CD_cal_dir)
+        stabilizer_phase_estimation = self.stabilizer_phase_estimation(
+                self.b_tau_ns, self.b_CD_cal_dir)
 
-
-        for reps in range(self.reps):
-            exp(reps)
-            stabilizer_phase_estimation('x')
-            delay(self.loop_delay)
+        for s in ['x', 'p']:
+            for reps in range(self.reps):
+                exp(reps)
+                stabilizer_phase_estimation(s)
+                delay(self.loop_delay)
 
 
     def process_data(self):
+        for s in ['x','p']:
+            self.results[s+'_sigma_z'] = 1-2*self.results[s].threshold()
+            self.results[s+'_sigma_z'].ax_data = self.results[s].ax_data
+            self.results[s+'_sigma_z'].labels = self.results[s].labels
 
-        self.results['sigma_z'] = 1-2*self.results['default'].threshold()
-        self.results['sigma_z'].ax_data = self.results['default'].ax_data
-        self.results['sigma_z'].labels = self.results['default'].labels
+
+    def plot(self, fig, data):
+        
+        ax = fig.add_subplot(111)
+        for s in ['x','p']:
+            ax.plot(self.results[s+'_sigma_z'].ax_data[1], 
+                    self.results[s+'_sigma_z'].data.mean(axis=0),
+                    marker='.')

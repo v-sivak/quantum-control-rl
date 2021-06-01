@@ -23,8 +23,9 @@ class state_prep_wigner_tomography(FPGAExperiment):
         data = np.load(self.filename, allow_pickle=True)
         beta, phi = data['beta'], data['phi']
 
-        CD_compiler_kwargs = dict(cal_dir=self.cal_dir)
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=self.tau_ns)        
+        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
+        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', 
+                                     tau_ns=self.tau_ns, cal_dir=self.cal_dir)        
         ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
         
         self.c_pulse, self.q_pulse = ECD_control_compiler.make_pulse(beta, phi)

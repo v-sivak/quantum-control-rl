@@ -33,8 +33,9 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
 
         
-        CD_compiler_kwargs = dict(cal_dir=r'D:\DATA\exp\2021-03-26_cooldown\CD_fixed_time_amp_cal\tau=16ns')
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=16)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
+        CD_params_func_kwargs = dict(cal_dir=r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal\tau=20ns', 
+                                     name='CD_params_fixed_tau_from_cal', tau_ns=20)
         C = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
 
         self.cavity_pulses, self.qubit_pulses = [], []
@@ -46,7 +47,7 @@ class state_prep_wigner_reward(ReinforcementLearningExperiment):
         logger.info('Compiled pulses.')
         
         # save phase space points and pulse sequences to file
-        opt_file = r'D:\DATA\exp\2021-04-19_cooldown\state_prep_fock_reward\opt_data.npz'
+        opt_file = r'D:\DATA\exp\2021-05-13_cooldown\state_prep_wigner_reward\opt_data.npz'
         np.savez(opt_file, alphas=self.alphas, targets=self.targets,
                  cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
         
