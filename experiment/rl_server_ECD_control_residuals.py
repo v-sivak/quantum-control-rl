@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_6'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_8'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -74,7 +74,7 @@ action_script = 'ECD_control_residuals'
 action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 20
+train_batch_size = 10
 eval_batch_size = 1
 
 learn_residuals = True
@@ -101,7 +101,7 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 5e-4,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,

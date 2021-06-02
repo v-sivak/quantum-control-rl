@@ -2,7 +2,7 @@
 """
 Created on Mon Apr 12 16:08:16 2021
 
-@author: qulab
+@author: Vladimir Sivak
 """
 
 # import numpy as np
@@ -29,7 +29,7 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_6'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_8'
 
 # Params for environment
 env_kwargs = {
@@ -46,7 +46,7 @@ to_learn = {'beta':True, 'phi':True}
 
 
 # Evaluate some of the protocols at after the training is finished
-policy_str= '000500'
+policy_str= '000000'
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])

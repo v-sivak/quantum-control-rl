@@ -10,14 +10,14 @@ approach to quantum circuits.
 
 import tensorflow as tf
 from tensorflow import complex64 as c64
-from rl_tools.tf_env.tf_env import GKP
+from rl_tools.tf_env.tf_env import TFEnvironmentQuantumControl
 from rl_tools.tf_env import helper_functions as hf
 from tf_agents import specs
 from simulator.hilbert_spaces import OscillatorQubit
 from simulator.utils import measurement
 
 
-class QuantumCircuit(OscillatorQubit, GKP):
+class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     """
     This is a protocol proposed by Baptiste https://arxiv.org/abs/2009.07941
     It essentially combines trimming and sharpening in a single round.

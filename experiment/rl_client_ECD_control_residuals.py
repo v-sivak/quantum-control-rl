@@ -10,7 +10,7 @@ import numpy as np
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
-from remote_env_tools.remote_env_tools import Client
+from rl_tools.remote_env_tools.remote_env_tools import Client
 
 
 
