@@ -20,30 +20,33 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
     def __init__(self):
         self.max_mini_batch_size = 10
         self.batch_axis = 1
+        self.tau_ns = 20
 
     def update_exp_params(self):
 
         action_batch = self.message['action_batch']
         beta, phi = action_batch['beta'], action_batch['phi'] # shape=[B,T,2]
+        T = beta.shape[1] # number of time-steps in the sequence
         self.N_msmt = self.message['N_msmt']
         self.fock = self.message['fock']
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
 
 
-        CD_compiler_kwargs = dict(cal_dir=r'D:\DATA\exp\2021-03-26_cooldown\CD_fixed_time_amp_cal\tau=16ns')
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal', tau_ns=16)
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=0)
+        cal_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+        tau = np.array([self.tau_ns]*T)
         
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
-            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I])
+            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I], tau)
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Compiled pulses.')
         
-        # save phase space points and pulse sequences to file
+        # save pulse sequences to file
         opt_file = r'D:\DATA\exp\2021-04-19_cooldown\state_prep_fock_reward\opt_data.npz'
         np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
         
