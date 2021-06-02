@@ -22,13 +22,12 @@ class state_prep_wigner_tomography(FPGAExperiment):
     def sequence(self):
         data = np.load(self.filename, allow_pickle=True)
         beta, phi = data['beta'], data['phi']
+        tau = np.array([self.tau_ns]*len(data['beta']))
 
         CD_compiler_kwargs = dict(qubit_pulse_pad=0)
-        CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
-                                     tau_ns=self.tau_ns, cal_dir=self.cal_dir)
-        ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, CD_params_func_kwargs)
+        ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
 
-        self.c_pulse, self.q_pulse = ECD_control_compiler.make_pulse(beta, phi)
+        self.c_pulse, self.q_pulse = ECD_control_compiler.make_pulse(beta, phi, tau)
 
 #        data = np.load(r'Y:\tmp\for Vlad\from_vlad\vlad_params_fock_4_alpha_7.000.npz')
 #        self.q_pulse = data['qubit_dac_pulse']

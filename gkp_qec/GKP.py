@@ -88,7 +88,7 @@ class GKP():
         return lambda: cooling_Murch()
 
 
-    def sbs(self, eps1, eps2, beta, s_tau_ns, b_tau_ns, s_CD_cal_dir, b_CD_cal_dir):
+    def sbs(self, eps1, eps2, beta, s_tau_ns, b_tau_ns, cal_dir):
         """
         Single step of SBS protocol based on this Baptiste paper:
         https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.125.260509
@@ -101,17 +101,13 @@ class GKP():
             beta (float): big CD amplitude
             
             s_tau_ns, b_tau_ns (int): wait time in the small/big CD gate
-            s_CD_cal_dir, b_CD_cal_dir (str): calibration directory for CD gate
+            cal_dir (str): directory with CD gate calibrations
         """
-        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
-        s_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
-                                       tau_ns=self.s_tau_ns, cal_dir=self.s_CD_cal_dir)
-        b_CD_params_func_kwargs = dict(name='CD_params_fixed_tau_from_cal',
-                                       tau_ns=self.b_tau_ns, cal_dir=self.b_CD_cal_dir)
-        C = SBS_simple_compiler(CD_compiler_kwargs,
-                                s_CD_params_func_kwargs, b_CD_params_func_kwargs)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=0)
+        C = SBS_simple_compiler(CD_compiler_kwargs, cal_dir)
         
-        cavity_pulse, qubit_pulse = C.make_pulse(1j*eps1/2.0, 1j*eps2/2.0, beta)
+        cavity_pulse, qubit_pulse = C.make_pulse(1j*eps1/2.0, 1j*eps2/2.0, beta,
+                                                 s_tau_ns, b_tau_ns)
 
         qubit_pulse_sbs = qubit_pulse
         cavity_pulse_sbs = {'x': (cavity_pulse[0], cavity_pulse[1]),
@@ -134,11 +130,11 @@ class GKP():
         delay(snap_length)
         
 
-    def stabilizer_phase_estimation(self, tau_ns, CD_cal_dir):
+    def stabilizer_phase_estimation(self, tau_ns, cal_dir):
         
         C = ConditionalDisplacementCompiler()
         CD_params = C.CD_params_fixed_tau_from_cal(
-                np.sqrt(2*np.pi), tau_ns, CD_cal_dir)
+                np.sqrt(2*np.pi), tau_ns, cal_dir)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
 
         qubit_stabilizer_CD_pulse = qubit_pulse

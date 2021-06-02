@@ -28,8 +28,7 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
     eps1 = FloatParameter(0.2)
     eps2 = FloatParameter(0.2)
     beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
-    s_CD_cal_dir = StringParameter('')
-    b_CD_cal_dir = StringParameter('')
+    cal_dir = StringParameter('')
 
     # Feedback cooling parameters
     echo_delay = IntParameter(0)
@@ -45,7 +44,7 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
 
         sbs_step = self.sbs(self.eps1, self.eps2, self.beta, 
-                            self.s_tau_ns, self.b_tau_ns, self.s_CD_cal_dir, self.b_CD_cal_dir)
+                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
 
         def step(s):
             sbs_step(s)
