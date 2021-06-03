@@ -319,7 +319,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                             'fock',
                             'tomography',
                             'tomography_remote',
-                            'fock_remote']
+                            'fock_remote',
+                            'stabilizer_remote']
             self.reward_mode = mode
         except: 
             raise ValueError('reward_mode not specified or not supported.') 
@@ -493,6 +494,18 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.server_socket = reward_kwargs.pop('server_socket')
             self.calculate_reward = \
                 lambda x: self.reward_fock_remote(**reward_kwargs)
+
+        if mode == 'stabilizer_remote':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'stabilizer_remote'
+                N_msmt (int): number of measurements per protocol
+                epoch_type (str): either 'training' or 'evaluation'
+                server_socket (Socket): socket for communication
+            """
+            self.server_socket = reward_kwargs.pop('server_socket')
+            self.calculate_reward = \
+                lambda x: self.reward_stabilizer_remote(**reward_kwargs)
 
 
     def reward_fock(self, target_projector, N_msmt, error_prob):
@@ -814,6 +827,40 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         z = tf.math.reduce_mean(Z, axis=[1])
         return z
         
+    def reward_stabilizer_remote(self, N_msmt, epoch_type):
+        """
+        Send the action sequence to remote environment and receive rewards.
+        The data received from the remote env should be sigma_z measurement 
+        outcomes of shape [2, batch_size, N_msmt] where the first measurement 
+        is x-stabilizer and the second measurement is p-stabilizer.
+        
+        """
+        # return 0 on all intermediate steps of the episode
+        if self._elapsed_steps != self.episode_length:
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+
+        action_batch = {}
+        for a in self.history.keys() - ['msmt']:
+            # reshape to [batch_size, T, action_dim]
+            action_batch[a] = np.transpose(self.history[a][1:], axes=[1,0,2])
+
+        # send action sequence and metadata to remote client
+        message = dict(action_batch=action_batch, 
+                       batch_size=self.batch_size,
+                       N_msmt=N_msmt,
+                       epoch_type=epoch_type,
+                       epoch=self._epoch)
+
+        self.server_socket.send_data(message)
+
+        # receive array of outcomes of shape [2, batch_size, N_msmt]
+        msmt, done = self.server_socket.recv_data()
+        msmt = tf.cast(msmt, tf.float32)
+
+        # calculate reward
+        z = tf.reduce_mean(msmt, axis=[0,2])
+        return z
+
 
     @tf.function
     def reward_zero(self, *args):

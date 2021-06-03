@@ -29,24 +29,24 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_8'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_1'
 
 # Params for environment
 env_kwargs = {
     'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 8,
-    'N' : 100}
+    'T' : 4,
+    'N' : 20}
 
 # Params for action wrapper
-action_script = 'ECD_control_residuals'
+action_script = 'SBS_residuals'
 action_scale = {'beta':3/8, 'phi':pi/8}
 to_learn = {'beta':True, 'phi':True}
 
 
 
 # Evaluate some of the protocols at after the training is finished
-policy_str= '000000'
+policy_str= '000500'
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -70,5 +70,5 @@ while not time_step.is_last():
 beta = np.squeeze(np.array(env.history['beta']))[1:,:]
 phi = np.squeeze(np.array(env.history['phi']))[1:,:]
 
-filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_fock4.npz')
+filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'sbs.npz')
 np.savez(filename, beta=beta, phi=phi)
