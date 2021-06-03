@@ -6,12 +6,13 @@ Created on Sun May 30 11:44:39 2021
 """
 
 from init_script import *
-from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler, ConditionalDisplacementCompiler
+from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler, ConditionalDisplacementCompiler, ECD_control_simple_compiler
 import numpy as np
 
 
 class GKP():
-
+    qubit_pulse_pad = 0
+    
     @subroutine
     def reset_feedback_with_echo(self, echo_delay, final_delay):
         """
@@ -103,28 +104,50 @@ class GKP():
             s_tau_ns, b_tau_ns (int): wait time in the small/big CD gate
             cal_dir (str): directory with CD gate calibrations
         """
-        CD_compiler_kwargs = dict(qubit_pulse_pad=0)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
         C = SBS_simple_compiler(CD_compiler_kwargs, cal_dir)
         
         cavity_pulse, qubit_pulse = C.make_pulse(1j*eps1/2.0, 1j*eps2/2.0, beta,
                                                  s_tau_ns, b_tau_ns)
-
-        qubit_pulse_sbs = qubit_pulse
-        cavity_pulse_sbs = {'x': (cavity_pulse[0], cavity_pulse[1]),
-                            'p': (-cavity_pulse[1], cavity_pulse[0])}
 
         def sbs_step(s):
             """
             Args:
                 s (str): stabilization qudrature, either 'x' or 'p' 
             """
+            phase = dict(x=0.0, p=np.pi/2.0)
             sync()
-            self.cavity.array_pulse(*cavity_pulse_sbs[s])
-            self.qubit.array_pulse(*qubit_pulse_sbs)
+            self.cavity.array_pulse(*cavity_pulse, phase=phase[s])
+            self.qubit.array_pulse(*qubit_pulse)
             sync()
         
         return sbs_step
 
+    def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, cal_dir):
+        """
+        
+        """
+        data = np.load(ECD_filename, allow_pickle=True)
+        beta, phi = data['beta'], data['phi']
+        tau = np.array([s_tau, b_tau, s_tau, 0])
+
+        CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+        c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
+        
+        def sbs_step(s):
+            """
+            Args:
+                s (str): stabilizer direction, either 'x' or 'p'
+            """
+            phase = dict(x=0.0, p=np.pi/2.0)
+            sync()
+            self.cavity.array_pulse(c_pulse.real, c_pulse.imag, phase=phase[s])
+            self.qubit.array_pulse(q_pulse.real, q_pulse.imag)
+            sync()
+            
+        return sbs_step
+        
 
     def snap(self, snap_length):
         delay(snap_length)
@@ -132,23 +155,20 @@ class GKP():
 
     def stabilizer_phase_estimation(self, tau_ns, cal_dir):
         
-        C = ConditionalDisplacementCompiler()
-        CD_params = C.CD_params_fixed_tau_from_cal(
-                np.sqrt(2*np.pi), tau_ns, cal_dir)
+        beta = np.sqrt(2*np.pi) # stabilizer CD amplitude
+        C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
+        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, cal_dir)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
-
-        qubit_stabilizer_CD_pulse = qubit_pulse
-        cavity_stabilizer_CD_pulse = {'x': (cavity_pulse[0], cavity_pulse[1]), 
-                                      'p': (-cavity_pulse[1], cavity_pulse[0])}
         
         def stabilizer_phase_estimation(s):
+            phase = dict(x=0.0, p=np.pi/2.0)
             sync()
             self.qubit.pi2_pulse(phase=np.pi/2.0)
             sync()
-            self.cavity.array_pulse(*cavity_stabilizer_CD_pulse[s])
-            self.qubit.array_pulse(*qubit_stabilizer_CD_pulse)
+            self.cavity.array_pulse(*cavity_pulse, phase=phase[s])
+            self.qubit.array_pulse(*qubit_pulse)
             sync()
-            self.qubit.pi2_pulse(phase=np.pi/2.0)
+            self.qubit.pi2_pulse(phase=-np.pi/2.0)
             sync()
             delay(24)
             readout(**{s:'se'})

@@ -153,7 +153,7 @@ class ECD_control_simple_compiler():
         """
         CD_compiler_kwargs['pad_clock_cycle'] = False
         self.CD = ConditionalDisplacementCompiler(**CD_compiler_kwargs)
-        self.pi_pulse = get_calibrated_pulse(qubit.pulse) # TODO: add zero-padding 
+        self.pi_pulse = get_calibrated_pulse(qubit.pulse, zero_pad=self.CD.qubit_pulse_pad)
         
         func = self.CD.CD_params_fixed_tau_from_cal
         self.CD_params_func = lambda beta, tau: func(beta, tau, cal_dir)
@@ -189,7 +189,7 @@ class ECD_control_simple_compiler():
                 C_pulse = np.concatenate([C_pulse, D * beta_t/2.0])
                 Q_pulse = np.concatenate([Q_pulse, np.zeros_like(D)])
         
-        # make sure pulse length is multiple of 4 ns
+        # make sure total pulse length is multiple of 4 ns
         zero_pad = np.zeros(4 - (len(C_pulse) % 4))
         C_pulse = np.concatenate([C_pulse, zero_pad])
         Q_pulse = np.concatenate([Q_pulse, zero_pad])
@@ -201,7 +201,9 @@ class ECD_control_simple_compiler():
 class SBS_simple_compiler():
     
     def __init__(self, CD_compiler_kwargs, cal_dir):
-        """ See docs for ECD_control_simple_compiler. """
+        """ Super primitive compiler for the SBS sequence, see this paper:
+            https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.125.260509
+        See docs for ECD_control_simple_compiler. """
         self.C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
     
     def make_pulse(self, eps1, eps2, beta, s_tau, b_tau):
