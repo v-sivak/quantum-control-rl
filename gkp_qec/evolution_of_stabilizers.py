@@ -35,8 +35,11 @@ class evolution_of_stabilizers(FPGAExperiment, GKP):
 
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
 
-        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
-                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
+#        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
+#                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
+
+        ECD_filename = r'Y:\tmp\for Vlad\from_vlad\000500sbs.npz'
+        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, ECD_filename, self.cal_dir)
 
         def step(s):
             sbs_step(s)
@@ -67,9 +70,11 @@ class evolution_of_stabilizers(FPGAExperiment, GKP):
 
 
     def plot(self, fig, data):
-        
+
         ax = fig.add_subplot(111)
+        ax.set_xlabel('Number of x/p rounds')
+        ax.set_ylabel('sigma_z')
         for s in ['x','p']:
-            ax.plot(self.results[s+'_sigma_z'].ax_data[1], 
+            ax.plot(self.results[s+'_sigma_z'].ax_data[1],
                     self.results[s+'_sigma_z'].data.mean(axis=0),
                     marker='.')

@@ -231,13 +231,14 @@ class ECD_control_Alec_compiler():
             alpha_CD (float): the alpha used during the ECD gates.
             buffer_time (float): buffer time between R and ECD pulses.
         """
-        epsilon_m = 1e9 / np.trapz(cavity.displace.make_wave()[0])
+        wave = cavity.displace.unit_amp * cavity.displace.make_wave()[0]
+        epsilon_m = 1/np.trapz(wave) # GRad/s
         
         # naming conventions, sign conventions and factors of 2 are different
         storage_params = {'chi_kHz': -cavity.chi*1e-3, 
                           'chi_prime_Hz': -cavity.chi_prime/2.0, 
                           'Ks_Hz': cavity.kerr/2.0, 
-                          'epsilon_m_MHz': epsilon_m*1e-6, 
+                          'epsilon_m_MHz': 1e3*epsilon_m/2.0/np.pi, 
                           'unit_amp': cavity.displace.unit_amp, 
                           'sigma': cavity.displace.sigma, 
                           'chop': cavity.displace.chop}

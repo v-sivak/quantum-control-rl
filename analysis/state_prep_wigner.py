@@ -11,10 +11,10 @@ import numpy as np
 from fpga_lib import *
 from fpga_lib.dsl.result import Results
 
-
-exp_dir = r'D:\DATA\exp\gkp_exp.state_prep.state_prep_wigner_tomography\archive'
-fname = '20210509.h5'
-group = 0
+exp_dir = r'D:\DATA\exp\gkp_exp.gkp_qec.sbs_feedback_reset_wigner\archive'
+#exp_dir = r'D:\DATA\exp\gkp_exp.state_prep.state_prep_wigner_tomography\archive'
+fname = '20210603.h5'
+group = 3
 file_name = os.path.join(exp_dir, fname)
 
 grp_name = str(group)
@@ -25,5 +25,5 @@ wigner_g = np.mean(wigner_full_g, axis=0)
 wigner_e = np.mean(wigner_full_e, axis=0)
 xs, ys = res['g_m0'].ax_data[1:]
 
-wigner_fname = r'Y:\tmp\for Vlad\from_vlad\wigner_fock_4.npz'
+wigner_fname = r'Y:\tmp\for Vlad\from_vlad\wigner_sbs_v2.npz'
 np.savez(wigner_fname, wigner_g=wigner_g.data, wigner_e=wigner_e.data, xs=xs, ys=ys)

@@ -18,19 +18,21 @@ class sbs_step_wigner(FPGAExperiment):
     beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
 
     cal_dir = StringParameter('')
+    qubit_pulse_pad = IntParameter(0)
 
 
     def sequence(self):
-        CD_compiler_kwargs = dict(qubit_pulse_pad=0)
-        C = SBS_simple_compiler(CD_compiler_kwargs, self.cal_dir)
+        #CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
+        #C = SBS_simple_compiler(CD_compiler_kwargs, self.cal_dir)
 
-        #ECD_control_kwargs = dict(alpha_CD=8.0, buffer_time=4)
-        #C = SBS_Alec_compiler(ECD_control_kwargs)
+#        cavity_pulse, qubit_pulse = C.make_pulse(
+#                self.eps1/2.0, self.eps2/2.0, -1j*self.beta,
+#                self.s_tau_ns, self.b_tau_ns)
 
+        ECD_control_kwargs = dict(alpha_CD=8.0, buffer_time=4)
+        C = SBS_Alec_compiler(ECD_control_kwargs)
         cavity_pulse, qubit_pulse = C.make_pulse(
-                self.eps1/2.0, self.eps2/2.0, -1j*self.beta,
-                self.s_tau_ns, self.b_tau_ns)
-
+                self.eps1/2.0, self.eps2/2.0, -1j*self.beta)
 
         self.cavity = cavity
 

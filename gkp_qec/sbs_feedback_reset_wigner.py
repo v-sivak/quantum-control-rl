@@ -43,8 +43,11 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
 
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
 
-        sbs_step = self.sbs(self.eps1, self.eps2, self.beta, 
-                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
+#        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
+#                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
+
+        ECD_filename = r'Y:\tmp\for Vlad\from_vlad\000500sbs_run2.npz'
+        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, ECD_filename, self.cal_dir)
 
         def step(s):
             sbs_step(s)
@@ -58,60 +61,66 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
             sync()
 
 
-        with system.wigner_tomography(*self.disp_range, result_name='m2'):
-            readout(m0='se')
+        # map odd parity to 'e'
+        with system.wigner_tomography(*self.disp_range, result_name='g_m2',
+                                      invert_axis=False):
+            readout(g_m0='se')
             exp()
-            readout(m1='se')
+            readout(g_m1='se')
 
+        # map odd parity to 'g'
+        with system.wigner_tomography(*self.disp_range, result_name='e_m2',
+                                      invert_axis=True):
+            readout(e_m0='se')
+            exp()
+            readout(e_m1='se')
 
 
     def process_data(self):
+        sign = dict(g=1, e=-1)
 
-        # post-select on m0='g'
-        # meaning that the whole state prep sequence STARTS from VACUUM
-        init_state_g = self.results['m0'].multithresh()[0]
-        postselected = self.results['m2'].postselect(init_state_g, [1])[0]
-        self.results['m2_postselected_m0'] = postselected
-        self.results['m2_postselected_m0'].ax_data = self.results['m2'].ax_data
-        self.results['m2_postselected_m0'].labels = self.results['m2'].labels
+        for s in ['g', 'e']:
 
-        self.results['sz_postselected_m0'] = (1 - 2*postselected.threshold())
-        self.results['sz_postselected_m0'].ax_data = self.results['m2'].ax_data
-        self.results['sz_postselected_m0'].labels = self.results['m2'].labels
-        self.results['sz_postselected_m0'].vmin = -1
-        self.results['sz_postselected_m0'].vmax = 1
+            # post-select on m0='g'
+            # meaning that the whole state prep sequence STARTS from VACUUM
+            init_state_g = self.results[s+'_m0'].multithresh()[0]
+            postselected = self.results[s+'_m2'].postselect(init_state_g, [1])[0]
+            self.results[s+'_m2_postselected_m0'] = postselected
+            self.results[s+'_m2_postselected_m0'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0'].labels = self.results[s+'_m2'].labels
 
-
-        # post-select on m1='g' outcomes
-        # meaning that the whole state prep sequence ENDS in VACUUM
-        verification_g = self.results['m1'].multithresh()[0]
-        postselected = self.results['m2_postselected_m0'].postselect(verification_g, [1])[0]
-        self.results['m2_postselected_m0_m1'] = postselected
-        self.results['m2_postselected_m0_m1'].ax_data = self.results['m2'].ax_data
-        self.results['m2_postselected_m0_m1'].labels = self.results['m2'].labels
-
-        self.results['sz_postselected_m0_m1'] = (1 - 2*postselected.threshold())
-        self.results['sz_postselected_m0_m1'].ax_data = self.results['m2'].ax_data
-        self.results['sz_postselected_m0_m1'].labels = self.results['m2'].labels
-        self.results['sz_postselected_m0_m1'].vmin = -1
-        self.results['sz_postselected_m0_m1'].vmax = 1
+            self.results[s+'_sz_postselected_m0'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0'].vmin = -1
+            self.results[s+'_sz_postselected_m0'].vmax = 1
 
 
-        # post-select on m2='g'or'e' outcomes
-        # meaning that we eliminate leakage error during tomography
-        tomo_not_ge = self.results['m2'].multithresh()[2]
-        postselected = self.results['m2_postselected_m0_m1'].postselect(tomo_not_ge, [0])[0]
-        self.results['m2_postselected_m0_m1_m2'] = postselected
-        self.results['m2_postselected_m0_m1_m2'].ax_data = self.results['m2'].ax_data
-        self.results['m2_postselected_m0_m1_m2'].labels = self.results['m2'].labels
+            # post-select on m1='g' outcomes
+            # meaning that the whole state prep sequence ENDS in VACUUM
+            verification_g = self.results[s+'_m1'].multithresh()[0]
+            postselected = self.results[s+'_m2_postselected_m0'].postselect(verification_g, [1])[0]
+            self.results[s+'_m2_postselected_m0_m1'] = postselected
+            self.results[s+'_m2_postselected_m0_m1'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0_m1'].labels = self.results[s+'_m2'].labels
 
-        self.results['sz_postselected_m0_m1_m2'] = (1 - 2*postselected.threshold())
-        self.results['sz_postselected_m0_m1_m2'].ax_data = self.results['m2'].ax_data
-        self.results['sz_postselected_m0_m1_m2'].labels = self.results['m2'].labels
-        self.results['sz_postselected_m0_m1_m2'].vmin = -1
-        self.results['sz_postselected_m0_m1_m2'].vmax = 1
-        
+            self.results[s+'_sz_postselected_m0_m1'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0_m1'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0_m1'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0_m1'].vmin = -1
+            self.results[s+'_sz_postselected_m0_m1'].vmax = 1
 
 
-    
-    
+            # post-select on m2='g'or'e' outcomes
+            # meaning that we eliminate leakage error during tomography
+            tomo_not_ge = self.results[s+'_m2'].multithresh()[2]
+            postselected = self.results[s+'_m2_postselected_m0_m1'].postselect(tomo_not_ge, [0])[0]
+            self.results[s+'_m2_postselected_m0_m1_m2'] = postselected
+            self.results[s+'_m2_postselected_m0_m1_m2'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_m2_postselected_m0_m1_m2'].labels = self.results[s+'_m2'].labels
+
+            self.results[s+'_sz_postselected_m0_m1_m2'] = sign[s]*(1 - 2*postselected.threshold())
+            self.results[s+'_sz_postselected_m0_m1_m2'].ax_data = self.results[s+'_m2'].ax_data
+            self.results[s+'_sz_postselected_m0_m1_m2'].labels = self.results[s+'_m2'].labels
+            self.results[s+'_sz_postselected_m0_m1_m2'].vmin = -1
+            self.results[s+'_sz_postselected_m0_m1_m2'].vmax = 1
