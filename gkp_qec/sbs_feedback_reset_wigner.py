@@ -46,7 +46,7 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
 #        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
 #                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
 
-        ECD_filename = r'Y:\tmp\for Vlad\from_vlad\000500sbs_run2.npz'
+        ECD_filename = r'Y:\tmp\for Vlad\from_vlad\000500_sbs_run3.npz'
         sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, ECD_filename, self.cal_dir)
 
         def step(s):

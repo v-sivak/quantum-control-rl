@@ -19,10 +19,11 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
     """ GKP stabilization with SBS protocol. """
 
     def __init__(self):
-        self.max_mini_batch_size = 10
+        self.max_mini_batch_size = 20
         self.batch_axis = 1
         self.s_tau = 20
         self.b_tau = 50
+        self.stabilizers = 'x+,x-,p+,p-'
 
     def update_exp_params(self):
 
@@ -63,20 +64,21 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
                  'loop_delay' : 5e6,
                  'xp_rounds' : 15,
                  'tau_stabilizer' : 50,
-                 'cal_dir' : cal_dir})
+                 'cal_dir' : cal_dir,
+                 'stabilizers' : self.stabilizers})
     
 
     def create_reward_data(self):
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         # expected shape of the results is [N_msmt, B]
         m = {}
-        for s in ['x','p']:
+        for s in self.stabilizers.split(','):
             m[s] = 1. - 2.*self.results[s].threshold().data
             if mini_batch_size == 1:
                 m[s] = np.expand_dims(m[s], 1)
             m[s] = np.transpose(m[s], axes=[1,0])
         
-        reward_data = np.stack([m['x'],m['p']])
+        reward_data = np.stack([m[s] for s in self.stabilizers.split(',')])
         R = np.mean(reward_data)
         logger.info('Average reward %.3f' %R)
         return reward_data

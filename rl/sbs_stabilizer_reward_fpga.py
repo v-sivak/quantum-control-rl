@@ -18,6 +18,7 @@ class sbs_stabilizer_reward_fpga(FPGAExperiment, GKP):
     cal_dir = StringParameter('')
     echo_delay = IntParameter(880)
     final_delay = IntParameter(92)
+    stabilizers = StringParameter('x,p')
 
     def sequence(self):
         # load SBS pulse sequences from file
@@ -60,7 +61,7 @@ class sbs_stabilizer_reward_fpga(FPGAExperiment, GKP):
 
         # experience collection loop
         for i in range(self.batch_size):
-            for s in ['x','p']:
+            for s in self.stabilizers.split(','):
                 control_circuit(i)
                 reward_circuit(s)
 

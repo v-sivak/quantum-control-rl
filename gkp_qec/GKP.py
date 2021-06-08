@@ -161,7 +161,8 @@ class GKP():
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
         
         def stabilizer_phase_estimation(s):
-            phase = dict(x=0.0, p=np.pi/2.0)
+            phase = {'x' : 0.0, 'x+' : 0.0, 'x-' : np.pi, 
+                     'p' : np.pi/2.0, 'p+' : np.pi/2.0, 'p-' : -np.pi/2.0}
             sync()
             self.qubit.pi2_pulse(phase=np.pi/2.0)
             sync()
