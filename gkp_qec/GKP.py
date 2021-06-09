@@ -14,7 +14,7 @@ class GKP():
     qubit_pulse_pad = 0
     
     @subroutine
-    def reset_feedback_with_echo(self, echo_delay, final_delay):
+    def reset_feedback_with_echo(self, echo_delay, final_delay, log=False, res_name='default'):
         """
         Feedback reset with echo during readout.
         
@@ -23,11 +23,13 @@ class GKP():
                 to the qubit echo pulse.
             final_delay (int): delay in [ns] after the feedback to cancel 
                 deterministic (state-independent) cavity rotation.
+            log (bool): flag to log the measurement outcome.
+            res_name (str): name of the result if measurement is logged.
         """
         sync()
         delay(echo_delay, channel=self.qubit.chan)
         self.qubit.flip() # echo pulse
-        readout(wait_result=True, log=False, sync_at_beginning=False)
+        readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
         sync()
         if_then_else(self.qubit.measured_low(), 'flip', 'wait')
         label_next('flip')
@@ -178,4 +180,26 @@ class GKP():
         return stabilizer_phase_estimation
         
         
+
+    def displacement_phase_estimation(self, beta, tau_ns, cal_dir,
+                                      echo_delay, final_delay):
         
+        C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
+        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, cal_dir)
+        cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
+        
+        def phase_estimation(res_name):
+            sync()
+            self.qubit.pi2_pulse(phase=np.pi/2.0)
+            sync()
+            self.cavity.array_pulse(*cavity_pulse)
+            self.qubit.array_pulse(*qubit_pulse)
+            sync()
+            self.qubit.pi2_pulse(phase=-np.pi/2.0)
+            sync()
+            self.reset_feedback_with_echo(echo_delay, final_delay, log=True, 
+                                          res_name=res_name)
+            sync()
+            
+        
+        return phase_estimation

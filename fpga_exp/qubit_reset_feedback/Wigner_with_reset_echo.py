@@ -43,7 +43,7 @@ class Wigner_with_reset_echo(FPGAExperiment):
             sync()
             delay(self.echo_delay, channel=qubit.chan)
             qubit.flip() # echo pulse
-            readout(wait_result=True, log=False, sync_at_beginning=False)
+            readout(wait_result=True, log=False, sync_at_beginning=False, m0='se')
             sync()
             if_then_else(qubit.measured_low(), 'flip', 'wait')
             label_next('flip')

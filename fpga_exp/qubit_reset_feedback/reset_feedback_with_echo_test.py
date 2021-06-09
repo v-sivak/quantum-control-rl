@@ -11,11 +11,11 @@ class reset_feedback_with_echo_test(FPGAExperiment):
     loop_delay = IntParameter(500e3)
 
     def sequence(self):
-        
+
         @subroutine
         def reset_with_echo():
             sync()
-            readout(wait_result=True, log=False)
+            readout(wait_result=True, log=False, **{'m0':'se'})
             sync()
             qubit.flip() # echo pulse
             sync()
