@@ -125,17 +125,27 @@ class GKP():
         
         return sbs_step
 
-    def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, cal_dir):
+    def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, cal_dir,
+                          version):
         """
         
         """
-        data = np.load(ECD_filename, allow_pickle=True)
-        beta, phi = data['beta'], data['phi']
-        tau = np.array([s_tau, b_tau, s_tau, 0])
-
-        CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
-        c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
+        if version == 'v1':
+            data = np.load(ECD_filename, allow_pickle=True)
+            beta, phi = data['beta'], data['phi']
+            tau = np.array([s_tau, b_tau, s_tau, 0])
+    
+            CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
+            C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+            c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
+        if version == 'v2':
+            data = np.load(ECD_filename, allow_pickle=True)
+            beta, phi, phi_CD = data['beta'], data['phi'], data['phi_CD']
+            tau = np.array([s_tau, b_tau, s_tau, 0])
+    
+            CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
+            C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau)  
         
         def sbs_step(s):
             """

@@ -13,6 +13,6 @@ Created on Wed Jan  6 16:26:46 2021
 #e = state_prep_fock_reward()
 #e.training_loop()
 
-from sbs_stabilizer_reward import sbs_stabilizer_reward
-e = sbs_stabilizer_reward()
+from sbs_stabilizer_reward_v2 import sbs_stabilizer_reward_v2
+e = sbs_stabilizer_reward_v2()
 e.training_loop()

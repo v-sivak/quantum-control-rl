@@ -9,6 +9,9 @@ import numpy as np
 from gkp_exp.gkp_qec.GKP import GKP
 
 class sbs_stabilizer_reward_fpga(FPGAExperiment, GKP):
+    export_txt = False
+    save_log = False
+    
     """ GKP stabilization with SBS protocol. """
     loop_delay = FloatParameter(4e6)
     batch_size = IntParameter(10)

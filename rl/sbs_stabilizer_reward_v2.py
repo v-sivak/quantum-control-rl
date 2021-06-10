@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun  2 12:00:57 2021
+Created on Wed Jun  9 14:56:22 2021
 
-@author: Vladimir Sivak
+@author: qulab
 """
 import numpy as np
 from rl_client import ReinforcementLearningExperiment
@@ -13,13 +13,14 @@ from gkp_exp.gkp_qec.GKP import GKP
 import logging
 logger = logging.getLogger('RL')
 
-__all__ = ['sbs_stabilizer_reward']
+__all__ = ['sbs_stabilizer_reward_v2']
 
-class sbs_stabilizer_reward(ReinforcementLearningExperiment):
+class sbs_stabilizer_reward_v2(ReinforcementLearningExperiment):
     """ GKP stabilization with SBS protocol. 
     In this version the agent learns the amplitude of conditional displacement
-    gates and parameters of qubit rotation in the ECD sequence for SBS. 
-    So 4 parameters per time step."""
+    gates, the parameters of the echo "pi-pulse" inside the gate, and parameters
+    of qubit rotation in the ECD sequence for SBS. So 6 parameters per time step.
+    """
 
     def __init__(self):
         self.max_mini_batch_size = 20
@@ -32,6 +33,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
 
         action_batch = self.message['action_batch']
         beta, phi = action_batch['beta'], action_batch['phi'] # shape=[B,T,2]
+        phi_CD = action_batch['phi_CD'] # this is new compared to v1 version
         self.N_msmt = self.message['N_msmt']
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
@@ -47,7 +49,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
-            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I], tau)
+            C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_CD[I], tau)
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Compiled pulses.')

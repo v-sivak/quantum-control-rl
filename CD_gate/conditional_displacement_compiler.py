@@ -196,6 +196,47 @@ class ECD_control_simple_compiler():
             
         return C_pulse, Q_pulse
 
+    def make_pulse_v2(self, beta, phi, phi_CD, tau):
+        """
+        Args:
+            beta (array([T,2]), flaot32)
+            phi_CD  (array([T,2]), float32)
+            phi  (array([T,2]), float32)
+            tau  (array(T), float32)
+        """
+        T = beta.shape[0] # protocol duration (number of steps)
+        C_pulse, Q_pulse = np.array([]), np.array([])
+        
+        for t in range(T):
+            # First create the qubit rotation gate
+            phase_t, angle_t = phi[t,0], phi[t,1]
+            qb_rotation = self.pi_pulse * angle_t / np.pi * np.exp(1j*phase_t)
+            C_pulse = np.concatenate([C_pulse, np.zeros_like(qb_rotation)])
+            Q_pulse = np.concatenate([Q_pulse, qb_rotation])
+            
+            # Then create the CD gate
+            beta_t = beta[t,0] + 1j*beta[t,1]
+            phase_CD_t, angle_CD_t = phi_CD[t,0], phi_CD[t,1]
+            tau_t = tau[t]
+            if t < T-1:
+                alpha = self.CD_params_func(beta_t, tau_t)[0]
+                CD_params = (alpha, -alpha, -alpha, alpha, tau_t, tau_t, 
+                             phase_CD_t, angle_CD_t, 0)
+                cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
+                C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
+                Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
+            elif t == T-1:
+                # Implement last CD as simple displacement
+                D = get_calibrated_pulse(cavity.displace)
+                C_pulse = np.concatenate([C_pulse, D * beta_t/2.0])
+                Q_pulse = np.concatenate([Q_pulse, np.zeros_like(D)])
+        
+        # make sure total pulse length is multiple of 4 ns
+        zero_pad = np.zeros(4 - (len(C_pulse) % 4))
+        C_pulse = np.concatenate([C_pulse, zero_pad])
+        Q_pulse = np.concatenate([Q_pulse, zero_pad])
+            
+        return C_pulse, Q_pulse
 
 
 class SBS_simple_compiler():
