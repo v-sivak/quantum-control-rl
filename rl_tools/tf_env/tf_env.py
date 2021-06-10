@@ -831,8 +831,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
-        outcomes of shape [2, batch_size, N_msmt] where the first measurement 
-        is x-stabilizer and the second measurement is p-stabilizer.
+        outcomes of shape [4, batch_size, N_msmt] where the first dimension
+        is the stabilizer orientation: one of x+, x-, p+, p-.
         
         """
         # return 0 on all intermediate steps of the episode

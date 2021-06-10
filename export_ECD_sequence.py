@@ -29,24 +29,24 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_1'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_6'
 
 # Params for environment
 env_kwargs = {
-    'control_circuit' : 'ECD_control_remote',
+    'control_circuit' : 'ECD_control_remote_v2',
     'init' : 'vac',
     'T' : 4,
     'N' : 20}
 
 # Params for action wrapper
-action_script = 'SBS_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
-to_learn = {'beta':True, 'phi':True}
+action_script = 'SBS_residuals_v2'
+action_scale = {'beta':0.3, 'phi':0.3, 'phi_CD':0.3}
+to_learn = {'beta':True, 'phi':True, 'phi_CD':True}
 
 
 
 # Evaluate some of the protocols at after the training is finished
-policy_str= '000500'
+policy_str= '000400'
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -67,8 +67,9 @@ while not time_step.is_last():
     time_step = env.step(action_step.action)
 
 
-beta = np.squeeze(np.array(env.history['beta']))[1:,:]
-phi = np.squeeze(np.array(env.history['phi']))[1:,:]
+actions = {action_name : np.squeeze(np.array(action_history))[1:,:]
+            for action_name, action_history in env.history.items()
+            if not action_name=='msmt'}
 
-filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'sbs.npz')
-np.savez(filename, beta=beta, phi=phi)
+filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_sbs_run5.npz')
+np.savez(filename, **actions)
