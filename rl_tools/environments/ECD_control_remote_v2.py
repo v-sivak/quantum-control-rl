@@ -26,7 +26,8 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     def _control_circuit_spec(self):
         spec = {'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'phi_CD': specs.TensorSpec(shape=[2], dtype=tf.float32)}
+                'phi_CD': specs.TensorSpec(shape=[2], dtype=tf.float32),
+                'delta' : specs.TensorSpec(shape=[2], dtype=tf.float32)}
         return spec
 
     @tf.function

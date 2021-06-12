@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_6'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_7'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -49,8 +49,8 @@ reward_kwargs_eval = {
 
 # Params for action wrapper
 action_script = 'SBS_residuals_v2'
-action_scale = {'beta':0.3, 'phi':0.3, 'phi_CD':0.3}
-to_learn = {'beta':True, 'phi':True, 'phi_CD':True}
+action_scale = {'beta':0.3, 'phi':0.3, 'phi_CD':0.3, 'delta':5e6}
+to_learn = {'beta':True, 'phi':True, 'phi_CD':True,'delta':True}
 
 train_batch_size = 20
 eval_batch_size = 1

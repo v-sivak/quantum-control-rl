@@ -17,11 +17,13 @@ q_angle = [pi/2, -pi/2, pi/2, pi/2]
 q_CD_phase = [0, 0, 0, 0]
 q_CD_angle = [pi, pi, pi, pi]
 
+delta = [0, 0, 0, 0]
 
 script = {} # Script of actions
 script['beta'] = [[np.real(b), np.imag(b)] for b in beta_complex]
 script['phi'] = [[p,a] for (p,a) in zip(q_phase, q_angle)]
 script['phi_CD'] = [[p,a] for (p,a) in zip(q_CD_phase, q_CD_angle)]
+script['delta'] = [[p,a] for (p,a) in zip(delta, delta)]
 
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on
@@ -29,5 +31,6 @@ script['phi_CD'] = [[p,a] for (p,a) in zip(q_CD_phase, q_CD_angle)]
 mask = {
     'beta'  : [1]*period,
     'phi' : [1]*period,
-    'phi_CD' : [1]*period
+    'phi_CD' : [1]*period,
+    'delta' : [1]*period
     }
