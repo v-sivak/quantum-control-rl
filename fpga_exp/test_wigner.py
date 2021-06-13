@@ -10,20 +10,22 @@ import numpy as np
 
 class test_wigner(FPGAExperiment):
     alpha = FloatParameter(2.0)
-    disp_range = RangeParameter((-4.0, 4.0, 101))
+    i_range = RangeParameter((-4.0, 4.0, 101))
+    q_range = RangeParameter((-4.0, 4.0, 101))
     additional_delay = IntParameter(0)
 
     def sequence(self):
-        with system.wigner_tomography(*self.disp_range):
-            #delay(2000)
+        kwargs = dict(start_q=self.q_range[0], stop_q=self.q_range[1], n_q=self.q_range[2])
+        with system.wigner_tomography(*self.i_range, **kwargs):
+            sync()
             cavity.displace(self.alpha)
             delay(self.additional_delay)
 
     def plot(self, fig, data):
         # create phase space grid
-        points = self.disp_range[-1]
-        axis = np.linspace(*self.disp_range)
-        x, y = np.meshgrid(axis, axis)
+        i = np.linspace(*self.i_range)
+        q = np.linspace(*self.q_range)
+        x, y = np.meshgrid(i, q)
 
         # fit the blob to 2D Gaussian
         sigmaz = 1 - 2*self.results['default'].threshold()
@@ -32,16 +34,16 @@ class test_wigner(FPGAExperiment):
         ind = np.unravel_index(np.argmax(mean_sigmaz, axis=None), mean_sigmaz.shape)
 
         data = mean_sigmaz.ravel()
-        initial_guess = (0.7, axis[ind[1]], axis[ind[0]], 0.5, 0.5, 0, 0)
+        initial_guess = (0.7, q[ind[1]], i[ind[0]], 0.5, 0.5, 0, 0)
         popt, pcov = curve_fit(gaussian2D, (x, y), data, p0=initial_guess)
         data_fitted = gaussian2D((x, y), *popt)
         self.popt = popt
 
         # plot data and fit
         ax = fig.add_subplot(111)
-        im = ax.imshow(np.transpose(data.reshape(points, points)), origin='bottom',
-                  extent=(x.min(), x.max(), y.min(), y.max()))
-        ax.contour(x, y, np.transpose(data_fitted.reshape(points, points)), 2, colors='k')
+        im = ax.imshow(np.transpose(data.reshape(self.i_range[-1], self.q_range[-1])),
+                       origin='bottom', extent=(x.min(), x.max(), y.min(), y.max()))
+        ax.contour(x, y, np.transpose(data_fitted.reshape(self.i_range[-1], self.q_range[-1])), 2, colors='k')
         ax.set_title('(x,y)=(%.2f, %.2f)' %(popt[1], popt[2]), fontsize = 15)
         fig.colorbar(im)
 

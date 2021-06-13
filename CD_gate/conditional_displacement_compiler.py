@@ -23,10 +23,8 @@ def get_calibrated_pulse(pulse, zero_pad=None, detune=0):
     i, q = pulse.make_wave(zero_pad=False)
     f = pulse.detune + detune
     t_offset = (24 - len(i)) / 2 if len(i)<24 else 0
-    t = (np.arange(len(i)) + t_offset)*1e-9 # convert to ns
-    i_prime = np.cos(2*np.pi*f*t)*i + np.sin(2*np.pi*f*t)*q
-    q_prime = np.cos(2*np.pi*f*t)*q - np.sin(2*np.pi*f*t)*i
-    A_complex = pulse.unit_amp * (i_prime + 1j * q_prime)
+    t = (np.arange(len(i)) + t_offset)*1e-9 # convert to seconds
+    A_complex = pulse.unit_amp * np.exp(-1j*2*np.pi*f*t) * (i + 1j * q)
     if zero_pad is not None:
         A_complex = np.pad(A_complex, zero_pad, 'constant')
     return A_complex
@@ -196,32 +194,34 @@ class ECD_control_simple_compiler():
             
         return C_pulse, Q_pulse
 
-    def make_pulse_v2(self, beta, phi, phi_CD, tau):
+    def make_pulse_v2(self, beta, phi, phi_CD, tau, delta):
         """
         Args:
             beta (array([T,2]), flaot32)
             phi_CD  (array([T,2]), float32)
             phi  (array([T,2]), float32)
             tau  (array(T), float32)
+            delta (array([T,2]), float32)
         """
         T = beta.shape[0] # protocol duration (number of steps)
         C_pulse, Q_pulse = np.array([]), np.array([])
         
         for t in range(T):
             # First create the qubit rotation gate
-            phase_t, angle_t = phi[t,0], phi[t,1]
-            qb_rotation = self.pi_pulse * angle_t / np.pi * np.exp(1j*phase_t)
+            phase_t, angle_t, delta_t = phi[t,0], phi[t,1], delta[t,0]
+            pi_pulse = get_calibrated_pulse(qubit.pulse, self.CD.qubit_pulse_pad, detune=delta_t)
+            qb_rotation = pi_pulse * angle_t / np.pi * np.exp(1j*phase_t)
             C_pulse = np.concatenate([C_pulse, np.zeros_like(qb_rotation)])
             Q_pulse = np.concatenate([Q_pulse, qb_rotation])
             
             # Then create the CD gate
             beta_t = beta[t,0] + 1j*beta[t,1]
-            phase_CD_t, angle_CD_t = phi_CD[t,0], phi_CD[t,1]
+            phase_CD_t, angle_CD_t, delta_CD_t = phi_CD[t,0], phi_CD[t,1], delta[t,1]
             tau_t = tau[t]
             if t < T-1:
                 alpha = self.CD_params_func(beta_t, tau_t)[0]
                 CD_params = (alpha, -alpha, -alpha, alpha, tau_t, tau_t, 
-                             phase_CD_t, angle_CD_t, 0)
+                             phase_CD_t, angle_CD_t, delta_CD_t)
                 cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
                 C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
                 Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
@@ -324,4 +324,24 @@ class SBS_Alec_compiler():
         C_pulse, Q_pulse = self.C.make_pulse(beta_sbs, phi_sbs)
         return (C_pulse.real, C_pulse.imag), (Q_pulse.real, Q_pulse.imag)
     
+
+class SNAP_compiler():
     
+    def make_pulse(self, phi):
+        fast_pulse = get_calibrated_pulse(qubit.pulse)
+        slow_pulse = get_calibrated_pulse(qubit.slow_pulse)
+        
+        # first flip the qubit with fast un-selective pulse
+        pulse1 = fast_pulse
+        
+        # then flip it back with a slow multi-component selective pulse
+        pulse2 = 0
+        for n, phi_n in enumerate(phi):
+            f_n = -1 * n * cavity.chi
+            Q_complex = slow_pulse
+            Q_complex *= np.exp(-1j*2*np.pi*f_n*np.arange(len(slow_pulse)))
+            Q_complex *= np.exp(1j*(np.pi-phi_n)) # SNAP phases
+            pulse2 += Q_complex
+        
+        snap = np.concatenate([pulse1, pulse2])
+        return snap

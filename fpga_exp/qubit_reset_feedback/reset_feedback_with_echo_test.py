@@ -7,19 +7,22 @@ Created on Sat May 29 14:39:30 2021
 from init_script import *
 
 class reset_feedback_with_echo_test(FPGAExperiment):
-    delay_length = IntParameter(0)
     loop_delay = IntParameter(500e3)
+
+    feedback_delay = IntParameter(0)
+    final_delay = IntParameter(0)
+    echo_delay = IntParameter(0)
 
     def sequence(self):
 
         @subroutine
         def reset_with_echo():
             sync()
-            readout(wait_result=True, log=False, **{'m0':'se'})
-            sync()
+            delay(self.echo_delay, channel=qubit.chan)
             qubit.flip() # echo pulse
+            readout(wait_result=True, log=False, sync_at_beginning=False)
             sync()
-            delay(self.delay_length)
+            delay(self.feedback_delay, round=True)
             if_then_else(qubit.measured_low(), 'flip', 'wait')
             label_next('flip')
             qubit.flip()
@@ -27,7 +30,7 @@ class reset_feedback_with_echo_test(FPGAExperiment):
             label_next('wait')
             delay(qubit.pulse.length)
             label_next('continue')
-            delay(24)
+            delay(self.final_delay)
             sync()
 
         qubit.pi2_pulse()

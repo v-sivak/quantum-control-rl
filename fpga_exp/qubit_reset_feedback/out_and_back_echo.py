@@ -10,14 +10,15 @@ from fpga_lib.analysis import fit
 from scipy.optimize import curve_fit
 
 class out_and_back_echo(FPGAExperiment):
-    
+
     phase_range_deg = RangeParameter((-10, 20, 51))
     loop_delay = IntParameter(4e6)
     alpha = FloatParameter(1.5)
     reps = IntParameter(4)
-    
+
     echo_delay_range = RangeParameter((600,1200,41))
     final_delay = IntParameter(0)
+    feedback_delay = IntParameter(0)
 
 
     def sequence(self):
@@ -32,6 +33,7 @@ class out_and_back_echo(FPGAExperiment):
             qubit.flip() # echo pulse
             readout(wait_result=True, log=False, sync_at_beginning=False)
             sync()
+            delay(self.feedback_delay, round=True)
             if_then_else(qubit.measured_low(), 'flip', 'wait')
             label_next('flip')
             qubit.flip()
@@ -123,13 +125,13 @@ class out_and_back_echo(FPGAExperiment):
 
 
     def process_data(self):
-        
+
         if self.blocks_processed == 1:
             for s in ['g','e']:
                 self.results[s].ax_data[2] += 180.0
                 self.results[s].ax_data[1] = self.echo_delays
                 self.results[s].labels[1] = 'Echo delay [ns]'
-        
+
         for s in ['g','e']:
             gaussian_peaks = []
             for i in range(self.echo_delay_range[-1]):

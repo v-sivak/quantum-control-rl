@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun  9 14:56:22 2021
+Created on Wed Jun  2 12:00:57 2021
 
-@author: qulab
+@author: Vladimir Sivak
 """
 import numpy as np
 from rl_client import ReinforcementLearningExperiment
@@ -13,13 +13,13 @@ from gkp_exp.gkp_qec.GKP import GKP
 import logging
 logger = logging.getLogger('RL')
 
-__all__ = ['sbs_stabilizer_reward_v2']
+__all__ = ['sbs_stabilizer_reward_v3']
 
-class sbs_stabilizer_reward_v2(ReinforcementLearningExperiment):
+class sbs_stabilizer_reward_v3(ReinforcementLearningExperiment):
     """ GKP stabilization with SBS protocol. 
     In this version the agent learns the amplitude of conditional displacement
-    gates, the parameters of the echo "pi-pulse" inside the gate, and parameters
-    of qubit rotation in the ECD sequence for SBS. So 6 parameters per time step.
+    gates and parameters of qubit rotation in the ECD sequence for SBS. 
+    Also, it learns the values of echo_delay, feedback_delay and final_delay.
     """
 
     def __init__(self):
@@ -33,8 +33,6 @@ class sbs_stabilizer_reward_v2(ReinforcementLearningExperiment):
 
         action_batch = self.message['action_batch']
         beta, phi = action_batch['beta'], action_batch['phi'] # shape=[B,T,2]
-        phi_CD = action_batch['phi_CD'] # this is new compared to v1 version
-        delta = action_batch['delta'] # this is new compared to v1 version
         self.N_msmt = self.message['N_msmt']
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
@@ -50,17 +48,24 @@ class sbs_stabilizer_reward_v2(ReinforcementLearningExperiment):
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
-            C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_CD[I], tau, delta[I])
+            C_pulse, Q_pulse = C.make_pulse(beta[I], phi[I], tau)
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Compiled pulses.')
+
+        # Construct pulse delays
+        self.delays = {}
+        for delay_name in ['echo_delay', 'feedback_delay', 'final_delay']:
+            # delays can be negative, but I modified fpga_lib to not error
+            self.delays[delay_name] = action_batch[delay_name][:,0,0].astype(int) # shape [B]
         
         # save SBS pulse sequences to file
         opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
-        np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
+        np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
+                 **self.delays)
         
         self.exp = get_experiment(
-                'gkp_exp.rl.sbs_stabilizer_reward_fpga', from_gui=True)
+                'gkp_exp.rl.sbs_stabilizer_reward_v3_fpga', from_gui=True)
         
         self.exp.set_params(
                 {'batch_size' : mini_batch_size,

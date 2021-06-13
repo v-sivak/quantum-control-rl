@@ -26,10 +26,11 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
     alpha_range = RangeParameter((1,20,11))
     beta_range = RangeParameter((0,3,11))
     reps = IntParameter(1)
+    qubit_pulse_pad = IntParameter(0)
 
     def sequence(self):
         return_phase = np.pi/2.0 if not self.flip_qubit else -np.pi/2.0
-        C = ConditionalDisplacementCompiler()
+        C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
         # create CD pulse whose displacement amplitude will be scanned
         CD_params = (1, -1, -1, 1, self.tau, self.tau, 0, np.pi, 0)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
@@ -104,7 +105,7 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
                     x0_guess = self.results[name].ax_data[0][np.argmax(this_data)]
                     amp_guess = np.max(this_data)-np.min(this_data)
                 offset_guess = np.min(this_data)
-                
+
                 p0 = (x0_guess, 2., offset_guess, amp_guess)
                 popt, pcov = curve_fit(self.fit_gaussian,
                                        self.results[name].ax_data[0],

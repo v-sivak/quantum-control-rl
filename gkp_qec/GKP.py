@@ -11,10 +11,10 @@ import numpy as np
 
 
 class GKP():
-    qubit_pulse_pad = 0
+    qubit_pulse_pad = 4
     
     @subroutine
-    def reset_feedback_with_echo(self, echo_delay, final_delay, log=False, res_name='default'):
+    def reset_feedback_with_echo(self, echo_delay, final_delay, feedback_delay=0, log=False, res_name='default'):
         """
         Feedback reset with echo during readout.
         
@@ -23,14 +23,17 @@ class GKP():
                 to the qubit echo pulse.
             final_delay (int): delay in [ns] after the feedback to cancel 
                 deterministic (state-independent) cavity rotation.
+            feedback_delay (int): delay in [ns] of the feedback pulse. There 
+                will be additional processing time contribution on top of this.
             log (bool): flag to log the measurement outcome.
             res_name (str): name of the result if measurement is logged.
         """
         sync()
-        delay(echo_delay, channel=self.qubit.chan)
+        delay(echo_delay, channel=self.qubit.chan, round=True)
         self.qubit.flip() # echo pulse
         readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
         sync()
+        delay(feedback_delay, round=True)
         if_then_else(self.qubit.measured_low(), 'flip', 'wait')
         label_next('flip')
         self.qubit.flip()
@@ -38,7 +41,7 @@ class GKP():
         label_next('wait')
         delay(self.qubit.pulse.length)
         label_next('continue')
-        delay(final_delay)
+        delay(final_delay, round=True)
         sync()
 
 
