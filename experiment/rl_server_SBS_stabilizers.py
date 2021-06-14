@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_1'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_10'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,7 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 100}
+    'N_msmt' : 50}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
@@ -49,10 +49,10 @@ reward_kwargs_eval = {
 
 # Params for action wrapper
 action_script = 'SBS_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
+action_scale = {'beta':0.3, 'phi':0.4}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 10
+train_batch_size = 20
 eval_batch_size = 1
 
 learn_residuals = True
@@ -74,7 +74,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 500,
+        num_epochs = 1000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,

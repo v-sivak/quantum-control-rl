@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun  9 15:17:57 2021
+Created on Fri Mar 19 15:24:51 2021
 
-@author: qulab
+@author: Vladimir Sivak
 """
 import tensorflow as tf
 from rl_tools.tf_env.tf_env import TFEnvironmentQuantumControl
@@ -24,10 +24,10 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     """
     @property
     def _control_circuit_spec(self):
-        spec = {'beta'  : specs.TensorSpec(shape=[2], dtype=tf.float32), 
-                'phi'   : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'phi_CD': specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'delta' : specs.TensorSpec(shape=[2], dtype=tf.float32)}
+        spec = {'beta'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32), 
+                'phi'   : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
+                'flip'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
+                'detune': specs.TensorSpec(shape=[4,2], dtype=tf.float32)}
         return spec
 
     @tf.function
