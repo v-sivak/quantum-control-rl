@@ -197,11 +197,17 @@ class ECD_control_simple_compiler():
     def make_pulse_v2(self, beta, phi, phi_CD, tau, delta):
         """
         Args:
-            beta (array([T,2]), flaot32)
-            phi_CD  (array([T,2]), float32)
-            phi  (array([T,2]), float32)
-            tau  (array(T), float32)
-            delta (array([T,2]), float32)
+            beta (array([T,2]), flaot32): Re and Im of conditional displacement
+                amplitude. Will be used together with calibration to find alpha
+            phi_CD  (array([T,2]), float32): phase and angle of qubit rotation 
+                inside the ECD gate. Nominally this is just a echo pi-pulse.
+            phi (array([T,2]), float32): phase and angle of qubit rotations in
+                the blocks of control sequence.
+            tau  (array(T), float32): wait time in [ns] for each ECD gate.
+            delta (array([T,2]), float32): detuning in [Hz] of the qubit pulses.
+                the first comonent is detuning of the echo pi-pulse in the ECD
+                gate, and the second component is detuning of the qubit pulse
+                that goes in the same block as this ECD gate. 
         """
         T = beta.shape[0] # protocol duration (number of steps)
         C_pulse, Q_pulse = np.array([]), np.array([])

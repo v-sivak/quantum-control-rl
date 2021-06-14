@@ -143,12 +143,12 @@ class GKP():
             c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
         if version == 'v2':
             data = np.load(ECD_filename, allow_pickle=True)
-            beta, phi, phi_CD = data['beta'], data['phi'], data['phi_CD']
+            beta, phi, phi_CD, detune = data['beta'], data['phi'], data['flip'], data['detune']
             tau = np.array([s_tau, b_tau, s_tau, 0])
     
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
             C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
-            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau)  
+            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune)
         
         def sbs_step(s):
             """
@@ -210,9 +210,7 @@ class GKP():
             sync()
             self.qubit.pi2_pulse(phase=-np.pi/2.0)
             sync()
-            self.reset_feedback_with_echo(echo_delay, final_delay, log=True, 
-                                          res_name=res_name)
+            self.reset_feedback_with_echo(echo_delay, final_delay, log=True, res_name=res_name)
             sync()
-            
         
         return phase_estimation
