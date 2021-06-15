@@ -47,7 +47,8 @@ class GKP():
 
     def reset_autonomous_Murch(self, qubit_detuned_obj, readout_detuned_obj,
                     cool_duration_ns, qubit_ramp_ns, readout_ramp_ns,
-                    qubit_amp, readout_amp, qubit_detune_MHz, readout_detune_MHz):
+                    qubit_amp, readout_amp, qubit_detune_MHz, readout_detune_MHz,
+                    qubit_angle, qubit_phase, final_delay):
         """
         Setup autonomous qubit cooling based on this Murch paper:
         https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.109.183602
@@ -67,7 +68,9 @@ class GKP():
             readout_detune_MHz (float): detuning of the readout pulse in [MHz]. 
                 Ideally equal to the qubit Rabi rate.
             qubit_detune_MHz (float): detuning of the qubit pulse in [MHz]
-        
+            qubit_angle, qubit_phase (float): final qubit rotation parameters
+            final_delay (int): delay in [ns] after the cooling protocol
+            
         Returns:
             cooling subroutine.
         """
@@ -90,6 +93,9 @@ class GKP():
             self.qubit_detuned.smoothed_constant_pulse(
                     qubit_pump_time, amp=qubit_amp, sigma_t=qubit_ramp_ns)
             sync()
+            self.qubit.rotate(qubit_angle, qubit_phase)
+            sync()
+            delay(final_delay, round=True)
 
         return lambda: cooling_Murch()
 

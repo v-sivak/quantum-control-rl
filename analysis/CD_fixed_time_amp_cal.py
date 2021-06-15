@@ -15,7 +15,7 @@ from scipy.optimize import curve_fit
 
 
 exp_dir = r'D:\DATA\exp\gkp_exp.CD_gate.CD_fixed_time_amp_cal\archive'
-fname = '20210601.h5'
+fname = '20210614.h5'
 group = 1
 file_name = os.path.join(exp_dir, fname)
 

@@ -13,20 +13,16 @@ from gkp_exp.gkp_qec.GKP import GKP
 import logging
 logger = logging.getLogger('RL')
 
-__all__ = ['sbs_stabilizer_reward_v4']
+__all__ = ['sbs_stabilizer_reward_Murch']
 
-class sbs_stabilizer_reward_v4(ReinforcementLearningExperiment):
-    """ GKP stabilization with SBS protocol. 
-    
-    In this version the agent learns the amplitude of conditional displacement
-    gates and parameters of qubit rotation in the ECD sequence for SBS. 
-    So 4 parameters per time step."""
+class sbs_stabilizer_reward_Murch(ReinforcementLearningExperiment):
+    """ Autonomous GKP stabilization with SBS protocol and Murch cooling."""
 
     def __init__(self):
         self.max_mini_batch_size = 20
         self.batch_axis = 1
         self.s_tau = 20
-        self.b_tau = 100
+        self.b_tau = 50
         self.stabilizers = 'x+,x-,p+,p-'
 
     def update_exp_params(self):
@@ -53,12 +49,22 @@ class sbs_stabilizer_reward_v4(ReinforcementLearningExperiment):
             self.qubit_pulses.append(Q_pulse)
         logger.info('Constructed waveforms.')
         
-        # save SBS pulse sequences to file
+        # Murch cooling parameters
+        self.Murch_params = {}
+        for a in ['Murch_amp', 'Murch_detune_MHz', 'Murch_phi']:
+            self.Murch_params[a] = []
+            for i in range(mini_batch_size):
+                I = i_offset + i
+                self.Murch_params[a].append(action_batch[a][I,0])
+
+        
+        # save parameters to file
         opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
-        np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses)
+        np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
+                 **self.Murch_params)
         
         self.exp = get_experiment(
-                'gkp_exp.rl.sbs_stabilizer_reward_fpga', from_gui=True)
+                'gkp_exp.rl.sbs_stabilizer_reward_Murch_fpga', from_gui=True)
         
         self.exp.set_params(
                 {'batch_size' : mini_batch_size,
