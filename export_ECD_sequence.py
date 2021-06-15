@@ -29,7 +29,7 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_12'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_15'
 
 # Params for environment
 env_kwargs = {
@@ -46,7 +46,7 @@ to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
 
 
 # Evaluate some of the protocols at after the training is finished
-policy_str= '001000'
+policy_str= '000402'
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -71,5 +71,5 @@ actions = {action_name : np.squeeze(np.array(action_history)[1:])
             for action_name, action_history in env.history.items()
             if not action_name=='msmt'}
 
-filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_sbs_run12.npz')
+filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_sbs_run15.npz')
 np.savez(filename, **actions)
