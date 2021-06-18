@@ -200,23 +200,26 @@ class GKP():
         
         
 
-    def displacement_phase_estimation(self, beta, tau_ns, cal_dir,
-                                      echo_delay, final_delay):
+    def displacement_phase_estimation(self, beta, tau_ns, cal_dir, res_name, 
+                                      echo_params=None):
         
         C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
         CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, cal_dir)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
         
-        def phase_estimation(res_name):
-            sync()
-            self.qubit.pi2_pulse(phase=np.pi/2.0)
-            sync()
-            self.cavity.array_pulse(*cavity_pulse)
-            self.qubit.array_pulse(*qubit_pulse)
-            sync()
-            self.qubit.pi2_pulse(phase=-np.pi/2.0)
-            sync()
-            self.reset_feedback_with_echo(echo_delay, final_delay, log=True, res_name=res_name)
-            sync()
-        
-        return phase_estimation
+        sync()
+        self.qubit.pi2_pulse(phase=np.pi/2.0)
+        sync()
+        self.cavity.array_pulse(*cavity_pulse)
+        self.qubit.array_pulse(*qubit_pulse)
+        sync()
+        self.qubit.pi2_pulse(phase=-np.pi/2.0)
+        sync()
+        delay(24)
+        if echo_params is not None:
+            self.reset_feedback_with_echo(
+                    echo_params['echo_delay'], echo_params['final_delay'], 
+                    log=True, res_name=res_name)
+        else:
+            readout(**{res_name:'se'})
+        sync()
