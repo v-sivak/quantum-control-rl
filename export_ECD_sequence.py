@@ -5,14 +5,14 @@ Created on Mon Apr 12 16:08:16 2021
 @author: Vladimir Sivak
 """
 
-# import numpy as np
-# import os
-# filename = 'fock_9.npz'
-# z = np.load(os.path.join(r'C:\Users\qulab\Downloads', filename))
-# beta = np.stack([z['betas'].real, z['betas'].imag], axis=-1)
-# phi = np.stack([z['phis'], z['thetas']], axis=-1)
-# savename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', filename)
-# np.savez(savename, beta=beta, phi=phi)
+import numpy as np
+import os
+filename = 'GKP_plus_Z_delta_0.306.npz'
+z = np.load(os.path.join(r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad', filename))
+beta = np.stack([z['betas'].real, z['betas'].imag], axis=-1)
+phi = np.stack([z['phis'], z['thetas']], axis=-1)
+savename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', filename)
+np.savez(savename, beta=beta, phi=phi)
 
 
 
@@ -29,24 +29,39 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_15'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_2'
 
 # Params for environment
 env_kwargs = {
-    'control_circuit' : 'SBS_remote',
+    'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 1,
+    'T' : 10,
     'N' : 20}
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.4, 'detune':5e6}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
+action_script = 'ECD_control_residuals_GKP'
+action_scale = {'beta':0.2, 'phi':0.2}
+to_learn = {'beta':True, 'phi':True}
+
+
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_16'
+
+# # Params for environment
+# env_kwargs = {
+#     'control_circuit' : 'SBS_remote',
+#     'init' : 'vac',
+#     'T' : 1,
+#     'N' : 20}
+
+# # Params for action wrapper
+# action_script = 'SBS_remote_residuals'
+# action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.4, 'detune':5e6}
+# to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
 
 
 
 # Evaluate some of the protocols at after the training is finished
-policy_str= '000402'
+policy_str= '000308'
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -71,5 +86,5 @@ actions = {action_name : np.squeeze(np.array(action_history)[1:])
             for action_name, action_history in env.history.items()
             if not action_name=='msmt'}
 
-filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_sbs_run15.npz')
+filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_gkp_prep_run2.npz')
 np.savez(filename, **actions)
