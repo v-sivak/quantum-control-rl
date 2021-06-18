@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_12'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_17'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,9 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 50}
+    'N_msmt' : 50,
+    'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi)]}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',

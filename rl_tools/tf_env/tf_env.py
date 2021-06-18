@@ -501,6 +501,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                 reward_mode (str): 'stabilizer_remote'
                 N_msmt (int): number of measurements per protocol
                 epoch_type (str): either 'training' or 'evaluation'
+                stabilizer_amplitudes (list, float): list of stabilizer dis-
+                    placement amplitudes.
                 server_socket (Socket): socket for communication
             """
             self.server_socket = reward_kwargs.pop('server_socket')
@@ -827,17 +829,18 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         z = tf.math.reduce_mean(Z, axis=[1])
         return z
         
-    def reward_stabilizer_remote(self, N_msmt, epoch_type):
+    def reward_stabilizer_remote(self, N_msmt, epoch_type, stabilizer_amplitudes):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
-        outcomes of shape [4, batch_size, N_msmt] where the first dimension
-        is the stabilizer orientation: one of x+, x-, p+, p-.
+        outcomes of shape [2, N_stabilizers, N_msmt, batch_size].
         
         """
         # return 0 on all intermediate steps of the episode
         if self._elapsed_steps != self.episode_length:
             return tf.zeros(self.batch_size, dtype=tf.float32)
+        
+        penalty_coeff = 1.0
 
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
@@ -851,16 +854,22 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                        batch_size=self.batch_size,
                        N_msmt=N_msmt,
                        epoch_type=epoch_type,
-                       epoch=self._epoch)
+                       epoch=self._epoch,
+                       stabilizers=stabilizer_amplitudes)
 
         self.server_socket.send_data(message)
 
-        # receive array of outcomes of shape [2, batch_size, N_msmt]
+        # receive array of outcomes of shape [2, N_stabilizers, N_msmt, batch_size]
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
+        mask = tf.where(msmt[0]==1, 1.0, 0.0) # [N_stabilizers, N_msmt, batch_size]
 
-        # calculate reward
-        z = tf.reduce_mean(msmt, axis=[0,2])
+        # calculate reward. If training, include penalty for measuring m1='e'
+        Z = msmt[1] * mask
+        if epoch_type == 'training':
+            Z -= penalty_coeff * (1-mask)
+        
+        z = tf.math.reduce_mean(Z, axis=[0,1])
         return z
 
 
