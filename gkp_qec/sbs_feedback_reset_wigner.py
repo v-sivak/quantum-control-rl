@@ -29,6 +29,7 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
     eps2 = FloatParameter(0.2)
     beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
     cal_dir = StringParameter('')
+    ECDC_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000480_gkp_prep_run17.npz')
 
     # Feedback cooling parameters
     echo_delay = IntParameter(0)
@@ -42,12 +43,7 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
         self.cavity = cavity
 
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
-
-#        sbs_step = self.sbs(self.eps1, self.eps2, self.beta,
-#                            self.s_tau_ns, self.b_tau_ns, self.cal_dir)
-
-        ECD_filename = r'Y:\tmp\for Vlad\from_vlad\001000_sbs_run12.npz'
-        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, ECD_filename, self.cal_dir, version='v2')
+        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.ECDC_filename, self.cal_dir, version='v2')
 
         def step(s):
             sbs_step(s)

@@ -66,28 +66,6 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
                  'tau_stabilizer' : 50,
                  'cal_dir' : cal_dir,
                  'stabilizers' : self.stabilizers})
-    
-
-#    def create_reward_data(self):
-#        mini_batch_size = self.mini_batches[self.mini_batch_idx]
-#        # expected shape of the results is [N_msmt, B]
-#        m1, m2 = {}, {}
-#        stabilizers = np.load(self.opt_file)['stabilizers']
-#        for s in stabilizers:
-#            m2[s] = 1. - 2.*self.results['m2_'+str(s)].threshold().data
-#            m1[s] = 1. - 2.*self.results['m1_'+str(s)].threshold().data
-#            if mini_batch_size == 1:
-#                m2[s] = np.expand_dims(m2[s], 1)
-#                m1[s] = np.expand_dims(m1[s], 1)
-#            m2[s] = np.transpose(m2[s], axes=[1,0])
-#            m1[s] = np.transpose(m1[s], axes=[1,0])
-#        
-#        m2_stack = np.stack([m2[s] for s in self.stabilizers])
-#        m1_stack = np.stack([m2[s] for s in self.stabilizers])
-#        reward_data = np.stack([m1_stack, m2_stack]) # shape = [2, N_stabilizers, B, N_msmt]
-#        R = np.mean(reward_data)
-#        logger.info('Average reward %.3f' %R)
-#        return reward_data
 
 
     def create_reward_data(self):

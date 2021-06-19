@@ -52,7 +52,7 @@ class ReinforcementLearningExperiment():
 
     def recv(self):
         message, done = self.client_socket.recv_data()
-        logger.info('Received message from RL agent server.')
+        logger.info('\nReceived message from RL agent server.')
         if not done:
             self.batch_size = message.pop('batch_size')
             self.epoch = message.pop('epoch')
