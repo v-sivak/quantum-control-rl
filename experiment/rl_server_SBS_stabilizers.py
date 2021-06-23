@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_10'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_17'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -29,9 +29,9 @@ server_socket.connect_client()
 
 # Params for environment
 env_kwargs = eval_env_kwargs = {
-    'control_circuit' : 'ECD_control_remote',
+    'control_circuit' : 'SBS_remote',
     'init' : 'vac',
-    'T' : 4,
+    'T' : 1,
     'N' : 20}
 
 # Params for reward function
@@ -39,18 +39,22 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 50}
+    'N_msmt' : 50,
+    'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi)],
+    'penalty_coeff' : 0.0}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'evaluation',
-    'N_msmt' : 1000}
+    'N_msmt' : 1000,
+    'penalty_coeff' : 0.0}
 
 # Params for action wrapper
-action_script = 'SBS_residuals'
-action_scale = {'beta':0.3, 'phi':0.4}
-to_learn = {'beta':True, 'phi':True}
+action_script = 'SBS_remote_residuals'
+action_scale = {'beta':0.4, 'phi':0.4, 'flip':0.3, 'detune':3e6}
+to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
 
 train_batch_size = 20
 eval_batch_size = 1
@@ -79,12 +83,12 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3,
+        lr = 5e-3,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.1,
+        importance_ratio_clipping = 0.2,
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         entropy_regularization = 0,

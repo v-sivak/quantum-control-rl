@@ -40,7 +40,8 @@ reward_kwargs = {
     'epoch_type' : 'training',
     'N_msmt' : 50,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(pi/2), -1j*sqrt(pi/2)]}
+                               1j*sqrt(pi/2), -1j*sqrt(pi/2)],
+    'penalty_coeff' : 1.0}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
@@ -48,7 +49,8 @@ reward_kwargs_eval = {
     'epoch_type' : 'training',
     'N_msmt' : 50,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(pi/2), -1j*sqrt(pi/2)]}
+                               1j*sqrt(pi/2), -1j*sqrt(pi/2)],
+    'penalty_coeff' : 1.0}
 
 # Params for action wrapper
 action_script = 'ECD_control_residuals_GKP'

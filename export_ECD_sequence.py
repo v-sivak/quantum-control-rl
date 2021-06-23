@@ -29,39 +29,36 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_2'
-
-# Params for environment
-env_kwargs = {
-    'control_circuit' : 'ECD_control_remote',
-    'init' : 'vac',
-    'T' : 10,
-    'N' : 20}
-
-# Params for action wrapper
-action_script = 'ECD_control_residuals_GKP'
-action_scale = {'beta':0.2, 'phi':0.2}
-to_learn = {'beta':True, 'phi':True}
-
-
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_16'
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_2'
 
 # # Params for environment
 # env_kwargs = {
-#     'control_circuit' : 'SBS_remote',
+#     'control_circuit' : 'ECD_control_remote',
 #     'init' : 'vac',
-#     'T' : 1,
+#     'T' : 10,
 #     'N' : 20}
 
 # # Params for action wrapper
-# action_script = 'SBS_remote_residuals'
-# action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.4, 'detune':5e6}
-# to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
+# action_script = 'ECD_control_residuals_GKP'
+# action_scale = {'beta':0.2, 'phi':0.2}
+# to_learn = {'beta':True, 'phi':True}
 
 
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
+exp_name = 'run_17'
+policy_str= '000237'
 
-# Evaluate some of the protocols at after the training is finished
-policy_str= '000308'
+# Params for environment
+env_kwargs = {
+    'control_circuit' : 'SBS_remote',
+    'init' : 'vac',
+    'T' : 1,
+    'N' : 20}
+
+# Params for action wrapper
+action_script = 'SBS_remote_residuals'
+action_scale = {'beta':0.4, 'phi':0.4, 'flip':0.3, 'detune':3e6}
+to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -71,7 +68,7 @@ env = wrappers.ActionWrapper(env, action_script_obj, action_scale, to_learn,
                               learn_residuals=True)
 
 policy_dir = 'policy\\' + policy_str
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+policy = tf.compat.v2.saved_model.load(os.path.join(root_dir, exp_name, policy_dir))
 
 
 time_step = env.reset()
@@ -86,5 +83,6 @@ actions = {action_name : np.squeeze(np.array(action_history)[1:])
             for action_name, action_history in env.history.items()
             if not action_name=='msmt'}
 
-filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', policy_str+'_gkp_prep_run2.npz')
+savename = action_script + '_' + policy_str + '_' + exp_name + '.npz'
+filename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', savename)
 np.savez(filename, **actions)
