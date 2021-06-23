@@ -16,35 +16,19 @@ class Wigner_with_reset_echo(FPGAExperiment):
     flip_qubit = BoolParameter(True)
 
     echo_delay = IntParameter(0)
+    feedback_delay = IntParameter(0)
     final_delay = IntParameter(0)
 
     def sequence(self):
 
-#        @subroutine
-#        def reset_with_echo():
-#            sync()
-#            readout(wait_result=True, log=False)
-#            sync()
-#            qubit.flip() # echo pulse
-#            sync()
-#            delay(self.echo_delay)
-#            if_then_else(qubit.measured_low(), 'flip', 'wait')
-#            label_next('flip')
-#            qubit.flip()
-#            goto('continue')
-#            label_next('wait')
-#            delay(qubit.pulse.length)
-#            label_next('continue')
-#            delay(self.final_delay)
-#            sync()
-
         @subroutine
         def reset_with_echo():
             sync()
-            delay(self.echo_delay, channel=qubit.chan)
+            delay(self.echo_delay, channel=qubit.chan, round=True)
             qubit.flip() # echo pulse
-            readout(wait_result=True, log=False, sync_at_beginning=False, m0='se')
+            readout(wait_result=True, log=False, sync_at_beginning=False)
             sync()
+            delay(self.feedback_delay, round=True)
             if_then_else(qubit.measured_low(), 'flip', 'wait')
             label_next('flip')
             qubit.flip()
@@ -52,7 +36,7 @@ class Wigner_with_reset_echo(FPGAExperiment):
             label_next('wait')
             delay(qubit.pulse.length)
             label_next('continue')
-            delay(self.final_delay)
+            delay(self.final_delay, round=True)
             sync()
 
 

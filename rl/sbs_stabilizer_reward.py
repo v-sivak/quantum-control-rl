@@ -69,7 +69,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
                  'opt_file' : self.opt_file,
                  'n_blocks' : self.N_msmt / 2,
                  'averages_per_block' : 2,
-                 'loop_delay' : 5e6,
+                 'loop_delay' : 4e6,
                  'xp_rounds' : 15,
                  'tau_stabilizer' : 50,
                  'cal_dir' : cal_dir})
