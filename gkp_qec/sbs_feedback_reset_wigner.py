@@ -25,9 +25,6 @@ class sbs_feedback_reset_wigner(FPGAExperiment, GKP):
     # Baptiste SBS stabilization parameters
     s_tau_ns = IntParameter(20)
     b_tau_ns = IntParameter(50)
-    eps1 = FloatParameter(0.2)
-    eps2 = FloatParameter(0.2)
-    beta = FloatParameter(2.5066) # np.sqrt(2*np.pi)
     cal_dir = StringParameter('')
     ECDC_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000480_gkp_prep_run17.npz')
 
