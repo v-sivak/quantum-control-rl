@@ -4,11 +4,14 @@ Created on Wed May 12 15:55:37 2021
 
 @author: qulab
 """
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 from plotting import plot_config
-import os
-import sys
 from matplotlib.animation import FuncAnimation
 
 
@@ -55,8 +58,8 @@ def update(i):
     ax.set_title(label, fontsize=9)
     return line, line2, ax
 
-anim = FuncAnimation(fig, update, frames=np.arange(0, epochs-1), interval=200)
-anim.save(savename, writer='imagemagick', dpi=600)
+# anim = FuncAnimation(fig, update, frames=np.arange(0, epochs-1), interval=200)
+# anim.save(savename, writer='imagemagick', dpi=600)
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +95,7 @@ for i, e in enumerate([0, 20, 30, 40, 50]):
     ax.plot(points, vals, linestyle='none', marker='.', color=palette(i),
             label=e)
 ax.legend()
+plt.tight_layout()
 fig.savefig(savename, dpi=600)
 
 
@@ -116,9 +120,9 @@ def update(i):
     ax.text(0.02*i, 0.5, string0, va='center', color='red')
     ax.text(0.02*i, 0.5, string1, va='center', color='green')
 
-anim = FuncAnimation(fig, update, frames=np.arange(0, epochs-1), interval=200)
-anim.save(savename, writer='imagemagick', dpi=600, 
-          savefig_kwargs={'transparent': True, 'facecolor': 'none'})
+# anim = FuncAnimation(fig, update, frames=np.arange(0, epochs-1), interval=200)
+# anim.save(savename, writer='imagemagick', dpi=600, 
+#           savefig_kwargs={'transparent': True, 'facecolor': 'none'})
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +147,7 @@ fig.savefig(savename, bbox_inches='tight')
 fig, ax = plt.subplots(1,1, figsize=(3.375,2), dpi=200)
 savename = os.path.join(folder_name, r'bit_map.pdf')
 # plt.axis('off')
-plt.tight_layout()
+# plt.tight_layout()
 vals = np.where(log['train_rewards']==1, 0.6, -0.9)
 
 ax.pcolormesh(np.transpose(vals), cmap='RdYlGn', vmin=-1, vmax=1)
@@ -153,9 +157,11 @@ ax.set_yticks(np.arange(0, vals.shape[1], 1), minor=True)
 ax.grid(which='both', color='w', linestyle='-')
 ax.set_aspect('equal')
 
-ax.set_ylabel('Batch')
+ax.set_ylabel('Episode')
 ax.set_xlabel('Epoch')
+plt.tight_layout()
 fig.savefig(savename, dpi=600)
+
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -200,51 +206,7 @@ def update(i):
     # text3.set_text('F=%.5f'%fidelity_true[i])
     return line1, text1, text2
 
-anim = FuncAnimation(fig, update, frames=np.arange(0, steps+10), interval=300)
-anim.save(savename, writer='imagemagick', dpi=600)
+# anim = FuncAnimation(fig, update, frames=np.arange(0, steps+10), interval=300)
+# anim.save(savename, writer='imagemagick', dpi=600)
 
 
-
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Cretae a static figure showing sample complexity required for fidelity
-# estimation on a static protocol, and sample complexity of RL training 
-# required to achieve the same fidelity. It demonstrates that the agent can
-# reach close to the shot-noise limit.
-folder_name = r'E:\data\gkp_sims\PPO\simple_demo\sweep11'
-all_trajectories = []
-N_trajectories = len(os.listdir(folder_name))-1
-for i in range(N_trajectories):
-    log = np.load(os.path.join(folder_name, 'data'+str(i)+'.npz'))
-    sigma_z = -log['eval_rewards'].squeeze()
-    fidelity = (1-sigma_z)/2
-    all_trajectories.append(fidelity)
-eval_epochs = log['eval_epochs']
-batch = len(log['train_rewards'][0])
-
-fig, ax = plt.subplots(1,1, figsize=(3.375,2.5), dpi=200)
-savename = os.path.join(folder_name, 'sample_complexity.png')
-ax.set_ylim(1e-5,1.2)
-# ax.set_xlim(0,60)
-ax.set_yscale('log')
-ax.set_xlabel('Epoch')
-ax.set_ylabel('Infidelity')
-for i in range(N_trajectories):
-    ax.plot(eval_epochs, 1-all_trajectories[i], alpha=0.3, linestyle='--')
-
-median = np.median(all_trajectories, axis=0)
-logmean = 1-np.exp(np.mean(np.log(1-np.array(all_trajectories)),axis=0))
-
-ax.plot(eval_epochs, 1/(1+eval_epochs*batch), color='k', label='shot noise limit')
-ax.plot(eval_epochs, 1-median, color='r', linestyle='--', label='median')
-ax.plot(eval_epochs, 1-logmean, color='k', linestyle='--', label='logmean')
-ax.legend(loc='lower left')
-
-msmt = lambda x: x*batch
-ax2 = ax.secondary_xaxis('top', functions=(msmt, msmt))
-ax2.set_xlabel('# of measurements, M')
-# ax2.set_xticks([0,300,600,900,1200,1500])
-
-plt.tight_layout()
-
-fig.savefig(savename, dpi=600)

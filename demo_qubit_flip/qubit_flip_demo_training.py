@@ -13,9 +13,9 @@ import tensorflow_probability as tfp
 import numpy as np
 import matplotlib.pyplot as plt
 
-rootdir = r'E:\data\gkp_sims\PPO\simple_demo\sweep11'
+rootdir = r'E:\data\gkp_sims\PPO\simple_demo\sweep14'
 
-for SEED in range(100):
+for SEED in range(2000,3000,1):
 
     # trainable variables
     actions = ['theta']
@@ -25,19 +25,30 @@ for SEED in range(100):
     
     
     algo = 'PPO'
-    B = 30 # batch_size
+    # B = 5 # batch_size
     EPOCHS = 100
     eval_interval = 1
-    lr = 5e-3 # 1e-2 for SGD
+    lr = 1e-2 # 1e-2 for SGD
     policy_steps = 20
     
-    log_prob_clipping = 10.
-    gradient_clipping = 1.
-    importance_ratio_eps = 0.20
+    log_prob_clip = 5
+    grad_clip = 0.001
+    importance_ratio_eps = 0.2
     value_loss_coeff = 0.5
     
     optimizer = tf.optimizers.Adam(learning_rate=lr)
     # optimizer = tf.optimizers.SGD(learning_rate=lr)
+
+
+    def B_schedule(E):
+        return 10
+
+    
+    # def B_schedule(E):
+    #     if 0<E and E<=20:
+    #         return 5
+    #     if 20<E and E<=40:
+    #         return 30
     
     def reward_sampler(a, epoch, _type):
         """
@@ -76,6 +87,7 @@ for SEED in range(100):
             log['eval_epochs'].append(epoch)
             log['mean'].append(mean['theta'].numpy())
             log['sigma'].append(sigma['theta'].numpy())
+            log['baseline'].append(baseline.numpy())
     
     def compute_log_prob(action, mean, sigma):
         sigma_eps = 1e-5 # for mumerical stability
@@ -86,11 +98,17 @@ for SEED in range(100):
         return log_prob
     
     log = dict(train_rewards=[], train_epochs=[], eval_rewards=[], eval_epochs=[],
-               train_actions=[], mean=[], sigma=[])
+               train_actions=[], mean=[], sigma=[], baseline=[], train_samples=[])
     
     evaluation(0, log) # evaluate policy once before training
     
+    train_samples = 0
+    
     for epoch in range(1,EPOCHS+1):
+        
+        B = B_schedule(epoch)
+        train_samples += B
+        
         # sample a batch of actions from Gaussian policy
         N = {s : tfp.distributions.Normal(loc=mean[s], scale=sigma[s]) for s in actions}
         a = {s : N[s].sample(B) for s in actions}
@@ -101,18 +119,18 @@ for SEED in range(100):
         # log prob according to old policy (required for importance ratio)
         if epoch == 1: mean_old, sigma_old = mean, sigma 
         log_prob_old = compute_log_prob(a, mean_old, sigma_old)
-        log_prob_old = tf.clip_by_value(log_prob_old, -log_prob_clipping, log_prob_clipping)
+        log_prob_old = tf.clip_by_value(log_prob_old, -log_prob_clip, log_prob_clip)
         mean_old = tf.nest.map_structure(tf.identity, mean)
         sigma_old = tf.nest.map_structure(tf.identity, sigma)
         
         # calculate policy loss and do several gradient updates
         for i in range(policy_steps):
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(persistent=True) as tape:
                 # log prob according to the current policy
                 log_prob = compute_log_prob(a, mean, sigma)
-                log_prob = tf.clip_by_value(log_prob, -log_prob_clipping, log_prob_clipping)
+                log_prob = tf.clip_by_value(log_prob, -log_prob_clip, log_prob_clip)
                 
-                A = R - baseline # action advantages       
+                A = R - baseline # action advantages
         
                 if algo == 'REINFORCE':
                     policy_loss_batch = - A * log_prob
@@ -128,37 +146,21 @@ for SEED in range(100):
                 loss = policy_loss + value_loss_coeff * value_loss
                 
                 grads = tape.gradient(loss, tape.watched_variables())
-                grads = tf.clip_by_value(grads, -gradient_clipping, gradient_clipping)
+                grads = tf.clip_by_value(grads, -grad_clip, grad_clip)
                 optimizer.apply_gradients(zip(grads, tape.watched_variables()))
+
+
         print('Epoch %d: %.3f' %(epoch, float(tf.reduce_mean(R))))
         log['train_rewards'].append(np.array(R))
         log['train_actions'].append(np.array(a['theta']))
         log['train_epochs'].append(epoch)
+        log['train_samples'].append(train_samples)
         if epoch % eval_interval == 0: evaluation(epoch, log)
     
-    
-    # # Plot training progress
-    # from plotting import plot_config
-    # fix, ax = plt.subplots(1,1, figsize=(3.375,2), dpi=200)
-    # plt.grid()
-    # ax.set_xlabel('Epoch')
-    # ax.set_ylabel('Reward')
-    # ax.set_ylim(-1,1)
-    # R_mean = np.mean(log['train_rewards'], axis=1)
-    # ax.plot(log['train_epochs'], R_mean, label='Stochastic policy')
-    # ax.plot(log['eval_epochs'], log['eval_rewards'], label='Deterministic policy')
-    # ax.legend(loc='best')
-    # plt.tight_layout()
-    
-    
-    # # Plot gaussian policies
-    # def gaussian(x, _mean, _sigma):
-    #     return 1/np.sqrt(2*np.pi*_sigma**2) * np.exp(-(x-_mean)**2/2/_sigma**2)
-    
-    # fig, ax = plt.subplots(1, 1, figsize=(3.375,2), dpi=200)
-    # xs = np.linspace(-1, 1, 201)
-    # for i in range(len(log['mean'])):
-    #     ax.plot(xs, gaussian(xs, log['mean'][i], log['sigma'][i]))
+    run_params = dict(B = B, EPOCHS = EPOCHS, eval_interval = eval_interval,
+            lr = lr, policy_steps = policy_steps, log_prob_clip = log_prob_clip,
+            grad_clip = grad_clip, importance_ratio_eps = importance_ratio_eps,
+            value_loss_coeff = value_loss_coeff)
     
     filename = os.path.join(rootdir, 'data'+str(SEED)+'.npz')
-    np.savez(filename, **log)
+    np.savez(filename, **log, **run_params)
