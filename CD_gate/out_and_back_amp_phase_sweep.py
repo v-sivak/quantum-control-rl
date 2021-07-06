@@ -22,7 +22,6 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
     phase_range_deg = RangeParameter((-10, 20, 51))
     nbar_range = RangeParameter((10,800,41))
     postselect = BoolParameter(True)
-    alpha_frame = FloatParameter(20.0)
 
     fit_func = {'chi_kHz':'linear','detuning_kHz':'linear'}
 
@@ -191,7 +190,6 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
         ax2.set_xlabel('alpha')
         #ax2.grid()
 
-        nbar_frame = self.alpha_frame**2
         ax3 = fig.add_subplot(413, sharex=ax2)
         ax3.plot(nbars, self.results['chi_kHz'].data, 'o', label='chi kHz')
         chi_kHz = self.fit_params['chi_kHz:b']
@@ -200,7 +198,6 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
         ax3.plot(nbars, predicted_chi, '-', label='linear fit')
         ax3.plot([],[], ' ', label = 'chi_kHz = %.3f ' % (chi_kHz))
         ax3.plot([],[], ' ', label = 'chi_prime_Hz = %.3f' % (chi_prime_kHz*1e3))
-        ax3.axvline(nbar_frame, linestyle='--')
         ax3.grid()
         ax3.legend(prop={'size': 6})
 
@@ -212,25 +209,5 @@ class out_and_back_amp_phase_sweep(FPGAExperiment):
         ax4.plot(nbars, predicted_detuning, '-', label='linear fit')
         ax4.plot([],[], ' ', label = 'detuning_kHz = %.3f' % (detuning_kHz))
         ax4.plot([],[], ' ', label = 'kerr_Hz = %.3f' % (kerr_kHz*1e3))
-        ax4.axvline(nbar_frame, linestyle='--')
         ax4.grid()
         ax4.legend(prop={'size': 6})
-
-    def update(self):
-        chi_kHz = self.fit_params['chi_kHz:b']
-        chi_prime_kHz = self.fit_params['chi_kHz:a']
-        detuning_kHz = self.fit_params['detuning_kHz:b']
-        kerr_kHz = self.fit_params['detuning_kHz:a']
-        nbar_frame = self.alpha_frame**2
-        delta_f_at_nbar_frame_kHz = detuning_kHz + nbar_frame*kerr_kHz
-        chi_kHz_at_nbar_frame = chi_kHz + chi_prime_kHz*nbar_frame
-        delta_f_kHz = delta_f_at_nbar_frame_kHz
-        delta_f = delta_f_kHz * 1e3
-        new_f = self.run_inst_params['storage_LO']['frequency'] + delta_f
-        self.instruments['storage_LO'].set_frequency(new_f)
-        self.logger.debug('%s %s', delta_f, new_f)
-        cavity.chi = 1e3*np.abs(chi_kHz)
-        cavity.chi_prime = np.abs(chi_prime_kHz*1e3)
-        cavity.kerr = kerr_kHz*1e3
-#        storage_alice.alpha_frame = self.alpha_frame
-#        storage_alice.abs_chi_kHz_at_alpha_frame = np.abs(chi_kHz_at_nbar_frame)

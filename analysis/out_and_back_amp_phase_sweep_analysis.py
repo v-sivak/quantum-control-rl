@@ -20,7 +20,8 @@ if 1:
     connect_to_gui()
     get_gui()
     qubit_states = ['g', 'e']
-    time = np.array([48, 72, 96, 120, 144, 168, 192, 216, 240])
+#    time = np.array([48, 72, 96, 120, 144, 168, 192, 216, 240])
+    time = np.array([48, 96,144, 192, 240])
 #    time = np.array([48, 144, 240])
     nbar_range = (4, 400, 45)
     nbar_points = nbar_range[-1]
@@ -100,7 +101,7 @@ for s in qubit_states:
 fig, axes = plt.subplots(7,7, sharex=True, sharey=True, figsize=(25,14))
 axes = axes.ravel()
 for j in range(45):
-    for s in ['e']:
+    for s in ['g']:
         for i in [j]:
             mean_phase = phase[s][:,i]
             axes[j].plot(time, mean_phase, color='black', linestyle='none', marker='o')
