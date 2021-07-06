@@ -17,7 +17,7 @@ import numpy as np
 from gkp_exp.gkp_qec.GKP import GKP
 
 
-class sbs_feedback_reset_wigner_1D(FPGAExperiment, GKP):
+class sbs_feedback_reset_wigner_1D_Repeat(FPGAExperiment, GKP):
 
     disp_range = RangeParameter((-4.0, 4.0, 101))
     reps = IntParameter(5)
@@ -25,7 +25,6 @@ class sbs_feedback_reset_wigner_1D(FPGAExperiment, GKP):
     # Baptiste SBS stabilization parameters
     s_tau_ns = IntParameter(20)
     b_tau_ns = IntParameter(100)
-    cal_dir = StringParameter(r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal')
     ECD_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000402_sbs_run15.npz')
 
     # Feedback cooling parameters
@@ -37,12 +36,10 @@ class sbs_feedback_reset_wigner_1D(FPGAExperiment, GKP):
 
     def sequence(self):
 
-        self.readout = readout
-        self.qubit = qubit
-        self.cavity = cavity
+        self.readout, self.qubit, self.cavity = readout, qubit, cavity
 
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
-        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.ECD_filename, self.cal_dir, version='v2')
+        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.ECD_filename, version='v2')
 
         def step(s):
             sbs_step(s)

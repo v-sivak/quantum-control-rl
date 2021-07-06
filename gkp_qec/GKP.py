@@ -11,7 +11,12 @@ import numpy as np
 
 
 class GKP():
+    """
+    Args:
+        cal_dir (str): directory with CD gate amplitude calibrations
+    """
     qubit_pulse_pad = 4
+    cal_dir = r'D:\DATA\exp\2021-06-28_cooldown\CD_fixed_time_amp_cal'
     
     @subroutine
     def reset_feedback_with_echo(self, echo_delay, final_delay, feedback_delay=0, log=False, res_name='default'):
@@ -100,7 +105,7 @@ class GKP():
         return lambda: cooling_Murch()
 
 
-    def sbs(self, eps1, eps2, beta, s_tau_ns, b_tau_ns, cal_dir):
+    def sbs(self, eps1, eps2, beta, s_tau_ns, b_tau_ns):
         """
         Single step of SBS protocol based on this Baptiste paper:
         https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.125.260509
@@ -113,10 +118,9 @@ class GKP():
             beta (float): big CD amplitude
             
             s_tau_ns, b_tau_ns (int): wait time in the small/big CD gate
-            cal_dir (str): directory with CD gate calibrations
         """
         CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
-        C = SBS_simple_compiler(CD_compiler_kwargs, cal_dir)
+        C = SBS_simple_compiler(CD_compiler_kwargs, self.cal_dir)
         
         cavity_pulse, qubit_pulse = C.make_pulse(1j*eps1/2.0, 1j*eps2/2.0, beta,
                                                  s_tau_ns, b_tau_ns)
@@ -134,8 +138,7 @@ class GKP():
         
         return sbs_step
 
-    def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, cal_dir,
-                          version):
+    def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, version):
         """
         
         """
@@ -145,7 +148,7 @@ class GKP():
             tau = np.array([s_tau, b_tau, s_tau, 0])
     
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
-            C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+            C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
             c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
         if version == 'v2':
             data = np.load(ECD_filename, allow_pickle=True)
@@ -153,7 +156,7 @@ class GKP():
             tau = np.array([s_tau, b_tau, s_tau, 0])
     
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
-            C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+            C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
             c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune)
         
         def sbs_step(s):
@@ -174,11 +177,11 @@ class GKP():
         delay(snap_length)
         
 
-    def stabilizer_phase_estimation(self, tau_ns, cal_dir):
+    def stabilizer_phase_estimation(self, tau_ns):
         
         beta = np.sqrt(2*np.pi) # stabilizer CD amplitude
         C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
-        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, cal_dir)
+        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, self.cal_dir)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
         
         def stabilizer_phase_estimation(s):
@@ -200,11 +203,11 @@ class GKP():
         
         
 
-    def displacement_phase_estimation(self, beta, tau_ns, cal_dir, res_name, 
+    def displacement_phase_estimation(self, beta, tau_ns, res_name, 
                                       echo_params=None):
         
         C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
-        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, cal_dir)
+        CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, self.cal_dir)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
         
         sync()

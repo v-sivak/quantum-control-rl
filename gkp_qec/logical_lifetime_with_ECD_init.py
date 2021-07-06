@@ -15,7 +15,6 @@ class logical_lifetime_with_ECD_init(FPGAExperiment, GKP):
     fit_func = {'logical' : 'exp_decay'}
 #    fit_fmt = {'tau' : ('%.2f us', 1e3)}
     
-    cal_dir = StringParameter(r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal')
     loop_delay = IntParameter(4e6)
     steps = RangeParameter((1,50,50))    
 
@@ -42,7 +41,7 @@ class logical_lifetime_with_ECD_init(FPGAExperiment, GKP):
         
         # Parameters of the stabilization protocol
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, self.final_delay)
-        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.sbs_ECDC_filename, self.cal_dir, version='v2')
+        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.sbs_ECDC_filename, version='v2')
 
         # Parameters of the initialization pulse
         data = np.load(self.init_ECDC_filename, allow_pickle=True)

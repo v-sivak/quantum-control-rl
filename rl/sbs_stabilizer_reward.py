@@ -16,7 +16,7 @@ logger = logging.getLogger('RL')
 __all__ = ['sbs_stabilizer_reward']
 
 class sbs_stabilizer_reward(ReinforcementLearningExperiment):
-    """ GKP stabilization with SBS protocol. 
+    """ GKP stabilization with SBS protocol.
     
         In this version the agent learns 
             1) Amplitude of conditional displacements in the ECDC sequence
@@ -30,7 +30,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
         self.batch_axis = 3
         self.s_tau = 10
         self.b_tau = 50
-        self.opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
+        self.opt_file = r'D:\DATA\exp\2021-06-28_cooldown\sbs_stabilizer_reward\opt_data.npz'
 
     def update_exp_params(self):
 
@@ -42,8 +42,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
         
         # setup the ECD compiler
         CD_compiler_kwargs = dict(qubit_pulse_pad=GKP().qubit_pulse_pad)
-        cal_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, GKP().cal_dir)
         
         # construct the SBS pulse
         beta, phi = action_batch['beta'][:,0], action_batch['phi'][:,0] # shape=[B,T,2]
@@ -71,8 +70,7 @@ class sbs_stabilizer_reward(ReinforcementLearningExperiment):
                  'averages_per_block' : 2,
                  'loop_delay' : 4e6,
                  'xp_rounds' : 15,
-                 'tau_stabilizer' : 50,
-                 'cal_dir' : cal_dir})
+                 'tau_stabilizer' : 50})
     
 
     def create_reward_data(self):

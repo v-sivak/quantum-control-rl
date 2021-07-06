@@ -18,7 +18,6 @@ class sbs_stabilizer_reward_fpga(FPGAExperiment, GKP):
     opt_file = StringParameter('')
     xp_rounds = IntParameter(15)
     tau_stabilizer = IntParameter(50)
-    cal_dir = StringParameter(r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal')
     echo_delay = IntParameter(880)
     final_delay = IntParameter(92)
 
@@ -57,7 +56,7 @@ class sbs_stabilizer_reward_fpga(FPGAExperiment, GKP):
         @subroutine
         def reward_circuit(s):
             self.reset_feedback_with_echo(self.echo_delay, self.final_delay, log=True, res_name='m1_'+str(s))
-            self.displacement_phase_estimation(s, self.tau_stabilizer, self.cal_dir, res_name='m2_'+str(s))
+            self.displacement_phase_estimation(s, self.tau_stabilizer, res_name='m2_'+str(s))
             delay(self.loop_delay)
 
         # experience collection loop
