@@ -140,7 +140,13 @@ class GKP():
 
     def load_sbs_sequence(self, s_tau, b_tau, ECD_filename, version):
         """
-        
+        Args:
+            version (str): 
+                - v1 is a simple version in which only ECD parameters beta & phi
+                  are loaded from the file.
+                - v2 is a more complicated version in which qubit detunings and
+                  parameters of the pi-pulses are also used in addition to beta & phi.
+                - v3 is like v2 but it returns an sbs_step that uses dynamix mixer.
         """
         if version == 'v1':
             data = np.load(ECD_filename, allow_pickle=True)
@@ -150,7 +156,7 @@ class GKP():
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
             C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
             c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
-        if version == 'v2':
+        if version in ['v2', 'v3']:
             data = np.load(ECD_filename, allow_pickle=True)
             beta, phi, phi_CD, detune = data['beta'], data['phi'], data['flip'], data['detune']
             tau = np.array([s_tau, b_tau, s_tau, 0])
@@ -159,17 +165,25 @@ class GKP():
             C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
             c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune)
         
-        def sbs_step(s):
-            """
-            Args:
-                s (str): stabilizer direction, either 'x' or 'p'
-            """
-            phase = dict(x=0.0, p=np.pi/2.0)
-            sync()
-            self.cavity.array_pulse(c_pulse.real, c_pulse.imag, phase=phase[s])
-            self.qubit.array_pulse(q_pulse.real, q_pulse.imag)
-            sync()
-            
+        if version in ['v1', 'v2']:
+            def sbs_step(s):
+                """
+                Args:
+                    s (str): stabilizer direction, either 'x' or 'p'
+                """
+                phase = dict(x=0.0, p=np.pi/2.0)
+                sync()
+                self.cavity.array_pulse(c_pulse.real, c_pulse.imag, phase=phase[s])
+                self.qubit.array_pulse(q_pulse.real, q_pulse.imag)
+                sync()
+        
+        if version == 'v3':
+            def sbs_step():
+                sync()
+                self.cavity.array_pulse(c_pulse.real, c_pulse.imag, amp='dynamic')
+                self.qubit.array_pulse(q_pulse.real, q_pulse.imag)
+                sync()            
+        
         return sbs_step
         
 
@@ -204,7 +218,7 @@ class GKP():
         
 
     def displacement_phase_estimation(self, beta, tau_ns, res_name, 
-                                      echo_params=None):
+                                      echo_params=None, amp=1):
         
         C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
         CD_params = C.CD_params_fixed_tau_from_cal(beta, tau_ns, self.cal_dir)
@@ -213,7 +227,7 @@ class GKP():
         sync()
         self.qubit.pi2_pulse(phase=np.pi/2.0)
         sync()
-        self.cavity.array_pulse(*cavity_pulse)
+        self.cavity.array_pulse(*cavity_pulse, amp=amp)
         self.qubit.array_pulse(*qubit_pulse)
         sync()
         self.qubit.pi2_pulse(phase=-np.pi/2.0)
@@ -226,3 +240,16 @@ class GKP():
         else:
             readout(**{res_name:'se'})
         sync()
+        
+    @subroutine
+    def update_phase(self, phase_reg, mode, t_mixer_calc=400):
+        c = FloatRegister()
+        s = FloatRegister()
+        c = af_cos(phase_reg)
+        s = af_sin(phase_reg)
+        DynamicMixer[0][0] <<= c
+        DynamicMixer[1][0] <<= s
+        DynamicMixer[0][1] <<= -s
+        DynamicMixer[1][1] <<= c
+        mode.delay(t_mixer_calc)
+        mode.load_mixer()
