@@ -308,7 +308,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
     def setup_reward(self, reward_kwargs):
         """Setup the reward function based on reward_kwargs. """
         try:
-            mode = reward_kwargs.pop('reward_mode')
+            # mode = reward_kwargs.pop('reward_mode')
+            mode = reward_kwargs['reward_mode']
             assert mode in ['zero',
                             'measurement',
                             'stabilizers',

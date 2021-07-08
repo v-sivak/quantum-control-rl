@@ -27,7 +27,8 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
         spec = {'beta'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
                 'flip'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
-                'detune': specs.TensorSpec(shape=[4,2], dtype=tf.float32)}
+                'detune': specs.TensorSpec(shape=[4,2], dtype=tf.float32),
+                'cavity_phase' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     @tf.function

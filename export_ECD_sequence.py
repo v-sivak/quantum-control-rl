@@ -5,14 +5,14 @@ Created on Mon Apr 12 16:08:16 2021
 @author: Vladimir Sivak
 """
 
-import numpy as np
-import os
-filename = 'GKP_plus_Z_delta_0.306.npz'
-z = np.load(os.path.join(r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad', filename))
-beta = np.stack([z['betas'].real, z['betas'].imag], axis=-1)
-phi = np.stack([z['phis'], z['thetas']], axis=-1)
-savename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', filename)
-np.savez(savename, beta=beta, phi=phi)
+# import numpy as np
+# import os
+# filename = 'GKP_plus_Z_delta_0.306.npz'
+# z = np.load(os.path.join(r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad', filename))
+# beta = np.stack([z['betas'].real, z['betas'].imag], axis=-1)
+# phi = np.stack([z['phis'], z['thetas']], axis=-1)
+# savename = os.path.join(r'Z:\tmp\for Vlad\from_vlad', filename)
+# np.savez(savename, beta=beta, phi=phi)
 
 
 
@@ -45,8 +45,8 @@ import importlib
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_17'
-policy_str= '000237'
+exp_name = 'run_21'
+policy_str= '000518'
 
 # Params for environment
 env_kwargs = {
@@ -57,8 +57,10 @@ env_kwargs = {
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.4, 'phi':0.4, 'flip':0.3, 'detune':3e6}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True}
+action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.3, 'detune':2e6,
+                'cavity_phase':0.5}
+to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
+            'cavity_phase':True}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
