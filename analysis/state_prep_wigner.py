@@ -11,9 +11,9 @@ import numpy as np
 from fpga_lib import *
 from fpga_lib.dsl.result import Results
 
-exp_dir = r'D:\DATA\exp\gkp_exp.gkp_qec.sbs_feedback_reset_wigner\archive'
+exp_dir = r'D:\DATA\exp\gkp_exp.gkp_qec.sbs_feedback_reset_wigner_Mixer\archive'
 #exp_dir = r'D:\DATA\exp\gkp_exp.state_prep.state_prep_wigner_tomography\archive'
-fname = '20210623.h5'
+fname = '20210708.h5'
 group = 0
 file_name = os.path.join(exp_dir, fname)
 

@@ -11,7 +11,7 @@ from gkp_exp.gkp_qec.GKP import GKP
 class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
     export_txt = False
     save_log = False
-    
+
     """ GKP stabilization with SBS protocol. """
     loop_delay = FloatParameter(4e6)
     batch_size = IntParameter(10)
@@ -23,15 +23,22 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
     t_mixer_calc = IntParameter(600)
 
     def sequence(self):
-        
+        """
+        This sequence has 3 components:
+            1) SBS step (ECDC sequence)
+            2) qubit reset through feedback with echo pulse
+            3) cavity phase update with dynamic mixer
+
+        """
         self.readout, self.qubit, self.cavity = readout, qubit, cavity
-        
+
         # load experimental parameters from file
         params = np.load(self.opt_file, allow_pickle=True)
         self.stabilizers = params['stabilizers']
         self.cavity_phases = params['cavity_phases']
         self.qubit_pulses = [(p.real, p.imag) for p in params['qubit_pulses']]
         self.cavity_pulses = [(p.real, p.imag) for p in params['cavity_pulses']]
+
 
         def sbs_step(i):
             sync()
@@ -69,4 +76,3 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
             for s in self.stabilizers:
                 control_circuit(i)
                 reward_circuit(s)
-
