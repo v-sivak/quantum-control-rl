@@ -33,17 +33,40 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment, GKP):
 
     cavity_phase = FloatParameter(0)
     t_mixer_calc = IntParameter(600)
+    
+    Kerr_drive_time_ns = IntParameter(200)
+    Kerr_drive_ramp_ns = IntParameter(200)
+    Kerr_drive_detune_MHz = FloatParameter(15)
+    Kerr_drive_amp = FloatParameter(0)
 
     def sequence(self):
 
         self.readout, self.qubit, self.cavity = readout, qubit, cavity_1
         
+        # setup qubit mode for Kerr cancelling drive
+        self.qubit_detuned = qubit_ef
+        self.qubit_detuned.set_detune(self.Kerr_drive_detune_MHz*1e6)
+        
         reset = lambda: self.reset_feedback_with_echo(self.echo_delay, 0)
 
         def phase_update(phase_reg):
             sync()
+            self.qubit_detuned.smoothed_constant_pulse(self.Kerr_drive_time_ns, 
+                        amp=self.Kerr_drive_amp, sigma_t=self.Kerr_drive_ramp_ns)
+            
+            # TODO: this mixer update could be done with a subroutine, but 
+            # there seem to be some hidden syncs there... 
             phase_reg += float((self.cavity_phase + np.pi/2.0) / np.pi)
-            self.update_phase(phase_reg, self.cavity, t_mixer_calc=self.t_mixer_calc)
+            c = FloatRegister()
+            s = FloatRegister()
+            c = af_cos(phase_reg)
+            s = af_sin(phase_reg)
+            DynamicMixer[0][0] <<= c
+            DynamicMixer[1][0] <<= s
+            DynamicMixer[0][1] <<= -s
+            DynamicMixer[1][1] <<= c
+            self.cavity.delay(self.t_mixer_calc)
+            self.cavity.load_mixer()
             sync()
 
         sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.ECD_filename, version='v3')

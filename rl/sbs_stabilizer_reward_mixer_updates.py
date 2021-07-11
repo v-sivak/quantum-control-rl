@@ -24,13 +24,14 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
             3) Parameters of the echo pi-pulse played during the ECD gates
             4) Detuning of all qubit pulses
             5) Cavity rotation angle
+            6) Amplitude of the Kerr-cancelling drive
     """
 
     def __init__(self):
         self.max_mini_batch_size = 5
         self.batch_axis = 3
         self.s_tau = 10
-        self.b_tau = 50
+        self.b_tau = 150
         self.opt_file = r'D:\DATA\exp\2021-06-28_cooldown\sbs_stabilizer_reward\opt_data.npz'
 
     def update_exp_params(self):
@@ -59,22 +60,25 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
         
         # get other parameters
         self.cavity_phases = action_batch['cavity_phase'].squeeze()
+        self.Kerr_drive_amps = action_batch['Kerr_drive_amp'].squeeze()
         
         # save SBS pulse sequences to file
         np.savez(self.opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
-                 stabilizers=self.stabilizers, cavity_phases=self.cavity_phases)
+                 stabilizers=self.stabilizers, cavity_phases=self.cavity_phases,
+                 Kerr_drive_amps=self.Kerr_drive_amps)
         
         self.exp = get_experiment(
                 'gkp_exp.rl.sbs_stabilizer_reward_mixer_updates_fpga', from_gui=True)
         
+        assert self.N_msmt % 10 == 0
         self.exp.set_params(
                 {'batch_size' : mini_batch_size,
                  'opt_file' : self.opt_file,
-                 'n_blocks' : self.N_msmt / 2,
-                 'averages_per_block' : 2,
+                 'n_blocks' : self.N_msmt / 10,
+                 'averages_per_block' : 10,
                  'loop_delay' : 4e6,
                  'xp_rounds' : 15,
-                 'tau_stabilizer' : 50})
+                 'tau_stabilizer' : 150})
     
 
     def create_reward_data(self):
