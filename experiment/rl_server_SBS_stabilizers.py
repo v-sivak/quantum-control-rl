@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_21'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_28'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -53,10 +53,10 @@ reward_kwargs_eval = {
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5}
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True}
+            'cavity_phase':True, 'Kerr_drive_amp':True}
 
 train_batch_size = 10
 eval_batch_size = 1
@@ -85,12 +85,12 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-2,
+        lr = 3e-3,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
-        importance_ratio_clipping = 0.2,
+        importance_ratio_clipping = 0.1,
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         entropy_regularization = 0,

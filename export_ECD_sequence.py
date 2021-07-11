@@ -18,7 +18,7 @@ Created on Mon Apr 12 16:08:16 2021
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 
 from rl_tools.tf_env import env_init
@@ -45,8 +45,8 @@ import importlib
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_21'
-policy_str= '000518'
+exp_name = 'run_27'
+policy_str= '001000'
 
 # Params for environment
 env_kwargs = {
@@ -57,11 +57,10 @@ env_kwargs = {
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.4, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5}
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True}
-
+            'cavity_phase':True, 'Kerr_drive_amp':True}
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 
