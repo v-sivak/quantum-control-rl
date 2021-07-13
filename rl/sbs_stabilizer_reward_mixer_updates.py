@@ -27,10 +27,11 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
             6) Amplitude of the Kerr-cancelling drive
     """
 
-    def __init__(self):
+    def __init__(self, use_gui=True):
+        self.use_gui = use_gui
         self.max_mini_batch_size = 5
         self.batch_axis = 3
-        self.s_tau = 10
+        self.s_tau = 20
         self.b_tau = 150
         self.opt_file = r'D:\DATA\exp\2021-06-28_cooldown\sbs_stabilizer_reward\opt_data.npz'
 
@@ -68,7 +69,7 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
                  Kerr_drive_amps=self.Kerr_drive_amps)
         
         self.exp = get_experiment(
-                'gkp_exp.rl.sbs_stabilizer_reward_mixer_updates_fpga', from_gui=True)
+                'gkp_exp.rl.sbs_stabilizer_reward_mixer_updates_fpga', from_gui=self.use_gui)
         
         assert self.N_msmt % 10 == 0
         self.exp.set_params(

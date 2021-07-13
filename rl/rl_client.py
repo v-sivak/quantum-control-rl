@@ -30,9 +30,10 @@ class ReinforcementLearningExperiment():
         raise NotImplementedError
 
     def training_loop(self, **kwargs):
+        if self.use_gui:
+            connect_to_gui()
+            get_gui()
         self.connect_to_RL_agent()
-        connect_to_gui()
-        get_gui()
         done = False
         while not done:
             self.message, done = self.recv()
