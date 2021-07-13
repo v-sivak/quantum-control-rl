@@ -24,13 +24,18 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
     """
     @property
     def _control_circuit_spec(self):
-        spec = {'beta'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32), 
+        spec = {# SBS params
+                'beta'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32), 
                 'phi'   : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
                 'flip'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
                 'detune': specs.TensorSpec(shape=[4,2], dtype=tf.float32),
+                # Murch params
                 'Murch_phi' : specs.TensorSpec(shape=[2], dtype=tf.float32),
                 'Murch_amp' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'Murch_detune_MHz' : specs.TensorSpec(shape=[2], dtype=tf.float32)}
+                'Murch_detune_MHz' : specs.TensorSpec(shape=[2], dtype=tf.float32),
+                # misc
+                'cavity_phase' : specs.TensorSpec(shape=[1], dtype=tf.float32),
+                'Kerr_drive_amp' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         return spec
 
     @tf.function

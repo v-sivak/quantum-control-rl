@@ -15,7 +15,7 @@ qb_phase, qb_angle = [pi/2, 0, 0, -pi/2], [pi/2, -pi/2, pi/2, pi/2]
 flip_phase, flip_angle = [0, 0, 0, 0], [pi, pi, pi, pi]
 detune_flip, detune_ecd = [0, 0, 0, 0], [0, 0, 0, 0]
 cavity_phase = -0.5
-Kerr_drive_amp = 0.2
+Kerr_drive_amp = 0.0
 
 script = {} # Script of actions
 
