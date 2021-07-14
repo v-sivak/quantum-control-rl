@@ -276,3 +276,15 @@ class GKP(Calibratable):
         DynamicMixer[1][1] <<= c
         mode.delay(t_mixer_calc)
         mode.load_mixer()
+    
+    @subroutine    
+    def reset_mixer(self):
+        sync()
+        DynamicMixer[0][0] <<= 1
+        DynamicMixer[1][0] <<= 0
+        DynamicMixer[0][1] <<= 0
+        DynamicMixer[1][1] <<= 1
+        self.cavity.delay(self.t_mixer_calc_ns)
+        self.cavity.load_mixer()
+        sync()
+    

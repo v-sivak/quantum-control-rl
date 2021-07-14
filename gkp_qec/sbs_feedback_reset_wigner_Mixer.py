@@ -19,14 +19,11 @@ import numpy as np
 class sbs_feedback_reset_wigner_Mixer(FPGAExperiment):
 
     disp_range = RangeParameter((-4.0, 4.0, 101))
-    reps = IntParameter(5)
-
-    # Baptiste SBS stabilization parameters
+    xp_rounds = IntParameter(15)
     params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000402_sbs_run15.npz')
 
     def sequence(self):
 
-        self.readout, self.qubit, self.cavity = readout, qubit, cavity_1
         gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
         
         params = np.load(self.params_filename, allow_pickle=True)
@@ -63,10 +60,11 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment):
 
         def exp():
             sync()
+            gkp.reset_mixer()
             phase_reg = FloatRegister()
             phase_reg <<= 0.0
             sync()
-            with Repeat(2*self.reps):
+            with Repeat(2*self.xp_rounds):
                 sbs_step()
                 reset()
                 phase_update(phase_reg)

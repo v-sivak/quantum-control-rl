@@ -69,6 +69,7 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment):
             sync()
 
         def control_circuit(i):
+            gkp.reset_mixer()
             sync()
             phase_reg = FloatRegister()
             phase_reg <<= 0.0
