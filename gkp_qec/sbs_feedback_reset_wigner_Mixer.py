@@ -14,49 +14,39 @@ Created on Tue Feb  9 14:21:02 2021
 """
 from init_script import *
 import numpy as np
-from gkp_exp.gkp_qec.GKP import GKP
 
 
-class sbs_feedback_reset_wigner_Mixer(FPGAExperiment, GKP):
+class sbs_feedback_reset_wigner_Mixer(FPGAExperiment):
 
     disp_range = RangeParameter((-4.0, 4.0, 101))
     reps = IntParameter(5)
 
     # Baptiste SBS stabilization parameters
-    s_tau_ns = IntParameter(20)
-    b_tau_ns = IntParameter(100)
-    ECD_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000402_sbs_run15.npz')
-
-    # Feedback cooling parameters
-    echo_delay = IntParameter(0)
-    final_delay = IntParameter(0)
-
-    cavity_phase = FloatParameter(0)
-    t_mixer_calc = IntParameter(600)
-    
-    Kerr_drive_time_ns = IntParameter(200)
-    Kerr_drive_ramp_ns = IntParameter(200)
-    Kerr_drive_detune_MHz = FloatParameter(15)
-    Kerr_drive_amp = FloatParameter(0)
+    params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000402_sbs_run15.npz')
 
     def sequence(self):
 
         self.readout, self.qubit, self.cavity = readout, qubit, cavity_1
+        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
+        
+        params = np.load(self.params_filename, allow_pickle=True)
+        cavity_phase = float(params['cavity_phase'])
+        Kerr_drive_amp = float(params['Kerr_drive_amp'])
         
         # setup qubit mode for Kerr cancelling drive
         self.qubit_detuned = qubit_ef
-        self.qubit_detuned.set_detune(self.Kerr_drive_detune_MHz*1e6)
+        self.qubit_detuned.set_detune(gkp.Kerr_drive_detune_MHz*1e6)
         
-        reset = lambda: self.reset_feedback_with_echo(self.echo_delay, 0)
+        reset = lambda: gkp.reset_feedback_with_echo(gkp.echo_delay, 0)
 
         def phase_update(phase_reg):
             sync()
-            self.qubit_detuned.smoothed_constant_pulse(self.Kerr_drive_time_ns, 
-                        amp=self.Kerr_drive_amp, sigma_t=self.Kerr_drive_ramp_ns)
+            self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns, 
+                        amp=Kerr_drive_amp, sigma_t=gkp.Kerr_drive_ramp_ns)
             
             # TODO: this mixer update could be done with a subroutine, but 
             # there seem to be some hidden syncs there... 
-            phase_reg += float((self.cavity_phase + np.pi/2.0) / np.pi)
+            phase_reg += float((cavity_phase + np.pi/2.0) / np.pi)
             c = FloatRegister()
             s = FloatRegister()
             c = af_cos(phase_reg)
@@ -65,11 +55,11 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment, GKP):
             DynamicMixer[1][0] <<= s
             DynamicMixer[0][1] <<= -s
             DynamicMixer[1][1] <<= c
-            self.cavity.delay(self.t_mixer_calc)
-            self.cavity.load_mixer()
+            gkp.cavity.delay(gkp.t_mixer_calc_ns)
+            gkp.cavity.load_mixer()
             sync()
 
-        sbs_step = self.load_sbs_sequence(self.s_tau_ns, self.b_tau_ns, self.ECD_filename, version='v3')
+        sbs_step = gkp.load_sbs_sequence(gkp.s_tau_ns, gkp.b_tau_ns, self.params_filename, version='v3')
 
         def exp():
             sync()
@@ -85,17 +75,17 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment, GKP):
         # map odd parity to 'e'
         with system.wigner_tomography(*self.disp_range, result_name='g_m2',
                                       invert_axis=False):
-            readout(g_m0='se')
+            gkp.readout(g_m0='se')
             exp()
-            self.reset_feedback_with_echo(self.echo_delay, self.final_delay,
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay,
                                           log=True, res_name='g_m1')
 
         # map odd parity to 'g'
         with system.wigner_tomography(*self.disp_range, result_name='e_m2',
                                       invert_axis=True):
-            readout(e_m0='se')
+            gkp.readout(e_m0='se')
             exp()
-            self.reset_feedback_with_echo(self.echo_delay, self.final_delay,
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay,
                                           log=True, res_name='e_m1')
 
 

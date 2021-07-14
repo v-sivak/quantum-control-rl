@@ -4,11 +4,11 @@ Created on Wed Jun  2 12:00:57 2021
 
 @author: Vladimir Sivak
 """
+from init_script import gkp
 import numpy as np
 from rl_client import ReinforcementLearningExperiment
 from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler
 from fpga_lib.scripting import get_experiment
-from gkp_exp.gkp_qec.GKP import GKP
 
 import logging
 logger = logging.getLogger('RL')
@@ -19,11 +19,15 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
     """ Learn preparation of the GKP state with ECD control using stabilizer
         values as rewards.    
     """
-    def __init__(self):
+    def __init__(self, use_gui=True):
+        self.use_gui = use_gui
         self.max_mini_batch_size = 5
         self.batch_axis = 3
         self.tau = 50
         self.opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
+
+        self.exp = get_experiment(
+                'gkp_exp.rl.gkp_prep_ECD_stabilizers_fpga', from_gui=self.use_gui)
 
     def update_exp_params(self):
 
@@ -35,9 +39,8 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
         
         # setup the ECD compiler
-        CD_compiler_kwargs = dict(qubit_pulse_pad=GKP().qubit_pulse_pad)
-        cal_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
         
         # construct the ECD control pulses
         tau = np.array([self.tau] * beta.shape[1])
@@ -50,22 +53,14 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         logger.info('Constructed waveforms.')
         
         # save pulse sequences to file
-        opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
-        np.savez(opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
+        np.savez(self.opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
                  stabilizers = self.stabilizers)
-        
-        self.exp = get_experiment(
-                'gkp_exp.rl.gkp_prep_ECD_stabilizers_fpga', from_gui=True)
         
         self.exp.set_params(
                 {'batch_size' : mini_batch_size,
-                 'opt_file' : opt_file,
-                 'n_blocks' : self.N_msmt / 2,
-                 'averages_per_block' : 2,
-                 'loop_delay' : 5e6,
-                 'tau_stabilizer' : 50,
-                 'cal_dir' : cal_dir,
-                 'stabilizers' : self.stabilizers})
+                 'opt_file' : self.opt_file,
+                 'n_blocks' : self.N_msmt / 10,
+                 'averages_per_block' : 10})
 
 
     def create_reward_data(self):

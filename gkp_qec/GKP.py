@@ -4,19 +4,42 @@ Created on Sun May 30 11:44:39 2021
 
 @author: qulab
 """
-
-from init_script import *
-from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler, ConditionalDisplacementCompiler, ECD_control_simple_compiler
 import numpy as np
+from fpga_lib.dsl import *
+from fpga_lib.parameters import *
+from fpga_lib.experiments import *
+from fpga_lib import entities
+
+from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler, ConditionalDisplacementCompiler, ECD_control_simple_compiler
 
 
-class GKP():
+class GKP(Calibratable):
     """
     Args:
         cal_dir (str): directory with CD gate amplitude calibrations
     """
-    qubit_pulse_pad = 4
-    cal_dir = r'D:\DATA\exp\2021-06-28_cooldown\CD_fixed_time_amp_cal'
+    # Params for ECDC sequences
+    qubit_pulse_pad = IntParameter(4)
+    s_tau_ns = IntParameter(20)
+    b_tau_ns = IntParameter(150)
+    cal_dir = StringParameter(r'D:\DATA\exp\2021-06-28_cooldown\CD_fixed_time_amp_cal')
+
+    # Params for echoed feedback reset
+    echo_delay = IntParameter(868)
+    final_delay = IntParameter(64)
+    
+    # Params for Kerr-cancelling drive
+    Kerr_drive_time_ns = IntParameter(200)
+    Kerr_drive_ramp_ns = IntParameter(200)
+    Kerr_drive_detune_MHz = FloatParameter(15)
+    
+    # Params misc
+    loop_delay = IntParameter(4e6)
+    t_stabilizer_ns = IntParameter(150)
+    t_mixer_calc_ns = IntParameter(600)
+    
+    def __init__(self, name='gkp'):
+        super(GKP, self).__init__(name)
     
     @subroutine
     def reset_feedback_with_echo(self, echo_delay, final_delay, feedback_delay=0, log=False, res_name='default'):
@@ -36,7 +59,7 @@ class GKP():
         sync()
         delay(echo_delay, channel=self.qubit.chan, round=True)
         self.qubit.flip() # echo pulse
-        readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
+        self.readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
         sync()
         delay(feedback_delay, round=True)
         if_then_else(self.qubit.measured_low(), 'flip', 'wait')
@@ -210,7 +233,7 @@ class GKP():
             self.qubit.pi2_pulse(phase=-np.pi/2.0)
             sync()
             delay(24)
-            readout(**{s:'se'})
+            self.readout(**{s:'se'})
             sync()
         
         return stabilizer_phase_estimation
@@ -238,7 +261,7 @@ class GKP():
                     echo_params['echo_delay'], echo_params['final_delay'], 
                     log=True, res_name=res_name)
         else:
-            readout(**{res_name:'se'})
+            self.readout(**{res_name:'se'})
         sync()
         
     @subroutine

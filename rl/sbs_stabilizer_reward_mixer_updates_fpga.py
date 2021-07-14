@@ -6,26 +6,15 @@ Created on Wed Jul  7 09:42:17 2021
 """
 from init_script import *
 import numpy as np
-from gkp_exp.gkp_qec.GKP import GKP
 
-class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
+class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment):
     export_txt = False
     save_log = False
 
     """ GKP stabilization with SBS protocol. """
-    loop_delay = FloatParameter(4e6)
     batch_size = IntParameter(10)
     opt_file = StringParameter('')
     xp_rounds = IntParameter(15)
-    tau_stabilizer = IntParameter(50)
-    echo_delay = IntParameter(880)
-    final_delay = IntParameter(0)
-    t_mixer_calc = IntParameter(600)
-
-    # Kerr cancelling drive params
-    Kerr_drive_detune_MHz = FloatParameter(15)
-    Kerr_drive_time_ns = IntParameter(200)
-    Kerr_drive_ramp_ns = IntParameter(200)
 
     def sequence(self):
         """
@@ -36,7 +25,7 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
             4) Kerr cancelling drive while updating mixer
 
         """
-        self.readout, self.qubit, self.cavity = readout, qubit, cavity
+        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity
 
         # load experimental parameters from file
         params = np.load(self.opt_file, allow_pickle=True)
@@ -48,21 +37,21 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
 
         # setup qubit mode for Kerr cancelling drive
         self.qubit_detuned = qubit_ef
-        self.qubit_detuned.set_detune(self.Kerr_drive_detune_MHz*1e6)
+        self.qubit_detuned.set_detune(gkp.Kerr_drive_detune_MHz*1e6)
 
 
         def sbs_step(i):
             sync()
-            self.cavity.array_pulse(*self.cavity_pulses[i], amp='dynamic')
-            self.qubit.array_pulse(*self.qubit_pulses[i])
+            gkp.cavity.array_pulse(*self.cavity_pulses[i], amp='dynamic')
+            gkp.qubit.array_pulse(*self.qubit_pulses[i])
             sync()
 
-        reset = lambda: self.reset_feedback_with_echo(self.echo_delay, 0)
+        reset = lambda: gkp.reset_feedback_with_echo(gkp.echo_delay, 0)
 
         def phase_update(phase_reg, i):
             sync()
-            self.qubit_detuned.smoothed_constant_pulse(self.Kerr_drive_time_ns, 
-                        amp=self.Kerr_drive_amps[i], sigma_t=self.Kerr_drive_ramp_ns)
+            self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns, 
+                        amp=self.Kerr_drive_amps[i], sigma_t=gkp.Kerr_drive_ramp_ns)
             
             # TODO: this mixer update could be done with a subroutine, but 
             # there seem to be some hidden syncs there... 
@@ -75,8 +64,8 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
             DynamicMixer[1][0] <<= s
             DynamicMixer[0][1] <<= -s
             DynamicMixer[1][1] <<= c
-            self.cavity.delay(self.t_mixer_calc)
-            self.cavity.load_mixer()
+            gkp.cavity.delay(gkp.t_mixer_calc_ns)
+            gkp.cavity.load_mixer()
             sync()
 
         def control_circuit(i):
@@ -92,9 +81,9 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment, GKP):
 
         @subroutine
         def reward_circuit(s):
-            self.reset_feedback_with_echo(self.echo_delay, self.final_delay, log=True, res_name='m1_'+str(s))
-            self.displacement_phase_estimation(s, self.tau_stabilizer, res_name='m2_'+str(s), amp='dynamic')
-            delay(self.loop_delay)
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay, log=True, res_name='m1_'+str(s))
+            gkp.displacement_phase_estimation(s, gkp.t_stabilizer_ns, res_name='m2_'+str(s), amp='dynamic')
+            delay(gkp.loop_delay)
 
         # experience collection loop
         for i in range(self.batch_size):
