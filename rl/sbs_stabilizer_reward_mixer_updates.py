@@ -74,7 +74,7 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
                  'opt_file' : self.opt_file,
                  'n_blocks' : self.N_msmt / 10,
                  'averages_per_block' : 10,
-                 'xp_rounds' : 15})
+                 'xp_rounds' : 15 + self.epoch % 2})
     
 
     def create_reward_data(self):

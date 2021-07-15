@@ -264,7 +264,7 @@ class GKP(Calibratable):
             self.readout(**{res_name:'se'})
         sync()
         
-    @subroutine
+
     def update_phase(self, phase_reg, mode, t_mixer_calc=400):
         c = FloatRegister()
         s = FloatRegister()
@@ -277,14 +277,10 @@ class GKP(Calibratable):
         mode.delay(t_mixer_calc)
         mode.load_mixer()
     
-    @subroutine    
-    def reset_mixer(self):
+    @subroutine
+    def reset_mixer(self, mode, t_mixer_calc):
         sync()
-        DynamicMixer[0][0] <<= 1
-        DynamicMixer[1][0] <<= 0
-        DynamicMixer[0][1] <<= 0
-        DynamicMixer[1][1] <<= 1
-        self.cavity.delay(self.t_mixer_calc_ns)
-        self.cavity.load_mixer()
+        zero_phase_reg = FloatRegister(0)
+        self.update_phase(zero_phase_reg, mode, t_mixer_calc)
         sync()
     

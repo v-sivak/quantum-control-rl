@@ -23,11 +23,12 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
     
     steps = RangeParameter((1,50,50))
     
-    fit_func = {'logical' : 'exp_decay'}
+    fit_func = {'logical' : 'exp_decay',
+                'logical_postselected_m1': 'exp_decay'}
     
     def sequence(self):
 
-        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity
+        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
         
         ### Parameters of the stabilization protocol
         params = np.load(self.params_filename, allow_pickle=True)
@@ -45,19 +46,8 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
             self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns, 
                         amp=Kerr_drive_amp, sigma_t=gkp.Kerr_drive_ramp_ns)
             
-            # TODO: this mixer update could be done with a subroutine, but 
-            # there seem to be some hidden syncs there... 
             phase_reg += float((cavity_phase + np.pi/2.0) / np.pi)
-            c = FloatRegister()
-            s = FloatRegister()
-            c = af_cos(phase_reg)
-            s = af_sin(phase_reg)
-            DynamicMixer[0][0] <<= c
-            DynamicMixer[1][0] <<= s
-            DynamicMixer[0][1] <<= -s
-            DynamicMixer[1][1] <<= c
-            gkp.cavity.delay(gkp.t_mixer_calc_ns)
-            gkp.cavity.load_mixer()
+            gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
             sync()
 
         sbs_step = gkp.load_sbs_sequence(gkp.s_tau_ns, gkp.b_tau_ns, self.params_filename, version='v3')
@@ -91,7 +81,7 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
 
         with scan_register(*self.steps, reg=R):
             sync()
-            gkp.reset_mixer()
+            gkp.reset_mixer(gkp.cavity, gkp.t_mixer_calc_ns)
             phase_reg = FloatRegister()
             phase_reg <<= 0.0
             sync()
@@ -105,17 +95,13 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
             reward_circuit()
 
 
-    def process_data(self):
-        m0 = self.results['m0'].threshold()
-        m1 = self.results['m1'].threshold()
-        m2 = self.results['m2'].threshold()
-        
+    def process_data(self):        
         # Account for flipping of the logical Pauli by SBS
         flip_mask = np.array([-1,1,1,-1]*self.steps[-1])[:self.steps[-1]]
-        flip_mask[0] *= -1 # need this, becase when R=0 there is no mixer update
-
-#        result = m2.postselect(m0, [0])[0]
-        logical_pauli = (1 - 2*m2.thresh_mean().data) * flip_mask
+#        flip_mask[0] *= -1 # need this, becase when R=0 there is no mixer update
+        
+        # Without any post-selection
+        logical_pauli = (1 - 2*self.results['m2'].thresh_mean().data) * flip_mask
         
         # Every other round the mixer phase is in the wrong qudrature
         ind = np.arange(0, self.steps[-1], 2)
@@ -125,4 +111,18 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
         self.results['logical'] = logical_pauli
         self.results['logical'].ax_data = [rounds]
         self.results['logical'].labels = ['Round']
+        
+        # Post-select on m1 != f
+        m1_not_ge = self.results['m1'].multithresh()[2]
+        postselected = self.results['m2'].postselect(m1_not_ge, [0])[0]
+        logical_pauli = (1 - 2*postselected.thresh_mean().data) * flip_mask
+        
+        # Every other round the mixer phase is in the wrong qudrature
+        ind = np.arange(0, self.steps[-1], 2)
+        logical_pauli = logical_pauli[ind]
+        rounds = self.results['m0'].ax_data[1][ind]
+        
+        self.results['logical_postselected_m1'] = logical_pauli
+        self.results['logical_postselected_m1'].ax_data = [rounds]
+        self.results['logical_postselected_m1'].labels = ['Round']        
 

@@ -36,31 +36,40 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment):
         
         reset = lambda: gkp.reset_feedback_with_echo(gkp.echo_delay, 0)
 
+#        def phase_update(phase_reg):
+#            sync()
+#            self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns, 
+#                        amp=Kerr_drive_amp, sigma_t=gkp.Kerr_drive_ramp_ns)
+#            
+#            # TODO: this mixer update could be done with a subroutine, but 
+#            # there seem to be some hidden syncs there... 
+#            phase_reg += float((cavity_phase + np.pi/2.0) / np.pi)
+#            c = FloatRegister()
+#            s = FloatRegister()
+#            c = af_cos(phase_reg)
+#            s = af_sin(phase_reg)
+#            DynamicMixer[0][0] <<= c
+#            DynamicMixer[1][0] <<= s
+#            DynamicMixer[0][1] <<= -s
+#            DynamicMixer[1][1] <<= c
+#            gkp.cavity.delay(gkp.t_mixer_calc_ns)
+#            gkp.cavity.load_mixer()
+#            sync()
+
         def phase_update(phase_reg):
             sync()
             self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns, 
                         amp=Kerr_drive_amp, sigma_t=gkp.Kerr_drive_ramp_ns)
             
-            # TODO: this mixer update could be done with a subroutine, but 
-            # there seem to be some hidden syncs there... 
             phase_reg += float((cavity_phase + np.pi/2.0) / np.pi)
-            c = FloatRegister()
-            s = FloatRegister()
-            c = af_cos(phase_reg)
-            s = af_sin(phase_reg)
-            DynamicMixer[0][0] <<= c
-            DynamicMixer[1][0] <<= s
-            DynamicMixer[0][1] <<= -s
-            DynamicMixer[1][1] <<= c
-            gkp.cavity.delay(gkp.t_mixer_calc_ns)
-            gkp.cavity.load_mixer()
+            gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
             sync()
 
         sbs_step = gkp.load_sbs_sequence(gkp.s_tau_ns, gkp.b_tau_ns, self.params_filename, version='v3')
 
         def exp():
             sync()
-            gkp.reset_mixer()
+            gkp.reset_mixer(gkp.cavity, gkp.t_mixer_calc_ns)
             phase_reg = FloatRegister()
             phase_reg <<= 0.0
             sync()
@@ -71,20 +80,16 @@ class sbs_feedback_reset_wigner_Mixer(FPGAExperiment):
             sync()
 
         # map odd parity to 'e'
-        with system.wigner_tomography(*self.disp_range, result_name='g_m2',
-                                      invert_axis=False):
+        with system.wigner_tomography(*self.disp_range, result_name='g_m2', invert_axis=False):
             gkp.readout(g_m0='se')
             exp()
-            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay,
-                                          log=True, res_name='g_m1')
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay, log=True, res_name='g_m1')
 
         # map odd parity to 'g'
-        with system.wigner_tomography(*self.disp_range, result_name='e_m2',
-                                      invert_axis=True):
+        with system.wigner_tomography(*self.disp_range, result_name='e_m2', invert_axis=True):
             gkp.readout(e_m0='se')
             exp()
-            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay,
-                                          log=True, res_name='e_m1')
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay, log=True, res_name='e_m1')
 
 
     def process_data(self):

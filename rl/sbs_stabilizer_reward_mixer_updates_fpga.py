@@ -25,7 +25,7 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment):
             4) Kerr cancelling drive while updating mixer
 
         """
-        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity
+        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
 
         # load experimental parameters from file
         params = np.load(self.opt_file, allow_pickle=True)
@@ -56,21 +56,12 @@ class sbs_stabilizer_reward_mixer_updates_fpga(FPGAExperiment):
             # TODO: this mixer update could be done with a subroutine, but 
             # there seem to be some hidden syncs there... 
             phase_reg += float((self.cavity_phases[i] + np.pi/2.0) / np.pi)
-            c = FloatRegister()
-            s = FloatRegister()
-            c = af_cos(phase_reg)
-            s = af_sin(phase_reg)
-            DynamicMixer[0][0] <<= c
-            DynamicMixer[1][0] <<= s
-            DynamicMixer[0][1] <<= -s
-            DynamicMixer[1][1] <<= c
-            gkp.cavity.delay(gkp.t_mixer_calc_ns)
-            gkp.cavity.load_mixer()
+            gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
             sync()
 
         def control_circuit(i):
-            gkp.reset_mixer()
             sync()
+            gkp.reset_mixer(gkp.cavity, gkp.t_mixer_calc_ns)
             phase_reg = FloatRegister()
             phase_reg <<= 0.0
             sync()
