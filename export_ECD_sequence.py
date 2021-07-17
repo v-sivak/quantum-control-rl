@@ -29,44 +29,61 @@ from math import pi
 import numpy as np
 import importlib
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_29'
-policy_str= '001000'
-
-# Params for environment
-env_kwargs = {
-    'control_circuit' : 'SBS_Murch_remote',
-    'init' : 'vac',
-    'T' : 1,
-    'N' : 20}
-
-# Params for action wrapper
-action_script = 'SBS_remote_residuals_Murch'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'Murch_amp':0.2, 'Murch_phi':0.4, 'Murch_detune_MHz':6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'Murch_amp':True, 'Murch_phi':True, 'Murch_detune_MHz':True,
-            'cavity_phase':True, 'Kerr_drive_amp':False}
-
-
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-# exp_name = 'run_30'
-# policy_str= '000808'
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z'
+# exp_name = 'run_4'
+# policy_str= '000000'
 
 # # Params for environment
 # env_kwargs = {
-#     'control_circuit' : 'SBS_remote',
+#     'control_circuit' : 'ECD_control_remote',
+#     'init' : 'vac',
+#     'T' : 10,
+#     'N' : 20}
+
+# # Params for action wrapper
+# action_script = 'ECD_control_residuals_GKP'
+# action_scale = {'beta':0.2, 'phi':0.2}
+# to_learn = {'beta':True, 'phi':True}
+
+
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
+# exp_name = 'run_29'
+# policy_str= '000000'
+
+# # Params for environment
+# env_kwargs = {
+#     'control_circuit' : 'SBS_Murch_remote',
 #     'init' : 'vac',
 #     'T' : 1,
 #     'N' : 20}
 
 # # Params for action wrapper
-# action_script = 'SBS_remote_residuals'
+# action_script = 'SBS_remote_residuals_Murch'
 # action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
+#                 'Murch_amp':0.2, 'Murch_phi':0.4, 'Murch_detune_MHz':6,
 #                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
 # to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-#             'cavity_phase':True, 'Kerr_drive_amp':True}
+#             'Murch_amp':True, 'Murch_phi':True, 'Murch_detune_MHz':True,
+#             'cavity_phase':True, 'Kerr_drive_amp':False}
+
+
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
+exp_name = 'run_35'
+policy_str= '000820'
+
+# Params for environment
+env_kwargs = {
+    'control_circuit' : 'SBS_remote',
+    'init' : 'vac',
+    'T' : 1,
+    'N' : 20}
+
+# Params for action wrapper
+action_script = 'SBS_remote_residuals'
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
+to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 

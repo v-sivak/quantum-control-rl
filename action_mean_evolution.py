@@ -18,14 +18,14 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 
-epochs = 866
+N_epochs = 1000
 
 cavity_phases = []
 Kerr_amps = []
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_30'
+exp_name = 'run_34'
 
 # Params for environment
 env_kwargs = {
@@ -37,9 +37,9 @@ env_kwargs = {
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':True}
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -51,7 +51,8 @@ env = wrappers.ActionWrapper(env, action_script_obj, action_scale, to_learn,
 action_names = list(to_learn.keys())
 all_actions = {a : [] for a in action_names}
 
-for epoch in range(0,epochs,2):
+epochs = np.arange(0,N_epochs,2)
+for epoch in epochs:
     
     policy_dir = 'policy\\' + str(epoch).zfill(6)
     policy = tf.compat.v2.saved_model.load(os.path.join(root_dir, exp_name, policy_dir))    
@@ -105,34 +106,44 @@ for a in action_names:
 
 
 
-fig, axes = plt.subplots(2,2, sharex=True, dpi=200)
+fig, axes = plt.subplots(3,2, sharex=True, dpi=200)
 axes = axes.ravel()
 ax = axes[0]
 # ax.set_xlabel('Epoch')
 ax.set_title('Kerr_drive_amp')
-ax.plot(all_actions['Kerr_drive_amp'])
+ax.plot(epochs, all_actions['Kerr_drive_amp'])
 
 
 ax = axes[1]
 # ax.set_xlabel('Epoch')
 ax.set_title('cavity_phase')
-ax.plot(all_actions['cavity_phase'])
+ax.plot(epochs, all_actions['cavity_phase'])
 
 
 ax = axes[2]
-ax.set_xlabel('Epoch')
+# ax.set_xlabel('Epoch')
 ax.set_title('beta_real')
-ax.plot(all_actions['beta'][:,1,0])
+ax.plot(epochs, all_actions['beta'][:,1,0])
 
 
 ax = axes[3]
-ax.set_xlabel('Epoch')
+# ax.set_xlabel('Epoch')
 ax.set_title('eps1 & eps2')
-ax.plot(all_actions['beta'][:,0,0], color='red', linestyle='--')
-ax.plot(all_actions['beta'][:,0,1], color='red', label='eps1')
+ax.plot(epochs, all_actions['beta'][:,0,0], color='red', linestyle='--')
+ax.plot(epochs, all_actions['beta'][:,0,1], color='red', label='eps1')
 
-ax.plot(all_actions['beta'][:,2,0], color='blue', linestyle='--')
-ax.plot(all_actions['beta'][:,2,1], color='blue', label='eps2')
+ax.plot(epochs, all_actions['beta'][:,2,0], color='blue', linestyle='--')
+ax.plot(epochs, all_actions['beta'][:,2,1], color='blue', label='eps2')
 ax.legend()
+
+ax = axes[4]
+ax.set_xlabel('Epoch')
+ax.set_title('phi_diff')
+ax.plot(epochs, all_actions['alpha_correction'][:,1,0])
+
+ax = axes[5]
+ax.set_xlabel('Epoch')
+ax.set_title('phi_sum')
+ax.plot(epochs, all_actions['alpha_correction'][:,1,1])
 
 plt.tight_layout()

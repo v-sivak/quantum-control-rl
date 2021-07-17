@@ -29,9 +29,11 @@ class QuantumCircuit(OscillatorQubit, TFEnvironmentQuantumControl):
                 'flip'  : specs.TensorSpec(shape=[4,2], dtype=tf.float32),
                 'detune': specs.TensorSpec(shape=[4,2], dtype=tf.float32),
                 'cavity_phase' : specs.TensorSpec(shape=[1], dtype=tf.float32),
-                'Kerr_drive_amp' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
+                'Kerr_drive_amp' : specs.TensorSpec(shape=[1], dtype=tf.float32),
+                'alpha_correction' : specs.TensorSpec(shape=[4,2], dtype=tf.float32)}
         return spec
 
+    # TODO: outdated doc strings
     @tf.function
     def _control_circuit(self, psi, action):
         """

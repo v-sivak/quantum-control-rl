@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_28'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers\run_35'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -42,7 +42,7 @@ reward_kwargs = {
     'N_msmt' : 30,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
                                1j*sqrt(2*pi), -1j*sqrt(2*pi)],
-    'penalty_coeff' : 0.0}
+    'penalty_coeff' : 1.0}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
@@ -54,9 +54,10 @@ reward_kwargs_eval = {
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5,
+                'alpha_correction':0.2}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':True}
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
 
 train_batch_size = 10
 eval_batch_size = 1
@@ -80,12 +81,12 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 1000,
+        num_epochs = 2000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 3e-3,
+        lr = 5e-3,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -96,9 +97,9 @@ PPO.train_eval(
         entropy_regularization = 0,
         # Params for log, eval, save
         eval_interval = 100,
-        save_interval = 1,
+        save_interval = 2,
         checkpoint_interval = None,
-        summary_interval = 1,
+        summary_interval = 2,
         do_evaluation = False,
         # Params for data collection
         train_batch_size = train_batch_size,
