@@ -6,9 +6,9 @@ Created on Mon Mar 22 10:35:37 2021
 """
 import numpy as np
 
-period = 10
+period = 11
 
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z_delta_0.306.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_init_circuits\GKP_plus_Y_delta_0.306_F_98.npz'
 script_npz = np.load(filename)
 
 script = {} # Script of actions

@@ -19,7 +19,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_2'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_2'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -30,7 +30,7 @@ server_socket.connect_client()
 env_kwargs = eval_env_kwargs = {
     'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 10,
+    'T' : 11,
     'N' : 20}
 
 # Params for reward function
@@ -38,22 +38,23 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 50,
+    'N_msmt' : 20,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(pi/2), -1j*sqrt(pi/2)],
-    'penalty_coeff' : 1.0}
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi), 
+                               (1-1j)*sqrt(pi/2), -(1-1j)*sqrt(pi/2)],
+    'penalty_coeff' : 0.5}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 50,
+    'N_msmt' : 30,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
                                1j*sqrt(pi/2), -1j*sqrt(pi/2)],
-    'penalty_coeff' : 1.0}
+    'penalty_coeff' : 0.5}
 
 # Params for action wrapper
-action_script = 'ECD_control_residuals_GKP'
+action_script = 'ECD_control_residuals_GKP_plusY'
 action_scale = {'beta':0.2, 'phi':0.2}
 to_learn = {'beta':True, 'phi':True}
 
@@ -79,7 +80,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 500,
+        num_epochs = 1000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
