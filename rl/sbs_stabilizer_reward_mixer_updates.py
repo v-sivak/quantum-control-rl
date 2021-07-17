@@ -10,6 +10,8 @@ from CD_gate.conditional_displacement_compiler import ECD_control_simple_compile
 from fpga_lib.scripting import get_experiment
 from init_script import gkp
 
+from fpga_lib.scripting import wait_complete, get_last_results
+
 import logging
 logger = logging.getLogger('RL')
 
@@ -51,11 +53,13 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
         # construct the SBS pulse
         beta, phi = action_batch['beta'][:,0], action_batch['phi'][:,0] # shape=[B,T,2]
         phi_ECD, detune = action_batch['flip'][:,0], action_batch['detune'][:,0]
+        alpha_correction = action_batch['alpha_correction'][:,0]
         tau = np.array([gkp.s_tau_ns, gkp.b_tau_ns, gkp.s_tau_ns, 0])
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
-            C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_ECD[I], tau, detune[I])
+            C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_ECD[I], tau, 
+                                               detune[I], alpha_correction[I])
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         logger.info('Constructed waveforms.')
@@ -96,5 +100,14 @@ class sbs_stabilizer_reward_mixer_updates(ReinforcementLearningExperiment):
         reward_data = np.stack([sz['m1'], sz['m2']]) # shape = [2, N_stabilizers, N_msmt, B]
         R = np.mean(sz['m2'])
         logger.info('Average reward %.3f' %R)
+        
+        if R > 0.8:
+            logger.info('FPGA error, re-collecting mini-batch %d.' %self.mini_batch_idx)
+            self.exp.run()
+            wait_complete(self.exp)
+            logger.info('Finished collecting mini-batch %d.' %self.mini_batch_idx)
+            self.results = get_last_results(self.exp)
+            return self.create_reward_data()
+        
         return reward_data
         

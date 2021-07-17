@@ -181,12 +181,12 @@ class GKP(Calibratable):
             c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
         if version in ['v2', 'v3']:
             data = np.load(ECD_filename, allow_pickle=True)
-            beta, phi, phi_CD, detune = data['beta'], data['phi'], data['flip'], data['detune']
+            beta, phi, phi_CD, detune, alpha_correction = data['beta'], data['phi'], data['flip'], data['detune'], data['alpha_correction']
             tau = np.array([s_tau, b_tau, s_tau, 0])
     
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
             C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
-            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune)
+            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune, alpha_correction)
         
         if version in ['v1', 'v2']:
             def sbs_step(s):

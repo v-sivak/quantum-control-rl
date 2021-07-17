@@ -194,7 +194,7 @@ class ECD_control_simple_compiler():
             
         return C_pulse, Q_pulse
 
-    def make_pulse_v2(self, beta, phi, phi_CD, tau, delta):
+    def make_pulse_v2(self, beta, phi, phi_CD, tau, delta, alpha_correction):
         """
         Args:
             beta (array([T,2]), flaot32): Re and Im of conditional displacement
@@ -207,7 +207,10 @@ class ECD_control_simple_compiler():
             delta (array([T,2]), float32): detuning in [Hz] of the qubit pulses.
                 the first comonent is detuning of the echo pi-pulse in the ECD
                 gate, and the second component is detuning of the qubit pulse
-                that goes in the same block as this ECD gate. 
+                that goes in the same block as this ECD gate.
+            alpha_correction (array([T,2]), float32): amplitude and phase
+                corrections to the large displacement alpha used in CD gate.
+                
         """
         T = beta.shape[0] # protocol duration (number of steps)
         C_pulse, Q_pulse = np.array([]), np.array([])
@@ -223,11 +226,15 @@ class ECD_control_simple_compiler():
             # Then create the CD gate
             beta_t = beta[t,0] + 1j*beta[t,1]
             phase_CD_t, angle_CD_t, delta_CD_t = phi_CD[t,0], phi_CD[t,1], delta[t,1]
+            phi_diff_t, phi_avg_t = alpha_correction[t,0], alpha_correction[t,1]
             tau_t = tau[t]
             if t < T-1:
                 alpha = self.CD_params_func(beta_t, tau_t)[0]
-                CD_params = (alpha, -alpha, -alpha, alpha, tau_t, tau_t, 
-                             phase_CD_t, angle_CD_t, delta_CD_t)
+                alpha_1 = alpha
+                alpha_2 = alpha_3 = - alpha * np.cos(phi_diff_t) * np.exp(1j*phi_avg_t)
+                alpha_4 = alpha * np.cos(2*phi_diff_t) * np.exp(2j*phi_avg_t)
+                CD_params = (alpha_1, alpha_2, alpha_3, alpha_4, 
+                             tau_t, tau_t, phase_CD_t, angle_CD_t, delta_CD_t)
                 cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
                 C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
                 Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])
