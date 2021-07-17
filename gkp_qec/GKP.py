@@ -36,6 +36,7 @@ class GKP(Calibratable):
     # Params misc
     loop_delay = IntParameter(4e6)
     t_stabilizer_ns = IntParameter(150)
+    init_tau_ns = IntParameter(50)
     t_mixer_calc_ns = IntParameter(600)
     
     def __init__(self, name='gkp'):
