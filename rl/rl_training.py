@@ -27,6 +27,14 @@ Created on Wed Jan  6 16:26:46 2021
 #e = gkp_prep_ECD_stabilizers()
 #e.training_loop()
 
-from sbs_stabilizer_reward_mixer_updates import sbs_stabilizer_reward_mixer_updates
-e = sbs_stabilizer_reward_mixer_updates()
+#from sbs_stabilizer_reward_mixer_updates import sbs_stabilizer_reward_mixer_updates
+#e = sbs_stabilizer_reward_mixer_updates()
+#e.training_loop()
+
+#from cavity_cooling import cavity_cooling
+#e = cavity_cooling()
+#e.training_loop()
+
+from sbs_Pauli_reward import sbs_Pauli_reward
+e = sbs_Pauli_reward()
 e.training_loop()
