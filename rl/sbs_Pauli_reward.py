@@ -89,7 +89,7 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
                  'opt_file' : self.opt_file,
                  'n_blocks' : self.N_msmt / 10,
                  'averages_per_block' : 10,
-                 'rounds' : 16})
+                 'rounds' : 20})
 
 
     def create_reward_data(self):

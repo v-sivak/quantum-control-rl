@@ -26,6 +26,7 @@ class GKP(Calibratable):
 
     # Params for echoed feedback reset
     echo_delay = IntParameter(868)
+    feedback_delay = IntParameter(0)
     final_delay = IntParameter(64)
     
     # Params for Kerr-cancelling drive
@@ -73,6 +74,35 @@ class GKP(Calibratable):
         delay(final_delay, round=True)
         sync()
 
+    @subroutine
+    def reset_feedback_with_phase_update(self, phase_reg, phase_g_reg, phase_e_reg, 
+                                         log=False, res_name='default'):
+        """
+        Feedback reset with echo during readout.
+        
+        Args:
+            echo_delay (int): delay in [ns] from the beginning of the readout
+                to the qubit echo pulse.
+            final_delay (int): delay in [ns] after the feedback to cancel 
+                deterministic (state-independent) cavity rotation.
+            feedback_delay (int): delay in [ns] of the feedback pulse. There 
+                will be additional processing time contribution on top of this.
+            log (bool): flag to log the measurement outcome.
+            res_name (str): name of the result if measurement is logged.
+        """
+        sync()
+        self.readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
+        sync()
+        if_then_else(self.qubit.measured_low(), 'wait', 'flip')
+        label_next('flip')
+        self.qubit.flip()
+        phase_reg += phase_e_reg
+        goto('continue')
+        label_next('wait')
+        delay(self.qubit.pulse.length)
+        phase_reg += phase_g_reg
+        label_next('continue')
+        sync()
 
     def reset_autonomous_Murch(self, qubit_detuned_obj, readout_detuned_obj,
                     cool_duration_ns, qubit_ramp_ns, readout_ramp_ns,

@@ -7,6 +7,7 @@ class qubit_spec(FPGAExperiment):
     selective = BoolParameter(False)
     fit_func = 'gaussian'
     loop_delay = FloatParameter(1e6)
+    qubit_generator = StringParameter('qubit_LO')
 
     def sequence(self):
         qssb = -50e6
@@ -19,3 +20,11 @@ class qubit_spec(FPGAExperiment):
             qubit.flip(selective=self.selective)
             readout()
             delay(self.loop_delay)
+
+    def update(self):
+        gen_name = self.run_params['qubit_generator']
+        delta_f = self.fit_params['x0']*1e3 - qubit.get_ssb0()
+        new_f = self.run_inst_params[gen_name]['frequency'] + delta_f
+        new_f = np.around(new_f, -3) #rounds to kHz level for generator
+        self.instruments[gen_name].set_frequency(new_f)
+        self.logger.info('Moving %s freq by %s kHz to %s GHz', gen_name, delta_f*1e-3, new_f*1e-9)

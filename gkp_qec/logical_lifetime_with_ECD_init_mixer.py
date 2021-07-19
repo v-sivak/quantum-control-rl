@@ -18,7 +18,6 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
     # Parameters of the initializing ECDC sequence
     Z_init_params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000308_gkp_prep_run2.npz')
     Y_init_params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000308_gkp_prep_run2.npz')
-    init_tau_ns = IntParameter(50)
     
     steps = RangeParameter((1,50,50))
     
@@ -58,7 +57,7 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
         # Pulse for +Z state
         data = np.load(self.Z_init_params_filename, allow_pickle=True)
         beta_Z, phi_Z = data['beta'], data['phi']
-        tau = np.array([self.init_tau_ns]*len(data['beta']))
+        tau = np.array([gkp.init_tau_ns]*len(data['beta']))
         
         CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
         ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
@@ -71,7 +70,7 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
         # Pulse for +Y state
         data = np.load(self.Y_init_params_filename, allow_pickle=True)
         beta_Y, phi_Y = data['beta'], data['phi']
-        tau = np.array([self.init_tau_ns]*len(data['beta']))
+        tau = np.array([gkp.init_tau_ns]*len(data['beta']))
 
         c_pulse_Y, q_pulse_Y = ECD_control_compiler.make_pulse(beta_Y, phi_Y, tau)
         cavity_pulse['Y'], qubit_pulse['Y'] = (c_pulse_Y.real, c_pulse_Y.imag), (q_pulse_Y.real, q_pulse_Y.imag)
@@ -110,19 +109,20 @@ class logical_lifetime_with_ECD_init_mixer(FPGAExperiment):
                     reset()
                     phase_update(phase_reg)
                 reward_circuit(s)
-                
-    # TODO: make it compatible with not measuring on T1 after every time-step
+
     def process_data(self):        
         
+        rounds = np.linspace(*self.steps).astype(int)
+        
         # Account for flipping of the logical Pauli by SBS step
-        # This mask assumes that procol starts with 'x' quadrature
-        flip_mask = {'X' : np.array([+1,-1,-1,+1]*self.steps[-1])[:self.steps[-1]],
-                     'Y' : np.array([+1,-1,+1,-1]*self.steps[-1])[:self.steps[-1]],
-                     'Z' : np.array([+1,+1,-1,-1]*self.steps[-1])[:self.steps[-1]]}
+        # This mask assumes that protocol starts with 'x' quadrature
+        flip_mask = {'X' : np.array([+1,-1,-1,+1]*int(self.steps[1]))[rounds],
+                     'Y' : np.array([+1,+1,+1,+1]*int(self.steps[1]))[rounds],
+                     'Z' : np.array([+1,+1,-1,-1]*int(self.steps[1]))[rounds]}
         
         # Every other round mixer phase is in the wrong quadrature for X and Z
         # so we need to select only part of the data
-        ind = np.arange(0, self.steps[-1], 2)
+        ind = np.where(rounds % 2 == 0)
         
         for s in ['X','Y','Z']:
             logical_pauli = (1 - 2*self.results['m2_'+s].thresh_mean().data) * flip_mask[s]
