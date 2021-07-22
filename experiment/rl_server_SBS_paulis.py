@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_2'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_8'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,7 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 60,
+    'N_msmt' : 50,
     'stabilizer_amplitudes' : [sqrt(pi/2), 1j*sqrt(pi/2)],
     'penalty_coeff' : 1.0}
 
@@ -54,10 +54,9 @@ reward_kwargs_eval ={
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5,
-                'alpha_correction':0.2}
+                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
+            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
 
 train_batch_size = 10
 eval_batch_size = 1

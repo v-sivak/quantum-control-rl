@@ -29,19 +29,19 @@ from math import pi
 import numpy as np
 import importlib
 
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z'
-# exp_name = 'run_4'
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y'
+# exp_name = 'run_2'
 # policy_str= '000000'
 
 # # Params for environment
 # env_kwargs = {
 #     'control_circuit' : 'ECD_control_remote',
 #     'init' : 'vac',
-#     'T' : 10,
+#     'T' : 11,
 #     'N' : 20}
 
 # # Params for action wrapper
-# action_script = 'ECD_control_residuals_GKP'
+# action_script = 'ECD_control_residuals_GKP_plusY'
 # action_scale = {'beta':0.2, 'phi':0.2}
 # to_learn = {'beta':True, 'phi':True}
 
@@ -67,9 +67,9 @@ import importlib
 #             'cavity_phase':True, 'Kerr_drive_amp':False}
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_35'
-policy_str= '000820'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
+exp_name = 'run_8'
+policy_str= '000000'
 
 # Params for environment
 env_kwargs = {
@@ -81,9 +81,9 @@ env_kwargs = {
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
+                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
+            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 

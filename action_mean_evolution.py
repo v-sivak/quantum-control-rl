@@ -18,14 +18,14 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 
-N_epochs = 1000
+N_epochs = 2000
 
 cavity_phases = []
 Kerr_amps = []
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-exp_name = 'run_34'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
+exp_name = 'run_8'
 
 # Params for environment
 env_kwargs = {
@@ -37,9 +37,10 @@ env_kwargs = {
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
+                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True}
+            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
+
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -106,7 +107,7 @@ for a in action_names:
 
 
 
-fig, axes = plt.subplots(3,2, sharex=True, dpi=200)
+fig, axes = plt.subplots(3,3, sharex=True, dpi=200)
 axes = axes.ravel()
 ax = axes[0]
 # ax.set_xlabel('Epoch')
@@ -134,7 +135,7 @@ ax.plot(epochs, all_actions['beta'][:,0,1], color='red', label='eps1')
 
 ax.plot(epochs, all_actions['beta'][:,2,0], color='blue', linestyle='--')
 ax.plot(epochs, all_actions['beta'][:,2,1], color='blue', label='eps2')
-ax.legend()
+# ax.legend()
 
 ax = axes[4]
 ax.set_xlabel('Epoch')
@@ -145,5 +146,10 @@ ax = axes[5]
 ax.set_xlabel('Epoch')
 ax.set_title('phi_sum')
 ax.plot(epochs, all_actions['alpha_correction'][:,1,1])
+
+# ax = axes[6]
+# ax.set_xlabel('Epoch')
+# ax.set_title('Detune (MHz)')
+# ax.plot(epochs, all_actions['qubit_detune']*1e-6)
 
 plt.tight_layout()
