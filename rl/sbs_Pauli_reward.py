@@ -40,8 +40,16 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         self.Z_init_params_filename = r'Y:\tmp\for Vlad\from_vlad\ECD_control_residuals_GKP_000257_run_4.npz'
 
         self.exp = get_experiment(
-                'gkp_exp.rl.sbs_Pauli_reward_fpga', from_gui=self.use_gui)
+                'gkp_exp.rl.sbs_Pauli_reward_fpga_v2', from_gui=self.use_gui)
 
+    
+    def rounds_schedule(self, epoch):
+        if epoch < 50:
+            return 4
+        if epoch < 200:
+            return 16
+        return 24
+    
     def update_exp_params(self):
 
         action_batch = self.message['action_batch']
@@ -89,7 +97,7 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
                  'opt_file' : self.opt_file,
                  'n_blocks' : self.N_msmt / 10,
                  'averages_per_block' : 10,
-                 'rounds' : 20})
+                 'rounds' : self.rounds_schedule(self.epoch)})
 
 
     def create_reward_data(self):

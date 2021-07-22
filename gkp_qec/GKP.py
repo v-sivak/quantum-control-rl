@@ -9,6 +9,7 @@ from fpga_lib.dsl import *
 from fpga_lib.parameters import *
 from fpga_lib.experiments import *
 from fpga_lib import entities
+from fpga_lib.constants import Timing
 
 from gkp_exp.CD_gate.conditional_displacement_compiler import SBS_simple_compiler, ConditionalDisplacementCompiler, ECD_control_simple_compiler
 
@@ -65,11 +66,15 @@ class GKP(Calibratable):
         sync()
         delay(feedback_delay, round=True)
         if_then_else(self.qubit.measured_low(), 'flip', 'wait')
+        
         label_next('flip')
         self.qubit.flip()
         goto('continue')
+        
         label_next('wait')
         delay(self.qubit.pulse.length)
+        goto('continue')
+        
         label_next('continue')
         delay(final_delay, round=True)
         sync()
@@ -91,16 +96,20 @@ class GKP(Calibratable):
             res_name (str): name of the result if measurement is logged.
         """
         sync()
-        self.readout(wait_result=True, log=log, sync_at_beginning=False, **{res_name:'se'})
-        sync()
+        self.readout(wait_result=True, log=log, **{res_name:'se'})
+        delay(4*Timing.send_ext_fn) # TODO: might not need this set_int_fn
         if_then_else(self.qubit.measured_low(), 'wait', 'flip')
+        
         label_next('flip')
         self.qubit.flip()
         phase_reg += phase_e_reg
         goto('continue')
+        
         label_next('wait')
-        delay(self.qubit.pulse.length)
+        self.qubit.delay(self.qubit.pulse.length)
         phase_reg += phase_g_reg
+        goto('continue')
+        
         label_next('continue')
         sync()
 
