@@ -21,13 +21,14 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
     """ GKP stabilization with SBS protocol.
     
         In this version the agent learns 
-            1) Amplitude of conditional displacements in the ECDC sequence
-            2) Parameters of the qubit rotations in the ECDC sequence
-            3) Parameters of the echo pi-pulse played during the ECD gates
-            4) Detuning of all qubit pulses
-            5) Cavity rotation angle
+            1) Amplitude of conditional displacements in SBS
+            2) Parameters of the qubit rotations in SBS
+            3) Parameters of the echo pi-pulse played during the CD gates
+            4) Detuning & drag all qubit pulses in SBS
+            5) Cavity rotation angle for 'g' and 'e' outcomes
             6) Amplitude of the Kerr-cancelling drive
             7) Corrections to large displacement 'alpha' in the CD gate
+            8) Detuning & drag of the feedback pulse in the reset
     
         Reward is logical Pauli values of the ideal code.
     """
@@ -44,11 +45,12 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
 
     
     def rounds_schedule(self, epoch):
-        if epoch < 50:
+        if epoch < 40:
             return 4
-        if epoch < 200:
+        if epoch < 160:
             return 16
-        return 24
+        return 32
+
     
     def update_exp_params(self):
 
@@ -63,20 +65,23 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         
         # construct the SBS pulse
         beta, phi = action_batch['beta'][:,0], action_batch['phi'][:,0] # shape=[B,T,2]
-        phi_ECD, detune = action_batch['flip'][:,0], action_batch['detune'][:,0]
-        alpha_correction = action_batch['alpha_correction'][:,0]
+        phi_ECD, alpha_correction = action_batch['flip'][:,0], action_batch['alpha_correction'][:,0]
+        detune_sbs, drag_sbs = action_batch['detune_sbs'][:,0], action_batch['drag_sbs'][:,0]
+
         tau = np.array([gkp.s_tau_ns, gkp.b_tau_ns, gkp.s_tau_ns, 0])
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
             C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_ECD[I], tau, 
-                                               detune[I], alpha_correction[I])
+                                               detune_sbs[I], alpha_correction[I], drag_sbs[I])
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         
         # get other parameters
         self.cavity_phases = action_batch['cavity_phase'].squeeze()
         self.Kerr_drive_amps = action_batch['Kerr_drive_amp'].squeeze()
+        self.qb_drag = action_batch['drag_reset'].squeeze()
+        self.qb_detune = action_batch['detune_reset'].squeeze()
 
         # Construct the X initialization pulse
         data = np.load(self.Z_init_params_filename, allow_pickle=True)
@@ -89,7 +94,8 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         # save experimental parameters to file
         np.savez(self.opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
                  cavity_phases=self.cavity_phases, Kerr_drive_amps=self.Kerr_drive_amps,
-                 init_cavity_pulse=self.init_cavity_pulse, init_qubit_pulse=self.init_qubit_pulse)
+                 init_cavity_pulse=self.init_cavity_pulse, init_qubit_pulse=self.init_qubit_pulse,
+                 qb_drag=self.qb_drag, qb_detune=self.qb_detune)
         
         # rounds has to be multiple of 4
         self.exp.set_params(

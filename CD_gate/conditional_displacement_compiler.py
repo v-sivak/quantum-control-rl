@@ -12,7 +12,7 @@ from scipy.interpolate import CubicSpline
 from init_script import cavity, qubit
 from ECD_control.ECD_pulse_construction.ECD_pulse_construction import FakeStorage, conditional_displacement_circuit
 
-def get_calibrated_pulse(pulse, zero_pad=None, detune=0):
+def get_calibrated_pulse(pulse, zero_pad=None, detune=0, drag=0):
     """ 
     Get calibrated pulse with correct dac amplitude, detuning etc.
     For qubit this is a pi-pulse, for cavity this is a unit displacement.
@@ -20,7 +20,10 @@ def get_calibrated_pulse(pulse, zero_pad=None, detune=0):
     If the pulse is shorter than 24 ns, fpga_lib will pad it to 24, and
     this function strips that padding and optionally adds its own padding.
     """
+    calibrated_drag = pulse.drag
+    pulse.drag = calibrated_drag + drag
     i, q = pulse.make_wave(zero_pad=False)
+    pulse.drag = calibrated_drag
     f = pulse.detune + detune
     t_offset = (24 - len(i)) / 2 if len(i)<24 else 0
     t = (np.arange(len(i)) + t_offset)*1e-9 # convert to seconds
@@ -90,19 +93,19 @@ class ConditionalDisplacementCompiler():
         alpha_abs_max = 0.95 / cavity.displace.unit_amp
         alpha_abs = np.min([alpha_abs, alpha_abs_max])
         alpha = alpha_abs * np.exp(1j*(np.pi/2.0 + np.angle(beta)))
-        CD_params = (alpha, -alpha, -alpha, alpha, tau_ns, tau_ns, 0, np.pi, 0)
+        CD_params = (alpha, -alpha, -alpha, alpha, tau_ns, tau_ns, 0, np.pi, 0, 0)
         return CD_params
 
 
     def make_pulse(self, alpha1, alpha2, alpha3, alpha4, 
-                    tau1, tau2, phi, theta, Delta):
+                    tau1, tau2, phi, theta, detune, drag):
         """ Build cavity and qubit sequences for CD gate.
 
         Args: 
             alpha1-alpha4 (complex): cavity displacement amplitudes
             tau1-tau2 (int): wait times for cavity rotation
             phi, theta (float): phase and angle of qubit rotation
-            Delta (float): qubit pulse detuning in MHz
+            detune (float): qubit pulse detuning in MHz
 
         In the ideal case, we would have the following settings:
             alpha1 = -alpha2 = -alpha3 = alpha4 = alpha
@@ -111,7 +114,7 @@ class ConditionalDisplacementCompiler():
             Delta = 0
         """
         pi_pulse = get_calibrated_pulse(qubit.pulse, 
-                                zero_pad=self.qubit_pulse_pad, detune=Delta)
+                                zero_pad=self.qubit_pulse_pad, detune=detune, drag=drag)
         D_complex = get_calibrated_pulse(cavity.displace)
 
         #----- first build cavity pulse ------------
@@ -194,7 +197,7 @@ class ECD_control_simple_compiler():
             
         return C_pulse, Q_pulse
 
-    def make_pulse_v2(self, beta, phi, phi_CD, tau, delta, alpha_correction):
+    def make_pulse_v2(self, beta, phi, phi_CD, tau, detune, alpha_correction, drag):
         """
         Args:
             beta (array([T,2]), flaot32): Re and Im of conditional displacement
@@ -204,28 +207,31 @@ class ECD_control_simple_compiler():
             phi (array([T,2]), float32): phase and angle of qubit rotations in
                 the blocks of control sequence.
             tau  (array(T), float32): wait time in [ns] for each ECD gate.
-            delta (array([T,2]), float32): detuning in [Hz] of the qubit pulses.
-                the first comonent is detuning of the echo pi-pulse in the ECD
+            detune (array([T,2]), float32): detuning in [Hz] of the qubit pulses.
+                the first component is detuning of the echo pi-pulse in the ECD
                 gate, and the second component is detuning of the qubit pulse
                 that goes in the same block as this ECD gate.
             alpha_correction (array([T,2]), float32): amplitude and phase
                 corrections to the large displacement alpha used in CD gate.
-                
+            drag (array([T,2]), float32): drag of the qubit pulses.
+                the first component is drag of the echo pi-pulse in the ECD
+                gate, and the second component is drag of the qubit pulse
+                that goes in the same block as this ECD gate.                
         """
         T = beta.shape[0] # protocol duration (number of steps)
         C_pulse, Q_pulse = np.array([]), np.array([])
         
         for t in range(T):
             # First create the qubit rotation gate
-            phase_t, angle_t, delta_t = phi[t,0], phi[t,1], delta[t,0]
-            pi_pulse = get_calibrated_pulse(qubit.pulse, self.CD.qubit_pulse_pad, detune=delta_t)
+            phase_t, angle_t, delta_t, drag_t = phi[t,0], phi[t,1], detune[t,0], drag[t,0]
+            pi_pulse = get_calibrated_pulse(qubit.pulse, self.CD.qubit_pulse_pad, detune=delta_t, drag=drag_t)
             qb_rotation = pi_pulse * angle_t / np.pi * np.exp(1j*phase_t)
             C_pulse = np.concatenate([C_pulse, np.zeros_like(qb_rotation)])
             Q_pulse = np.concatenate([Q_pulse, qb_rotation])
             
             # Then create the CD gate
             beta_t = beta[t,0] + 1j*beta[t,1]
-            phase_CD_t, angle_CD_t, delta_CD_t = phi_CD[t,0], phi_CD[t,1], delta[t,1]
+            phase_CD_t, angle_CD_t, delta_CD_t, drag_CD_t = phi_CD[t,0], phi_CD[t,1], detune[t,1], drag[t,1]
             phi_diff_t, phi_avg_t = alpha_correction[t,0], alpha_correction[t,1]
             tau_t = tau[t]
             if t < T-1:
@@ -234,7 +240,7 @@ class ECD_control_simple_compiler():
                 alpha_2 = alpha_3 = - alpha * np.cos(phi_diff_t) * np.exp(1j*phi_avg_t)
                 alpha_4 = alpha * np.cos(2*phi_diff_t) * np.exp(2j*phi_avg_t)
                 CD_params = (alpha_1, alpha_2, alpha_3, alpha_4, 
-                             tau_t, tau_t, phase_CD_t, angle_CD_t, delta_CD_t)
+                             tau_t, tau_t, phase_CD_t, angle_CD_t, delta_CD_t, drag_CD_t)
                 cav_CD, qb_CD = self.CD.make_pulse(*CD_params)
                 C_pulse = np.concatenate([C_pulse, cav_CD[0] + 1j*cav_CD[1]])
                 Q_pulse = np.concatenate([Q_pulse, qb_CD[0] + 1j*qb_CD[1]])

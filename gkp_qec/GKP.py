@@ -80,20 +80,19 @@ class GKP(Calibratable):
         sync()
 
     @subroutine
-    def reset_feedback_with_phase_update(self, phase_reg, phase_g_reg, phase_e_reg, 
-                                         log=False, res_name='default'):
+    def reset_feedback_with_phase_update(self, phase_reg, phase_g_reg, phase_e_reg,
+                            log=False, res_name='default', detune=0.0, drag=0.0):
         """
         Feedback reset with echo during readout.
         
         Args:
-            echo_delay (int): delay in [ns] from the beginning of the readout
-                to the qubit echo pulse.
-            final_delay (int): delay in [ns] after the feedback to cancel 
-                deterministic (state-independent) cavity rotation.
-            feedback_delay (int): delay in [ns] of the feedback pulse. There 
-                will be additional processing time contribution on top of this.
+            phase_reg (Register): phase register to be updated.
+            phase_g_reg, phase_e_reg (Register): phases that will be added to  
+                the phase_reg depending on the measured outcome.
             log (bool): flag to log the measurement outcome.
             res_name (str): name of the result if measurement is logged.
+            detune, drag (float): exra detuning and drag that will be added
+                to the calibrated pulse values.
         """
         sync()
         self.readout(wait_result=True, log=log, **{res_name:'se'})
@@ -101,7 +100,7 @@ class GKP(Calibratable):
         if_then_else(self.qubit.measured_low(), 'wait', 'flip')
         
         label_next('flip')
-        self.qubit.flip()
+        self.qubit.flip(detune=self.qubit.pulse.detune+detune, drag=self.qubit.pulse.drag+drag)
         phase_reg += phase_e_reg
         goto('continue')
         
@@ -221,12 +220,14 @@ class GKP(Calibratable):
             c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
         if version in ['v2', 'v3']:
             data = np.load(ECD_filename, allow_pickle=True)
-            beta, phi, phi_CD, detune, alpha_correction = data['beta'], data['phi'], data['flip'], data['detune'], data['alpha_correction']
+            beta, phi, phi_CD, alpha_correction = data['beta'], data['phi'], data['flip'], data['alpha_correction']
+            detune, drag = data['detune_sbs'], data['drag_sbs']
+            
             tau = np.array([s_tau, b_tau, s_tau, 0])
     
             CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
             C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
-            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune, alpha_correction)
+            c_pulse, q_pulse = C.make_pulse_v2(beta, phi, phi_CD, tau, detune, alpha_correction, drag)
         
         if version in ['v1', 'v2']:
             def sbs_step(s):

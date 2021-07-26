@@ -32,7 +32,7 @@ class CD_fixed_time_amp_cal(FPGAExperiment):
         return_phase = np.pi/2.0 if not self.flip_qubit else -np.pi/2.0
         C = ConditionalDisplacementCompiler(qubit_pulse_pad=self.qubit_pulse_pad)
         # create CD pulse whose displacement amplitude will be scanned
-        CD_params = (1, -1, -1, 1, self.tau, self.tau, 0, np.pi, 0)
+        CD_params = (1, -1, -1, 1, self.tau, self.tau, 0, np.pi, 0, 0)
         cavity_pulse, qubit_pulse = C.make_pulse(*CD_params)
         cavity_pulse = [cavity_pulse[s]/cavity.displace.unit_amp for s in [0,1]]
 

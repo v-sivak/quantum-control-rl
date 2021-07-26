@@ -27,23 +27,25 @@ class logical_lifetime_with_ECD_init_mixer_v2(FPGAExperiment):
     
     def sequence(self):
 
-        gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
+        gkp.readout, gkp.qubit, gkp.cavity, gkp.qubit_detuned = readout, qubit, cavity_1, qubit_ef
         
         ### Parameters of the stabilization protocol
         params = np.load(self.params_filename, allow_pickle=True)
         Kerr_drive_amp = float(params['Kerr_drive_amp'])
         cavity_phases = params['cavity_phase'].squeeze()
         phase_g, phase_e = cavity_phases[0], cavity_phases[1]
+        qb_detune, qb_drag = params['detune_reset'], params['drag_reset']
         
         # setup qubit mode for Kerr cancelling drive
-        self.qubit_detuned = qubit_ef
-        self.qubit_detuned.set_detune(gkp.Kerr_drive_detune_MHz*1e6)
+        gkp.qubit_detuned.set_detune(gkp.Kerr_drive_detune_MHz*1e6)
         
-        reset = gkp.reset_feedback_with_phase_update
+        def reset(phase_reg, phase_g_reg, phase_e_reg):
+            gkp.reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg,
+                        detune=qb_detune, drag=qb_drag)
 
         def phase_update(phase_reg):
             sync()
-            self.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns,
+            gkp.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns,
                         amp=Kerr_drive_amp, sigma_t=gkp.Kerr_drive_ramp_ns)
 
             gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
