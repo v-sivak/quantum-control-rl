@@ -16,7 +16,6 @@ class logical_lifetime_with_ECD_init_mixer_v2(FPGAExperiment):
     params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000377_sbs_run16.npz')
 
     # Parameters of the initializing ECDC sequence
-    Z_init_params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000308_gkp_prep_run2.npz')
     Y_init_params_filename = StringParameter(r'Y:\tmp\for Vlad\from_vlad\000308_gkp_prep_run2.npz')
     
     steps = RangeParameter((1,50,50))
@@ -55,21 +54,19 @@ class logical_lifetime_with_ECD_init_mixer_v2(FPGAExperiment):
     
         ### Parameters of the initialization pulses 
         cavity_pulse, qubit_pulse = {}, {}
-        
+
         # Pulse for +Z state
-        data = np.load(self.Z_init_params_filename, allow_pickle=True)
-        beta_Z, phi_Z = data['beta'], data['phi']
-        tau = np.array([gkp.init_tau_ns]*len(data['beta']))
-        
-        CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
-        ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
-        c_pulse_Z, q_pulse_Z = ECD_control_compiler.make_pulse(beta_Z, phi_Z, tau)
-        cavity_pulse['Z'], qubit_pulse['Z'] = (c_pulse_Z.real, c_pulse_Z.imag), (q_pulse_Z.real, q_pulse_Z.imag)
+        data = np.load(gkp.plusZ_file, allow_pickle=True)
+        cavity_pulse['Z'] = (data['c_pulse'].real, data['c_pulse'].imag)
+        qubit_pulse['Z'] = (data['q_pulse'].real, data['q_pulse'].imag)
 
         # Pulse for +X state
-        cavity_pulse['X'], qubit_pulse['X'] = (-c_pulse_Z.imag, c_pulse_Z.real), (q_pulse_Z.real, q_pulse_Z.imag)
+        cavity_pulse['X'] = (-data['c_pulse'].imag, data['c_pulse'].real)
+        qubit_pulse['X'] = (data['q_pulse'].real, data['q_pulse'].imag)
 
         # Pulse for +Y state
+        CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
+        ECD_control_compiler = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
         data = np.load(self.Y_init_params_filename, allow_pickle=True)
         beta_Y, phi_Y = data['beta'], data['phi']
         tau = np.array([gkp.init_tau_ns]*len(data['beta']))

@@ -23,7 +23,6 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         self.use_gui = use_gui
         self.max_mini_batch_size = 5
         self.batch_axis = 3
-        self.tau = 50
         self.opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
 
         self.exp = get_experiment(
@@ -43,7 +42,7 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         C = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
         
         # construct the ECD control pulses
-        tau = np.array([self.tau] * beta.shape[1])
+        tau = np.array([gkp.init_tau_ns] * beta.shape[1])
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i

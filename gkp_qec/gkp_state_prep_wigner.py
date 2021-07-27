@@ -18,16 +18,18 @@ class gkp_state_prep_wigner(FPGAExperiment):
     filename = StringParameter(r'C:\code\gkp_exp\state_prep\fock4.npz')
 
     def sequence(self):
-        data = np.load(self.filename, allow_pickle=True)
-        beta, phi = data['beta'], data['phi']
-        tau = np.array([self.tau_ns]*len(data['beta']))
-
         gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity
 
-        # setup the ECD compiler
-        CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
-        self.c_pulse, self.q_pulse = C.make_pulse(beta, phi, tau)
+#        # setup the ECD compiler
+#        CD_compiler_kwargs = dict(qubit_pulse_pad=gkp.qubit_pulse_pad)
+#        C = ECD_control_simple_compiler(CD_compiler_kwargs, gkp.cal_dir)
+#        data = np.load(self.filename, allow_pickle=True)
+#        beta, phi = data['beta'], data['phi']
+#        tau = np.array([self.tau_ns]*len(data['beta']))
+#        self.c_pulse, self.q_pulse = C.make_pulse(beta, phi, tau)
+
+        data = np.load(self.filename)
+        self.c_pulse, self.q_pulse = data['c_pulse'], data['q_pulse']
 
         def ECDC_sequence():
             sync()

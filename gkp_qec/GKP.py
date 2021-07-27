@@ -24,6 +24,9 @@ class GKP(Calibratable):
     s_tau_ns = IntParameter(20)
     b_tau_ns = IntParameter(150)
     cal_dir = StringParameter(r'D:\DATA\exp\2021-06-28_cooldown\CD_fixed_time_amp_cal')
+    plusX_file = StringParameter(r'D:\DATA\exp\2021-06-28_cooldown\gkp_prep\plus_X.npz')
+    plusY_file = StringParameter('')
+    plusZ_file = StringParameter('')
 
     # Params for echoed feedback reset
     echo_delay = IntParameter(868)
@@ -40,6 +43,8 @@ class GKP(Calibratable):
     t_stabilizer_ns = IntParameter(150)
     init_tau_ns = IntParameter(50)
     t_mixer_calc_ns = IntParameter(600)
+    
+    
     
     def __init__(self, name='gkp'):
         super(GKP, self).__init__(name)
@@ -249,10 +254,19 @@ class GKP(Calibratable):
                 sync()            
         
         return sbs_step
-        
-
-    def snap(self, snap_length):
-        delay(snap_length)
+    
+    def export_ECDC_to_array_pulse(self, ecdc_filename, array_pulse_filename):
+        """" Convert ECDC sequence to an array pulse and export it to a file.
+        This is useful in case when different calibrated pulse parameters change
+        and the previously optimized sequence becomes suboptimal. Saving the
+        whole array pulse avoids this problem, since it no longer relies on cal."""
+        CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
+        data = np.load(ecdc_filename, allow_pickle=True)
+        beta, phi = data['beta'], data['phi']
+        tau = np.array([self.init_tau_ns]*len(data['beta']))
+        c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
+        np.savez(array_pulse_filename, c_pulse=c_pulse, q_pulse=q_pulse)
         
 
     def stabilizer_phase_estimation(self, tau_ns):

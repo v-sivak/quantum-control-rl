@@ -38,18 +38,16 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         self.max_mini_batch_size = 10
         self.batch_axis = 3
         self.opt_file = r'D:\DATA\exp\2021-06-28_cooldown\sbs_stabilizer_reward\opt_data.npz'
-        self.Z_init_params_filename = r'Y:\tmp\for Vlad\from_vlad\ECD_control_residuals_GKP_000257_run_4.npz'
 
-        self.exp = get_experiment(
-                'gkp_exp.rl.sbs_Pauli_reward_fpga_v2', from_gui=self.use_gui)
+        self.exp = get_experiment('gkp_exp.rl.sbs_Pauli_reward_fpga_v2', from_gui=self.use_gui)
 
     
     def rounds_schedule(self, epoch):
-        if epoch < 40:
+        if epoch < 80:
             return 4
         if epoch < 160:
             return 16
-        return 32
+        return 28
 
     
     def update_exp_params(self):
@@ -83,11 +81,9 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         self.qb_drag = action_batch['drag_reset'].squeeze()
         self.qb_detune = action_batch['detune_reset'].squeeze()
 
-        # Construct the X initialization pulse
-        data = np.load(self.Z_init_params_filename, allow_pickle=True)
-        beta, phi = data['beta'], data['phi']
-        tau = np.array([gkp.init_tau_ns]*len(data['beta']))
-        self.init_cavity_pulse, self.init_qubit_pulse = C.make_pulse(beta, phi, tau)
+        # Construct the X initialization pulse        
+        data = np.load(gkp.plusZ_file, allow_pickle=True)
+        self.init_cavity_pulse, self.init_qubit_pulse = data['c_pulse'], data['q_pulse']
         self.init_cavity_pulse *= 1j # need a pulse for X state, not Z state
         logger.info('Constructed waveforms.')
 
