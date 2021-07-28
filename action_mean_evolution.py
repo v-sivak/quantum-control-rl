@@ -18,14 +18,14 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 
-N_epochs = 2000
+N_epochs = 286
 
 cavity_phases = []
 Kerr_amps = []
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_8'
+exp_name = 'run_18'
 
 # Params for environment
 env_kwargs = {
@@ -35,12 +35,13 @@ env_kwargs = {
     'N' : 20}
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
-
+action_script = 'SBS_remote_residuals_2'
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
+                'cavity_phase':0.2, 'Kerr_drive_amp':0.2, 'alpha_correction':0.2,
+                'detune_sbs':2e6, 'drag_sbs':4.0, 'detune_reset':2e6, 'drag_reset':4.0}
+to_learn = {'beta':False, 'phi':False, 'flip':False, 
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':False,
+            'detune_sbs':False, 'drag_sbs':False, 'detune_reset':False, 'drag_reset':False}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -77,33 +78,6 @@ for a in action_names:
     all_actions[a] = np.array(all_actions[a])
     
 
-# fig, ax = plt.subplots(1,1)
-# ax.set_xlabel('Epoch')
-# ax.set_title('Kerr_drive_amp')
-# ax.plot(all_actions['Kerr_drive_amp'])
-
-
-# fig, ax = plt.subplots(1,1)
-# ax.set_xlabel('Epoch')
-# ax.set_title('cavity_phase')
-# ax.plot(all_actions['cavity_phase'])
-
-
-# fig, ax = plt.subplots(1,1)
-# ax.set_xlabel('Epoch')
-# ax.set_title('beta_real')
-# ax.plot(all_actions['beta'][:,1,0])
-
-
-# fig, ax = plt.subplots(1,1)
-# ax.set_xlabel('Epoch')
-# ax.set_title('eps1 & eps2')
-# ax.plot(all_actions['beta'][:,0,0], color='red', linestyle='--')
-# ax.plot(all_actions['beta'][:,0,1], color='red', label='eps1')
-
-# ax.plot(all_actions['beta'][:,2,0], color='blue', linestyle='--')
-# ax.plot(all_actions['beta'][:,2,1], color='blue', label='eps2')
-# ax.legend()
 
 
 
@@ -147,9 +121,17 @@ ax.set_xlabel('Epoch')
 ax.set_title('phi_sum')
 ax.plot(epochs, all_actions['alpha_correction'][:,1,1])
 
-# ax = axes[6]
-# ax.set_xlabel('Epoch')
-# ax.set_title('Detune (MHz)')
-# ax.plot(epochs, all_actions['qubit_detune']*1e-6)
+ax = axes[6]
+ax.set_xlabel('Epoch')
+ax.set_title('Detune (MHz)')
+ax.plot(epochs, all_actions['detune_reset']*1e-6, linestyle='--')
+ax.plot(epochs, all_actions['detune_sbs'].reshape(len(epochs), 8)*1e-6)
+
+
+ax = axes[7]
+ax.set_xlabel('Epoch')
+ax.set_title('drag')
+ax.plot(epochs, all_actions['drag_reset'], linestyle='--')
+ax.plot(epochs, all_actions['drag_sbs'].reshape(len(epochs), 8))
 
 plt.tight_layout()

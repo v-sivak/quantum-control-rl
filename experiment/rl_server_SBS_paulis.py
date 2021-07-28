@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_8'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_18'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -52,11 +52,14 @@ reward_kwargs_eval ={
     'penalty_coeff' : 1.0}
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
+action_script = 'SBS_remote_residuals_2'
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
+                'cavity_phase':0.2, 'Kerr_drive_amp':0.2, 'alpha_correction':0.2,
+                'detune_sbs':2e6, 'drag_sbs':4.0, 'detune_reset':2e6, 'drag_reset':4.0}
+to_learn = {'beta':False, 'phi':False, 'flip':False, 
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':False,
+            'detune_sbs':False, 'drag_sbs':False, 'detune_reset':False, 'drag_reset':False}
+
 
 train_batch_size = 10
 eval_batch_size = 1
@@ -94,6 +97,7 @@ PPO.train_eval(
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         entropy_regularization = 0,
+        log_prob_clipping = 0.0,
         # Params for log, eval, save
         eval_interval = 100,
         save_interval = 2,
@@ -109,6 +113,7 @@ PPO.train_eval(
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         zero_means_kernel_initializer = True,
+        init_action_stddev = 0.05,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = False,

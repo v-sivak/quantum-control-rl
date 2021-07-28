@@ -29,47 +29,27 @@ from math import pi
 import numpy as np
 import importlib
 
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y'
-# exp_name = 'run_2'
-# policy_str= '000000'
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z'
+# exp_name = 'run_5'
+# policy_str= '000288'
 
 # # Params for environment
 # env_kwargs = {
 #     'control_circuit' : 'ECD_control_remote',
 #     'init' : 'vac',
-#     'T' : 11,
+#     'T' : 10,
 #     'N' : 20}
 
 # # Params for action wrapper
-# action_script = 'ECD_control_residuals_GKP_plusY'
+# action_script = 'ECD_control_residuals_GKP_plusZ'
 # action_scale = {'beta':0.2, 'phi':0.2}
 # to_learn = {'beta':True, 'phi':True}
 
 
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_stabilizers'
-# exp_name = 'run_29'
-# policy_str= '000000'
-
-# # Params for environment
-# env_kwargs = {
-#     'control_circuit' : 'SBS_Murch_remote',
-#     'init' : 'vac',
-#     'T' : 1,
-#     'N' : 20}
-
-# # Params for action wrapper
-# action_script = 'SBS_remote_residuals_Murch'
-# action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-#                 'Murch_amp':0.2, 'Murch_phi':0.4, 'Murch_detune_MHz':6,
-#                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5}
-# to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-#             'Murch_amp':True, 'Murch_phi':True, 'Murch_detune_MHz':True,
-#             'cavity_phase':True, 'Kerr_drive_amp':False}
-
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_8'
-policy_str= '000000'
+exp_name = 'run_18'
+policy_str= '000130'
 
 # Params for environment
 env_kwargs = {
@@ -79,11 +59,13 @@ env_kwargs = {
     'N' : 20}
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 'detune':2e6,
-                'cavity_phase':1.0, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 'detune':True,
-            'cavity_phase':True, 'Kerr_drive_amp':False, 'alpha_correction':True}
+action_script = 'SBS_remote_residuals_2'
+action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
+                'cavity_phase':0.2, 'Kerr_drive_amp':0.2, 'alpha_correction':0.2,
+                'detune_sbs':2e6, 'drag_sbs':4.0, 'detune_reset':2e6, 'drag_reset':4.0}
+to_learn = {'beta':False, 'phi':False, 'flip':False, 
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':False,
+            'detune_sbs':False, 'drag_sbs':False, 'detune_reset':False, 'drag_reset':False}
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 
