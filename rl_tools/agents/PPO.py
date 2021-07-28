@@ -37,6 +37,7 @@ def train_eval(
         value_pred_loss_coef = 0.5,
         gradient_clipping = None,
         entropy_regularization = 0.0,
+        log_prob_clipping = 0.0,
         # Params for log, eval, save
         eval_interval = 100,
         save_interval = 1000,
@@ -52,6 +53,7 @@ def train_eval(
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         zero_means_kernel_initializer = False,
+        init_action_stddev = 0.35,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = True,
@@ -88,6 +90,8 @@ def train_eval(
             estimation loss.
         gradient_clipping (float): gradient clipping coefficient.
         entropy_regularization (float): entropy regularization loss coefficient.
+        log_prob_clipping (float): +/- value for clipping log probs to prevent 
+            inf / NaN values.  Default: no clipping.
         eval_interval (int): interval between evaluations, counted in epochs.
         save_interval (int): interval between savings, counted in epochs. It
             updates the log file and saves the deterministic policy.
@@ -111,6 +115,7 @@ def train_eval(
         zero_means_kernel_initializer (bool): flag to initialize the means
             projection network with zeros. If this flag is not set, it will
             use default tf-agent random initializer.
+        init_action_stddev (float): initial stddev of the normal action dist.
         actor_fc_layers (tuple): sizes of fully connected layers in actor net.
         value_fc_layers (tuple): sizes of fully connected layers in value net.
         use_rnn (bool): whether to use LSTM units in the neural net.
@@ -166,7 +171,8 @@ def train_eval(
         else:
             npn = actor_distribution_network._normal_projection_net
             normal_projection_net = lambda specs: npn(specs, 
-                zero_means_kernel_initializer=zero_means_kernel_initializer)
+                zero_means_kernel_initializer=zero_means_kernel_initializer,
+                init_action_stddev=init_action_stddev)
             
             actor_net = ActorNet(
                 input_tensor_spec = observation_spec,
@@ -201,6 +207,7 @@ def train_eval(
             gradient_clipping = gradient_clipping,
             value_pred_loss_coef = value_pred_loss_coef,
             entropy_regularization=entropy_regularization,
+            log_prob_clipping=log_prob_clipping,
             debug_summaries = True)
         
         tf_agent.initialize()
