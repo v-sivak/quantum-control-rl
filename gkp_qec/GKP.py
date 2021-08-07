@@ -117,6 +117,55 @@ class GKP(Calibratable):
         label_next('continue')
         sync()
 
+
+    @subroutine
+    def reset_feedback_with_phase_update_and_Kerr_drive(self, phase_reg, phase_g_reg, phase_e_reg,
+                            log=False, res_name='default', detune=0.0, drag=0.0, 
+                            Kerr_g_amp=0.0, Kerr_e_amp=0.0):
+        """
+        Feedback reset with phase update and Kerr-cancelling drive. Surprise.
+        
+        Args:
+            phase_reg (Register): phase register to be updated.
+            phase_g_reg, phase_e_reg (Register): phases that will be added to  
+                the phase_reg depending on the measured outcome.
+            log (bool): flag to log the measurement outcome.
+            res_name (str): name of the result if measurement is logged.
+            detune, drag (float): exra detuning and drag that will be added
+                to the calibrated pulse values.
+            Kerr_g_amp, Kerr_e_amp (float): amplitude of the Kerr drive
+        """
+        sync()
+        self.readout(wait_result=True, log=log, **{res_name:'se'})
+        delay(4*Timing.send_ext_fn) # TODO: might neeed set_int_fn?
+        if_then_else(self.qubit.measured_low(), 'meas_g', 'meas_e')
+        
+        label_next('meas_e')
+        sync()
+        self.qubit.flip(detune=self.qubit.pulse.detune+detune, drag=self.qubit.pulse.drag+drag)
+        phase_reg += phase_e_reg
+        sync()
+        self.qubit_detuned.smoothed_constant_pulse(self.Kerr_drive_time_ns,
+                        amp=Kerr_e_amp, sigma_t=self.Kerr_drive_ramp_ns)
+        self.update_phase(phase_reg, self.cavity, self.t_mixer_calc_ns)
+        sync()
+        goto('continue')
+        
+        label_next('meas_g')
+        sync()
+        self.qubit.delay(self.qubit.pulse.length)
+        phase_reg += phase_g_reg
+        sync()
+        self.qubit_detuned.smoothed_constant_pulse(self.Kerr_drive_time_ns,
+                        amp=Kerr_g_amp, sigma_t=self.Kerr_drive_ramp_ns)
+        self.update_phase(phase_reg, self.cavity, self.t_mixer_calc_ns)
+        sync()
+        goto('continue')
+        
+        label_next('continue')
+        sync()
+        
+
     def reset_autonomous_Murch(self, qubit_detuned_obj, readout_detuned_obj,
                     cool_duration_ns, qubit_ramp_ns, readout_ramp_ns,
                     qubit_amp, readout_amp, qubit_detune_MHz, readout_detune_MHz,

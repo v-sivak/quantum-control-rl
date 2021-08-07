@@ -45,9 +45,9 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
     def rounds_schedule(self, epoch):
         if epoch < 80:
             return 4
-        if epoch < 160:
+        if epoch < 200:
             return 16
-        return 28
+        return 24
 
     
     def update_exp_params(self):

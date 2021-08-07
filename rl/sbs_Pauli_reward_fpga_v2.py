@@ -30,7 +30,8 @@ class sbs_Pauli_reward_fpga_v2(FPGAExperiment):
         # load experimental parameters from file
         params = np.load(self.opt_file, allow_pickle=True)
         self.cavity_phases = params['cavity_phases']
-        self.Kerr_drive_amps = params['Kerr_drive_amps']
+        Kerr_g_drive_amps = params['Kerr_drive_amps'][:,0]
+        Kerr_e_drive_amps = params['Kerr_drive_amps'][:,1]
         self.qubit_pulses = [(p.real, p.imag) for p in params['qubit_pulses']]
         self.cavity_pulses = [(p.real, p.imag) for p in params['cavity_pulses']]
         init_qubit_pulse = (params['init_qubit_pulse'].real, params['init_qubit_pulse'].imag)
@@ -45,17 +46,9 @@ class sbs_Pauli_reward_fpga_v2(FPGAExperiment):
             sync()
 
         def reset(phase_reg, phase_g_reg, phase_e_reg, i):
-            gkp.reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg,
-                        detune=qb_detune[i], drag=qb_drag[i])
-        
-
-        def phase_update(phase_reg, i):
-            sync()
-            gkp.qubit_detuned.smoothed_constant_pulse(gkp.Kerr_drive_time_ns,
-                        amp=self.Kerr_drive_amps[i], sigma_t=gkp.Kerr_drive_ramp_ns)
-
-            gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
-            sync()
+            gkp.reset_feedback_with_phase_update_and_Kerr_drive(
+                    phase_reg, phase_g_reg, phase_e_reg, detune=qb_detune[i], drag=qb_drag[i],
+                    Kerr_g_amp=Kerr_g_drive_amps[i], Kerr_e_amp=Kerr_e_drive_amps[i])
 
         def init_setup(phase_reg, phase_g_reg, phase_e_reg, i):
             sync()
@@ -72,7 +65,6 @@ class sbs_Pauli_reward_fpga_v2(FPGAExperiment):
             with Repeat(self.rounds):
                 sbs_step(i)
                 reset(phase_reg, phase_g_reg, phase_e_reg, i)
-                phase_update(phase_reg, i)
             sync()
 
         paulis = {'X' : np.sqrt(np.pi/2.0),
