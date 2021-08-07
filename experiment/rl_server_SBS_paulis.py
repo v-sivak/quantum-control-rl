@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_22'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_24'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,7 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 50,
+    'N_msmt' : 60,
     'stabilizer_amplitudes' : [sqrt(pi/2), 1j*sqrt(pi/2)],
     'penalty_coeff' : 1.0}
 
@@ -55,10 +55,10 @@ reward_kwargs_eval ={
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
-                'detune_sbs':2e6, 'drag_sbs':4.0, 'detune_reset':2e6, 'drag_reset':4.0}
+                'qb_detune':5e6, 'qb_drag':4.0}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 
             'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
-            'detune_sbs':True, 'drag_sbs':False, 'detune_reset':True, 'drag_reset':False}
+            'qb_detune':True, 'qb_drag':False}
 
 
 train_batch_size = 10

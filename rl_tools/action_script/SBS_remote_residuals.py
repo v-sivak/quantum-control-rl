@@ -19,8 +19,8 @@ drag_flip, drag_ecd = [0, 0, 0, 0], [0, 0, 0, 0]
 cavity_phase = [-1.62, 0.87]  #-0.45
 Kerr_drive_amp = [0.0, 0.0]
 alpha_correction = [0.0, 0.0]
-detune_reset = 0.0
-drag_reset = 0.0
+qb_detune = 0.0
+qb_drag = 0.0
 
 
 script = {} # Script of actions
@@ -28,13 +28,11 @@ script = {} # Script of actions
 script['beta'] = [[[np.real(b), np.imag(b)] for b in beta_complex]] # shape=[1,4,2]
 script['phi'] = [[[p,a] for (p,a) in zip(qb_phase, qb_angle)]] # shape=[1,4,2]
 script['flip'] = [[[p,a] for (p,a) in zip(flip_phase, flip_angle)]] # shape=[1,4,2]
-script['detune_sbs'] = [[[p,a] for (p,a) in zip(detune_flip, detune_ecd)]] # shape=[1,4,2]
-script['drag_sbs'] = [[[p,a] for (p,a) in zip(drag_flip, drag_ecd)]] # shape=[1,4,2]
 
 script['cavity_phase'] = [cavity_phase] # shape=[1,2]
 script['Kerr_drive_amp'] = [Kerr_drive_amp] # shape=[1,2]
-script['detune_reset'] = [[detune_reset]] # shape=[1,1]
-script['drag_reset'] = [[drag_reset]] # shape=[1,1]
+script['qb_detune'] = [[qb_detune]] # shape=[1,1]
+script['qb_drag'] = [[qb_drag]] # shape=[1,1]
 script['alpha_correction'] = [[alpha_correction]*4] # shape=[1,4,2]
 
 
