@@ -275,7 +275,7 @@ class GKP(Calibratable):
         if version in ['v2', 'v3']:
             data = np.load(ECD_filename, allow_pickle=True)
             beta, phi, phi_CD, alpha_correction = data['beta'], data['phi'], data['flip'], data['alpha_correction']
-            detune, drag = data['detune_sbs'], data['drag_sbs']
+            detune, drag = data['qb_detune']*np.ones([4,2]), data['qb_drag']*np.ones([4,2])
             
             tau = np.array([s_tau, b_tau, s_tau, 0])
     

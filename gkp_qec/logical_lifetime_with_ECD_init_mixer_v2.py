@@ -32,7 +32,7 @@ class logical_lifetime_with_ECD_init_mixer_v2(FPGAExperiment):
         params = np.load(self.params_filename, allow_pickle=True)
         cavity_phases = params['cavity_phase'].squeeze()
         phase_g, phase_e = cavity_phases[0], cavity_phases[1]
-        qb_detune, qb_drag = params['detune_reset'], params['drag_reset']
+        qb_detune, qb_drag = params['qb_detune'], params['qb_drag']
         Kerr_drive_amps = params['Kerr_drive_amp'].squeeze()
         Kerr_g_amp, Kerr_e_amp = Kerr_drive_amps[0], Kerr_drive_amps[1]
 

@@ -64,22 +64,22 @@ class sbs_Pauli_reward(ReinforcementLearningExperiment):
         # construct the SBS pulse
         beta, phi = action_batch['beta'][:,0], action_batch['phi'][:,0] # shape=[B,T,2]
         phi_ECD, alpha_correction = action_batch['flip'][:,0], action_batch['alpha_correction'][:,0]
-        detune_sbs, drag_sbs = action_batch['detune_sbs'][:,0], action_batch['drag_sbs'][:,0]
+        self.qb_drag = action_batch['qb_drag'].squeeze()
+        self.qb_detune = action_batch['qb_detune'].squeeze()
 
         tau = np.array([gkp.s_tau_ns, gkp.b_tau_ns, gkp.s_tau_ns, 0])
         self.cavity_pulses, self.qubit_pulses = [], []
         for i in range(mini_batch_size):
             I = i_offset + i
+            detune, drag = self.qb_detune[I]*np.ones([4,2]), self.qb_drag[I]*np.ones([4,2])
             C_pulse, Q_pulse = C.make_pulse_v2(beta[I], phi[I], phi_ECD[I], tau, 
-                                               detune_sbs[I], alpha_correction[I], drag_sbs[I])
+                                               detune, alpha_correction[I], drag)
             self.cavity_pulses.append(C_pulse)
             self.qubit_pulses.append(Q_pulse)
         
         # get other parameters
         self.cavity_phases = action_batch['cavity_phase'].squeeze()
         self.Kerr_drive_amps = action_batch['Kerr_drive_amp'].squeeze()
-        self.qb_drag = action_batch['drag_reset'].squeeze()
-        self.qb_detune = action_batch['detune_reset'].squeeze()
 
         # Construct the X initialization pulse        
         data = np.load(gkp.plusZ_file, allow_pickle=True)
