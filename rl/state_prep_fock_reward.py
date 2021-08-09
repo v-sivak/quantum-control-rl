@@ -17,10 +17,12 @@ __all__ = ['state_prep_fock_reward']
 class state_prep_fock_reward(ReinforcementLearningExperiment):
     """ State preparation with Fock reward. """
 
-    def __init__(self):
-        self.max_mini_batch_size = 10
+    def __init__(self, use_gui=True):
+        self.use_gui = use_gui
+        self.max_mini_batch_size = 15
         self.batch_axis = 1
         self.tau_ns = 20
+        self.cal_dir = r'D:\DATA\exp\2021-06-28_cooldown\CD_fixed_time_amp_cal'
 
     def update_exp_params(self):
 
@@ -32,10 +34,8 @@ class state_prep_fock_reward(ReinforcementLearningExperiment):
         mini_batch_size = self.mini_batches[self.mini_batch_idx]
         i_offset = sum(self.mini_batches[:self.mini_batch_idx])
 
-
-        CD_compiler_kwargs = dict(qubit_pulse_pad=0)
-        cal_dir = r'D:\DATA\exp\2021-05-13_cooldown\CD_fixed_time_amp_cal'
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
+        CD_compiler_kwargs = dict(qubit_pulse_pad=4)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
         tau = np.array([self.tau_ns]*T)
         
         self.cavity_pulses, self.qubit_pulses = [], []

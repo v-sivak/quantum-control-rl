@@ -304,16 +304,26 @@ class GKP(Calibratable):
         
         return sbs_step
     
-    def export_ECDC_to_array_pulse(self, ecdc_filename, array_pulse_filename):
+    def export_ECDC_to_array_pulse(self, ecdc_filename, array_pulse_filename, **kwargs):
         """" Convert ECDC sequence to an array pulse and export it to a file.
         This is useful in case when different calibrated pulse parameters change
         and the previously optimized sequence becomes suboptimal. Saving the
         whole array pulse avoids this problem, since it no longer relies on cal."""
-        CD_compiler_kwargs = dict(qubit_pulse_pad=self.qubit_pulse_pad)
-        C = ECD_control_simple_compiler(CD_compiler_kwargs, self.cal_dir)
+        
+        cond = 'qubit_pulse_pad' in kwargs.keys()
+        qubit_pulse_pad = kwargs.pop('qubit_pulse_pad') if cond else self.qubit_pulse_pad
+        
+        cond = 'init_tau_ns' in kwargs.keys()
+        init_tau_ns = kwargs.pop('init_tau_ns') if cond else self.init_tau_ns
+        
+        cond = 'cal_dir' in kwargs.keys()
+        cal_dir = kwargs.pop('cal_dir') if cond else self.cal_dir        
+        
+        CD_compiler_kwargs = dict(qubit_pulse_pad=qubit_pulse_pad)
+        C = ECD_control_simple_compiler(CD_compiler_kwargs, cal_dir)
         data = np.load(ecdc_filename, allow_pickle=True)
         beta, phi = data['beta'], data['phi']
-        tau = np.array([self.init_tau_ns]*len(data['beta']))
+        tau = np.array([init_tau_ns]*len(data['beta']))
         c_pulse, q_pulse = C.make_pulse(beta, phi, tau)
         np.savez(array_pulse_filename, c_pulse=c_pulse, q_pulse=q_pulse)
         
