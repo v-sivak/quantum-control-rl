@@ -152,6 +152,18 @@ class out_and_back_echo(FPGAExperiment):
         ax = fig.add_subplot(111)
         ax.set_xlabel('Echo delay [ns]')
         ax.set_ylabel('Phase [deg]')
+        
+        def linear(x, a, b):
+            return a * x + b
+        
+        params = {}
+        
         for s in ['g','e']:
             ax.plot(self.echo_delays, self.results[s + '_fit_gaussian'].data,
-                    marker='.')
+                    marker='o', linestyle='none')
+            popt, pcov = curve_fit(linear, self.echo_delays, self.results[s + '_fit_gaussian'].data)
+            ax.plot(self.echo_delays, linear(self.echo_delays, *popt))
+            params[s] = popt
+        
+        optimum = (params['g'][1]-params['e'][1]) / (params['e'][0]-params['g'][0])
+        ax.set_title('Optimal echo delay %.2f' %optimum)
