@@ -22,9 +22,10 @@ print('Created spec')
 
 # (Card number, channel number, amplitude)
 modes = [
-    (0, 0, 0.10), # qubit g-e
-    (0, 2, 0.15), # readout
-    (1, 0, 0.50)  # storage
+#    (0, 0, 0.10), # qubit g-e
+#    (0, 2, 0.15), # readout
+#    (1, 0, 0.50), # storage
+    (1, 2, 0.8)   # chi cancelling drive
 ]
 
 
@@ -72,6 +73,8 @@ def get_LO_frequency(card, chan):
         carr = instruments['readout_LO'].get_frequency()
     elif card == 1 and chan==0:
         carr = instruments['storage_LO'].get_frequency()
+    elif card == 1 and chan==2:
+        carr = instruments['brick'].get_frequency()
     else:
         raise ValueError((card, chan))
     return carr
