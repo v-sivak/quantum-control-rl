@@ -460,7 +460,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             Required reward_kwargs:
                 reward_mode (str): 'tomography_remote'
                 tomography (str): either 'wigner' or 'CF'
-                target_state (Qobj, type=ket): Qutip state-vector object
+                target_state (qt.Qobj or tf.Tensor): state-vector object
                 window_size (float): size of (symmetric) phase space window
                 server_socket (Socket): socket for communication
                 amplitude_type (str): either 'displacement' or 'translation'
@@ -476,8 +476,11 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.server_socket = reward_kwargs.pop('server_socket')
             
             target_state = reward_kwargs.pop('target_state')
-            target_state = tf.constant(target_state.full(), dtype=c64)
-            target_state = tf.transpose(target_state)
+            if isinstance(target_state, qt.Qobj):
+                target_state = tf.constant(target_state.full(), dtype=c64)
+                target_state = tf.transpose(target_state)
+            elif not isinstance(target_state, tf.Tensor):
+                raise NotImplementedError 
             reward_kwargs['target_state'] = target_state
             
             self.calculate_reward = \
