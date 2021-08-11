@@ -19,7 +19,7 @@ from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_5'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock1\run_2'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -30,16 +30,16 @@ server_socket.connect_client()
 env_kwargs = {
     'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 8,
+    'T' : 5,
     'N' : 100}
 
 # Params for reward function
 reward_kwargs = {
     'reward_mode' : 'fock_remote',
-    'fock' : 4,
+    'fock' : 1,
     'epoch_type' : 'training',
     'server_socket' : server_socket,
-    'N_msmt' : 10}
+    'N_msmt' : 50}
 
 reward_kwargs_eval = {
     'reward_mode' : 'fock_remote',
@@ -49,11 +49,11 @@ reward_kwargs_eval = {
     'N_msmt' : 1000}
 
 # Params for action wrapper
-action_script = 'ECD_control_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
+action_script = 'ECD_control_residuals_fock1'
+action_scale = {'beta':0.3, 'phi':0.3}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 20
+train_batch_size = 15
 eval_batch_size = 1
 
 learn_residuals = True
@@ -80,13 +80,13 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-4,
+        lr = 1e-3,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
         kl_cutoff_factor = 0,
         importance_ratio_clipping = 0.1,
-        value_pred_loss_coef = 0.005,
+        value_pred_loss_coef = 0.05,
         gradient_clipping = 1.0,
         entropy_regularization = 0,
         # Params for log, eval, save
