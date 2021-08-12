@@ -18,12 +18,15 @@ class Wigner_with_reset_phase_update(FPGAExperiment):
     phase_g = FloatParameter(0.0)
     phase_e = FloatParameter(0.0)
 
+    Kerr_g_amp = FloatParameter(0.0)
+    Kerr_e_amp = FloatParameter(0.3)
+
     def sequence(self):
-        
+
         gkp.readout, gkp.qubit, gkp.cavity = readout, qubit, cavity_1
-        
+        gkp.qubit_detuned = qubit_ef
 #        @subroutine
-#        def reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg, 
+#        def reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg,
 #                                             log=False, res_name='default'):
 #            sync()
 #            readout(wait_result=True, log=log, **{res_name:'se'})
@@ -40,22 +43,22 @@ class Wigner_with_reset_phase_update(FPGAExperiment):
 #            sync()
 
         @subroutine
-        def reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg, 
+        def reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg,
                                              log=False, res_name='default'):
             sync()
             readout(wait_result=True, log=log, **{res_name:'se'})
             if_then_else(qubit.measured_low(), 'wait', 'flip')
-            
+
             label_next('wait')
             phase_reg += phase_g_reg
             qubit.delay(qubit.pulse.length)
             goto('continue')
-            
+
             label_next('flip')
             phase_reg += phase_e_reg
             qubit.flip()
             goto('continue')
-            
+
             label_next('continue')
             sync()
 
@@ -70,7 +73,7 @@ class Wigner_with_reset_phase_update(FPGAExperiment):
 
             gkp.update_phase(phase_reg, gkp.cavity, gkp.t_mixer_calc_ns)
             sync()
-        
+
         phase_reg = FloatRegister()
         phase_g_reg = FloatRegister()
         phase_e_reg = FloatRegister()
@@ -92,7 +95,7 @@ class Wigner_with_reset_phase_update(FPGAExperiment):
             phase_reg <<= 0
             gkp.reset_mixer(gkp.cavity, gkp.t_mixer_calc_ns)
             sync()
-            
+
             sync()
             if self.flip_qubit:
                 qubit.flip()
@@ -101,10 +104,10 @@ class Wigner_with_reset_phase_update(FPGAExperiment):
             sync()
 
             gkp.cavity.array_pulse(*displace_pulse_1, amp='dynamic')
-            
-            reset_feedback_with_phase_update(phase_reg, phase_g_reg, phase_e_reg)
-            phase_update(phase_reg)
-            
+
+            gkp.reset_feedback_with_phase_update_and_Kerr_drive(phase_reg, phase_g_reg, phase_e_reg,
+                            Kerr_g_amp=self.Kerr_g_amp, Kerr_e_amp=self.Kerr_e_amp)
+
             gkp.cavity.array_pulse(*displace_pulse_2, amp='dynamic')
 
 

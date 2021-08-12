@@ -65,6 +65,9 @@ class out_and_back_Kerr_cancel(FPGAExperiment):
             delay(2000)
 
         def myexp(start='g'):
+            if self.postselect:
+                readout(**{'sz_' + start + '_init_measurement':'se'})
+                sync()
             if start == 'e':
                 qubit.flip()
             sync()
@@ -135,9 +138,11 @@ class out_and_back_Kerr_cancel(FPGAExperiment):
 
         for op in ops:
             if self.postselect:
+                init_result = self.results[op + '_init_measurement'].threshold()
                 middle_result = self.results[op + '_middle_measurement'].threshold()
-                self.results[op + '_postselected_g'] = self.results[op].postselect(middle_result,[0])[0]
-                self.results[op + '_postselected_e'] = self.results[op].postselect(middle_result,[1])[0]
+                postselected_init = self.results[op].postselect(init_result,[0])[0]
+                self.results[op + '_postselected_g'] = postselected_init.postselect(middle_result,[0])[0]
+                self.results[op + '_postselected_e'] = postselected_init.postselect(middle_result,[1])[0]
                 #replace the rest of the analysis with the postselected version
                 op = op + '_postselected_g' if op == 'sz_g' else op + '_postselected_e'
 

@@ -46,8 +46,9 @@ class GKP(Calibratable):
     
     
     
-    def __init__(self, name='gkp'):
+    def __init__(self, qubit, readout, name='gkp'):
         super(GKP, self).__init__(name)
+        self.qubit, self.readout = qubit, readout
     
     @subroutine
     def reset_feedback_with_echo(self, echo_delay, final_delay, feedback_delay=0, log=False, res_name='default'):

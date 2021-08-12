@@ -74,6 +74,7 @@ class blind_fidelity(FPGAExperiment):
         # Plot histogram of 'e'
         ax4 = fig.add_subplot(322)
         ax4.set_title('e')
+        ax4.set_yscale('log')
         e = (data['traj_e'].data[:,1,:]*env).mean(axis=1) # use only the second measurement
         e_post = (data['postselected_e'].data*env).mean(axis=1)
         fidelity = np.sum(e>self.threshold) / float(len(e))
@@ -91,6 +92,7 @@ class blind_fidelity(FPGAExperiment):
         # Plot histogram of 'g'
         ax5 = fig.add_subplot(324, sharex=ax4)
         ax5.set_title('g')
+        ax5.set_yscale('log')
         g = (data['traj_g'].data[:,1,:]*env).mean(axis=1)
         g_post = (data['postselected_g'].data*env).mean(axis=1)
         fidelity = np.sum(g<self.threshold) / float(len(g))
