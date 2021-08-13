@@ -45,44 +45,24 @@ import rl_tools.action_script as action_scripts
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-# env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
-#                 reward_kwargs={'reward_mode':'zero'},
-#                 init='vac', H=1, T=2, attn_step=1, batch_size=1, episode_length=2,
-#                 encoding='square')
+### simulate GKP stabilization with SBS
+if 0:
+    env = env_init(control_circuit='gkp_qec_autonomous_sBs_osc_qb', 
+                   reward_kwargs={'reward_mode':'zero'},
+                   init='vac', H=1, T=2, attn_step=1, batch_size=1, episode_length=10,
+                   encoding='square')
+    
+    from rl_tools.action_script import gkp_qec_autonomous_sBs_2round as action_script
+    policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
-# from rl_tools.action_script import gkp_qec_autonomous_sBs_2round as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
-
-# N=100
-# target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
-
-# N = 70
-# db_val = 8
-# z = db_val / (20 * np.log10(np.e))
-# target_state = qt.tensor(qt.basis(2,0), qt.squeeze(N,z)*qt.basis(N,0))
-
-# N = 60
-# pz = (qt.basis(N,0) + qt.basis(N,4))/np.sqrt(2.0)
-# mz = qt.basis(N,2)
-# py = (pz + 1j*mz)/np.sqrt(2.0)
-# target_state = qt.tensor(qt.basis(2,0), py)
-
-# target_state_cav = qt.qload('E:\data\gkp_sims\PPO\ECD\GKP_state_delta_0p25')
-# target_state = qt.tensor(qt.basis(2,0), target_state_cav)
-# N = target_state_cav.dims[0][0]
-
-# reward_kwargs = {'reward_mode' : 'overlap', 
-#                   'target_state' : target_state,
-#                   'postselect_0' : False}
-
-# env = env_init(control_circuit='ECD_control',
-#                 reward_kwargs=reward_kwargs,
-#                 init='vac', H=1, T=16, attn_step=1, batch_size=1, N=N, 
-#                 episode_length=16)
-
-# from rl_tools.action_script import ECD_control_residuals as action_script
-# policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+### simulate GKP state preparation with ECDC  
+if 1:
+    env = env_init(control_circuit='ECD_control', reward_kwargs=dict(reward_mode='zero'),
+                    init='vac', T=10, batch_size=1, N=100, episode_length=10)
+    
+    from rl_tools.action_script import ECD_control_residuals_GKP_plusZ as action_script
+    policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
 # N=40
@@ -151,28 +131,28 @@ import rl_tools.action_script as action_scripts
 # policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
-N=100
-target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
+# N=100
+# target_state = qt.tensor(qt.basis(2,0), qt.basis(50,4))
 
-reward_kwargs = {'reward_mode' : 'overlap', 
-                  'target_state' : target_state,
-                  'postselect_0' : True
-                  }
+# reward_kwargs = {'reward_mode' : 'overlap', 
+#                   'target_state' : target_state,
+#                   'postselect_0' : True
+#                   }
 
-env = env_init(control_circuit='ECD_control', reward_kwargs=reward_kwargs,
-               init='vac', T=8, batch_size=1, N=N, episode_length=8,
-               phase_space_rep='characteristic_fn')
+# env = env_init(control_circuit='ECD_control', reward_kwargs=reward_kwargs,
+#                 init='vac', T=8, batch_size=1, N=N, episode_length=8,
+#                 phase_space_rep='characteristic_fn')
 
-action_script = 'ECD_control_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
-to_learn = {'beta':True, 'phi':True}
-action_script = action_scripts.__getattribute__(action_script)
-env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn, 
-                              learn_residuals=True)
+# action_script = 'ECD_control_residuals_GKP_plusZ'
+# action_scale = {'beta':3/8, 'phi':pi/8}
+# to_learn = {'beta':True, 'phi':True}
+# action_script = action_scripts.__getattribute__(action_script)
+# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn, 
+#                               learn_residuals=True)
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP\fock4\run_2'
-policy_dir = r'policy\000300'
-policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP\fock4\run_2'
+# policy_dir = r'policy\000300'
+# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 # from rl_tools.action_script import ECD_control_residuals as action_script
 # policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
@@ -189,7 +169,7 @@ if 1:
     n = [] # average photon number 
     time_step = env.reset()
     policy_state = policy.get_initial_state(env.batch_size)
-    while not time_step.is_last():
+    while not time_step.is_last()[0]:
         action_step = policy.action(time_step, policy_state)
         policy_state = action_step.state
         time_step = env.step(action_step.action)

@@ -19,37 +19,55 @@ from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
-
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock4\run_8'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_8'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
 server_socket.bind((host, port))
 server_socket.connect_client()
 
+
 # Params for environment
 env_kwargs = {
     'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 8,
+    'T' : 10,
     'N' : 100}
+
 
 # Evaluation environment params
 eval_env_kwargs = {
     'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 8, 
+    'T' : 10, 
     'N' : 100}
 
+
+# Create a target state with a quick simulation of the ECDC sequence
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
+env = env_init(control_circuit='ECD_control', reward_kwargs=dict(reward_mode='zero'),
+               init='vac', T=10, batch_size=1, N=100, episode_length=10)
+
+from rl_tools.action_script import ECD_control_residuals_GKP_plusZ as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+
+time_step = env.reset()
+policy_state = policy.get_initial_state(env.batch_size)
+while not time_step.is_last()[0]:
+    action_step = policy.action(time_step, policy_state)
+    policy_state = action_step.state
+    time_step = env.step(action_step.action)
+
+target_state = env.info['psi_cached']
+
+
 # Params for reward function
-target_state = qt.tensor(qt.basis(2,0), qt.basis(100,4))
-
-
 reward_kwargs = {
     'reward_mode' : 'tomography_remote',
     'tomography' : 'wigner',
     'target_state' : target_state,
-    'window_size' : 16,
+    'window_size' : 10,
     'server_socket' : server_socket,
     'amplitude_type' : 'displacement',
     'epoch_type' : 'training',
@@ -69,9 +87,10 @@ reward_kwargs_eval = {
     'N_msmt' : 200,
     'sampling_type' : 'sqr'}
 
+
 # Params for action wrapper
-action_script = 'ECD_control_residuals'
-action_scale = {'beta':3/8, 'phi':pi/8}
+action_script = 'ECD_control_residuals_GKP_plusZ'
+action_scale = {'beta':0.2, 'phi':0.2}
 to_learn = {'beta':True, 'phi':True}
 
 train_batch_size = 10
@@ -81,6 +100,7 @@ learn_residuals = True
 
 train_episode_length = lambda x: env_kwargs['T']
 eval_episode_length = lambda x: env_kwargs['T']
+
 
 # Create drivers for data collection
 from rl_tools.agents import dynamic_episode_driver_sim_env
@@ -93,10 +113,11 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
     to_learn, eval_episode_length, learn_residuals, remote=True)
 
+
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
-        num_epochs = 500,
+        num_epochs = 2000,
         # Params for train
         normalize_observations = True,
         normalize_rewards = False,
@@ -110,6 +131,7 @@ PPO.train_eval(
         value_pred_loss_coef = 0.005,
         gradient_clipping = 1.0,
         entropy_regularization = 0,
+        log_prob_clipping = 0.0,
         # Params for log, eval, save
         eval_interval = 100,
         save_interval = 1,
@@ -125,10 +147,10 @@ PPO.train_eval(
         # Policy and value networks
         ActorNet = actor_distribution_network.ActorDistributionNetwork,
         zero_means_kernel_initializer = True,
+        init_action_stddev = 0.2,
         actor_fc_layers = (),
         value_fc_layers = (),
         use_rnn = False,
         actor_lstm_size = (12,),
-        value_lstm_size = (12,)
-        )
+        value_lstm_size = (12,))
 

@@ -6,10 +6,10 @@ Created on Mon Mar 22 10:35:37 2021
 """
 import numpy as np
 
-period = 10
-
 filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_init_circuits\GKP_plus_Z_delta_0.306_F_98.npz'
 script_npz = np.load(filename)
+
+period = script_npz['betas'].shape[0]
 
 script = {} # Script of actions
 script['beta'] = [[np.real(b), np.imag(b)] for b in script_npz['betas']]
