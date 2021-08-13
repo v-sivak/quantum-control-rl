@@ -6,6 +6,8 @@ Created on Wed Jun  2 12:00:57 2021
 """
 from init_script import gkp
 import numpy as np
+import os
+from fpga_lib import config
 from rl_client import ReinforcementLearningExperiment
 from CD_gate.conditional_displacement_compiler import ECD_control_simple_compiler
 from fpga_lib.scripting import get_experiment
@@ -23,10 +25,8 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         self.use_gui = use_gui
         self.max_mini_batch_size = 5
         self.batch_axis = 3
-        self.opt_file = r'D:\DATA\exp\2021-05-13_cooldown\sbs_stabilizer_reward\opt_data.npz'
 
-        self.exp = get_experiment(
-                'gkp_exp.rl.gkp_prep_ECD_stabilizers_fpga', from_gui=self.use_gui)
+        self.exp = get_experiment('gkp_exp.rl.gkp_prep_ECD_stabilizers_fpga', from_gui=self.use_gui)
 
     def update_exp_params(self):
 
@@ -52,6 +52,7 @@ class gkp_prep_ECD_stabilizers(ReinforcementLearningExperiment):
         logger.info('Constructed waveforms.')
         
         # save pulse sequences to file
+        self.opt_file = os.path.join(config.data_directory, self.exp.name, 'opt_data.npz')
         np.savez(self.opt_file, cavity_pulses=self.cavity_pulses, qubit_pulses=self.qubit_pulses,
                  stabilizers = self.stabilizers)
         

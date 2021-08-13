@@ -8,6 +8,9 @@ from init_script import *
 import numpy as np
 
 class state_prep_wigner_reward_fpga(FPGAExperiment):
+    export_txt = False
+    save_log = False
+    
     """ State preparation with Wigner reward."""
     loop_delay = FloatParameter(4e6)
     batch_size = IntParameter(10)
@@ -41,9 +44,9 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
             DynamicMixer[0][1] <<= sx
             DynamicMixer[1][0] <<= -sx
             sync()
-            delay(2000)
+            delay(1000)
             cavity.load_mixer()
-            delay(2000)
+            delay(1000)
 
         amp_reg = FloatRegister(0.0)
         phase_reg = FloatRegister(0.0)
@@ -58,20 +61,14 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
             qubit.pi2_pulse(phase=np.pi/2)
             delay(0.5 / cavity.chi * 1e9, round=True)
             qubit.pi2_pulse(phase=-np.pi/2)
-            sync()
             readout(m2='se')
 
         @subroutine
         def reward_circuit():
-            delay(2000)
-            readout(m1='se')
+            gkp.reset_feedback_with_echo(gkp.echo_delay, gkp.final_delay, log=True, res_name='m1')
             cavity.displace('dynamic', phase=np.pi)
             measure_parity()
             delay(self.loop_delay)
-
-        @subroutine
-        def init_circuit():
-            readout(m0='se')
 
         def control_circuit(i):
             sync()
@@ -84,12 +81,12 @@ class state_prep_wigner_reward_fpga(FPGAExperiment):
         for i in range(self.batch_size):
             with scan_register(*j_range) as j:
                 # update dynamic mixer for tomography
+                sync()
                 amp_reg <<= dac_amps_arr[j]
                 phase_reg <<= phase_arr[j]
                 update_dynamic_mixer(amp_reg, phase_reg)
 
                 # initialize, run control circuit and collect reward
-                init_circuit()
                 control_circuit(i)
                 reward_circuit()
 
