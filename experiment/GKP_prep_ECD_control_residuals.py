@@ -19,7 +19,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_2'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_4'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -38,7 +38,7 @@ reward_kwargs = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 20,
+    'N_msmt' : 30,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
                                1j*sqrt(2*pi), -1j*sqrt(2*pi), 
                                (1-1j)*sqrt(pi/2), -(1-1j)*sqrt(pi/2)],
@@ -115,4 +115,5 @@ PPO.train_eval(
         actor_lstm_size = (12,),
         value_lstm_size = (12,)
         )
+
 

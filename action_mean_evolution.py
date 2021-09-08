@@ -17,14 +17,13 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 
-N_epochs = 36
-
+N_epochs = 1998
 cavity_phases = []
 Kerr_amps = []
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_24'
+exp_name = 'run_40'
 
 # Params for environment
 env_kwargs = {
@@ -37,7 +36,7 @@ env_kwargs = {
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
-                'qb_detune':5e6, 'qb_drag':4.0}
+                'qb_detune':3e6, 'qb_drag':4.0}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 
             'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
             'qb_detune':True, 'qb_drag':False}
@@ -91,7 +90,8 @@ ax.plot(epochs, all_actions['Kerr_drive_amp'])
 ax = axes[1]
 # ax.set_xlabel('Epoch')
 ax.set_title('cavity_phase')
-ax.plot(epochs, all_actions['cavity_phase'])
+ax.plot(epochs, -all_actions['cavity_phase'][:,0])
+ax.plot(epochs, all_actions['cavity_phase'][:,1])
 
 
 ax = axes[2]

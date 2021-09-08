@@ -16,7 +16,7 @@ flip_phase, flip_angle = [0, 0, 0, 0], [pi, pi, pi, pi]
 detune_flip, detune_ecd = [0, 0, 0, 0], [0, 0, 0, 0]
 drag_flip, drag_ecd = [0, 0, 0, 0], [0, 0, 0, 0]
 
-cavity_phase = [-1.62, 0.87]  #-0.45
+cavity_phase = [-0.95, 0.52]
 Kerr_drive_amp = [0.0, 0.0]
 alpha_correction = [0.0, 0.0]
 qb_detune = 0.0

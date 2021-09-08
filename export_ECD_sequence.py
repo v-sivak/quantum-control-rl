@@ -29,27 +29,46 @@ from math import pi
 import numpy as np
 import importlib
 
-# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z'
-# exp_name = 'run_5'
-# policy_str= '000288'
+
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock1'
+# exp_name = 'run_3'
+# policy_str= '000373'
 
 # # Params for environment
 # env_kwargs = {
 #     'control_circuit' : 'ECD_control_remote',
 #     'init' : 'vac',
-#     'T' : 10,
-#     'N' : 20}
+#     'T' : 5,
+#     'N' : 100}
 
 # # Params for action wrapper
-# action_script = 'ECD_control_residuals_GKP_plusZ'
+# action_script = 'ECD_control_residuals_fock1'
+# action_scale = {'beta':0.3, 'phi':0.3}
+# to_learn = {'beta':True, 'phi':True}
+
+
+
+# root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y'
+# exp_name = 'run_4'
+# policy_str= '000000'
+
+# # Params for environment
+# env_kwargs = {
+#     'control_circuit' : 'ECD_control_remote',
+#     'init' : 'vac',
+#     'T' : 11,
+#     'N' : 100}
+
+# # Params for action wrapper
+# action_script = 'ECD_control_residuals_GKP_plusY'
 # action_scale = {'beta':0.2, 'phi':0.2}
 # to_learn = {'beta':True, 'phi':True}
 
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_18'
-policy_str= '000130'
+exp_name = 'run_40'
+policy_str= '001176'
 
 # Params for environment
 env_kwargs = {
@@ -59,13 +78,14 @@ env_kwargs = {
     'N' : 20}
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals_2'
+action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
-                'cavity_phase':0.2, 'Kerr_drive_amp':0.2, 'alpha_correction':0.2,
-                'detune_sbs':2e6, 'drag_sbs':4.0, 'detune_reset':2e6, 'drag_reset':4.0}
-to_learn = {'beta':False, 'phi':False, 'flip':False, 
-            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':False,
-            'detune_sbs':False, 'drag_sbs':False, 'detune_reset':False, 'drag_reset':False}
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
+                'qb_detune':3e6, 'qb_drag':4.0}
+to_learn = {'beta':True, 'phi':True, 'flip':True, 
+            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
+            'qb_detune':True, 'qb_drag':False}
+
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
 

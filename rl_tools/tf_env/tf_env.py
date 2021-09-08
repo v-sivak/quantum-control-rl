@@ -583,7 +583,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         or characteristic function values. Points are produced with rejection
         sampling proportionally to the |W| or |Re[C]|.
         
-        Returns:
+        Args:
             target_state (Tensor([1,N]), c64): tf target state
             window_size (float): size of (symmetric) phase space window
             tomography (str): either 'wigner' or 'CF'

@@ -19,7 +19,7 @@ from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_8'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_10'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)

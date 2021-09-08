@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_24'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_40'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -47,7 +47,7 @@ reward_kwargs_eval ={
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
     'epoch_type' : 'training',
-    'N_msmt' : 30,
+    'N_msmt' : 60,
     'stabilizer_amplitudes' : [sqrt(pi/2), 1j*sqrt(pi/2)],
     'penalty_coeff' : 1.0}
 
@@ -55,7 +55,7 @@ reward_kwargs_eval ={
 action_script = 'SBS_remote_residuals'
 action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
-                'qb_detune':5e6, 'qb_drag':4.0}
+                'qb_detune':3e6, 'qb_drag':4.0}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 
             'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
             'qb_detune':True, 'qb_drag':False}
@@ -88,7 +88,7 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 5e-3,
+        lr = 1e-3, 
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -118,6 +118,5 @@ PPO.train_eval(
         value_fc_layers = (),
         use_rnn = False,
         actor_lstm_size = (12,),
-        value_lstm_size = (12,)
-        )
+        value_lstm_size = (12,))
 
