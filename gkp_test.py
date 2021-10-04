@@ -59,9 +59,9 @@ if 0:
 ### simulate GKP state preparation with ECDC  
 if 1:
     env = env_init(control_circuit='ECD_control', reward_kwargs=dict(reward_mode='zero'),
-                    init='vac', T=10, batch_size=1, N=100, episode_length=10)
+                    init='vac', T=11, batch_size=1, N=100, episode_length=11)
     
-    from rl_tools.action_script import ECD_control_residuals_GKP_plusZ as action_script
+    from rl_tools.action_script import ECD_control_residuals_GKP_plusX_hex as action_script
     policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
 
 
@@ -169,6 +169,7 @@ if 1:
     n = [] # average photon number 
     time_step = env.reset()
     policy_state = policy.get_initial_state(env.batch_size)
+    env.render()
     while not time_step.is_last()[0]:
         action_step = policy.action(time_step, policy_state)
         policy_state = action_step.state
