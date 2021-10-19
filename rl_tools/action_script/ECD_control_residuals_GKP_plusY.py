@@ -6,14 +6,14 @@ Created on Mon Mar 22 10:35:37 2021
 """
 import numpy as np
 
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_init_circuits\GKP_plus_Y_delta_0.306_F_98.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_plusY_T_11_Delta_0.30_F_0.9923.npz'
 script_npz = np.load(filename)
 
-period = script_npz['betas'].shape[0]
+period = script_npz['phase'].shape[0]
 
 script = {} # Script of actions
-script['beta'] = [[np.real(b), np.imag(b)] for b in script_npz['betas']]
-script['phi'] = [[p,t] for (p,t) in zip(script_npz['phis'], script_npz['thetas'])]
+script['beta'] = [[b_re, b_im] for (b_re, b_im) in zip(script_npz['beta_re'], script_npz['beta_im'])]
+script['phi'] = [[p,t] for (p,t) in zip(script_npz['phase'], script_npz['angle'])]
 
 
 # Mask 1 allows the ActionWrapper to use the learned value of the action on

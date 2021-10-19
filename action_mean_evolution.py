@@ -16,14 +16,15 @@ from math import pi
 import numpy as np
 import importlib
 import matplotlib.pyplot as plt
+from plotting import plot_config
 
 N_epochs = 1998
 cavity_phases = []
 Kerr_amps = []
 
-
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_40'
+exp_name = 'run_50'
+
 
 # Params for environment
 env_kwargs = {
@@ -34,12 +35,12 @@ env_kwargs = {
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
+action_scale = {'beta':0.2, 'phi':0.3, 'flip':0.3, 
                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
                 'qb_detune':3e6, 'qb_drag':4.0}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 
             'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
-            'qb_detune':True, 'qb_drag':False}
+            'qb_detune':True, 'qb_drag':True}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])
@@ -82,43 +83,60 @@ for a in action_names:
 fig, axes = plt.subplots(3,3, sharex=True, dpi=200)
 axes = axes.ravel()
 ax = axes[0]
-# ax.set_xlabel('Epoch')
 ax.set_title('Kerr_drive_amp')
 ax.plot(epochs, all_actions['Kerr_drive_amp'])
 
 
 ax = axes[1]
-# ax.set_xlabel('Epoch')
 ax.set_title('cavity_phase')
 ax.plot(epochs, -all_actions['cavity_phase'][:,0])
 ax.plot(epochs, all_actions['cavity_phase'][:,1])
 
 
 ax = axes[2]
-# ax.set_xlabel('Epoch')
 ax.set_title('beta_real')
 ax.plot(epochs, all_actions['beta'][:,1,0])
 
+# ax = axes[2]
+# ax.set_title('beta_real')
+# ax.plot(epochs, all_actions['beta'][:,0,0])
+# ax.plot(epochs, all_actions['beta'][:,2,0])
 
 ax = axes[3]
-# ax.set_xlabel('Epoch')
 ax.set_title('eps1 & eps2')
 ax.plot(epochs, all_actions['beta'][:,0,0], color='red', linestyle='--')
 ax.plot(epochs, all_actions['beta'][:,0,1], color='red', label='eps1')
 
 ax.plot(epochs, all_actions['beta'][:,2,0], color='blue', linestyle='--')
 ax.plot(epochs, all_actions['beta'][:,2,1], color='blue', label='eps2')
-# ax.legend()
+
+# ax = axes[3]
+# ax.set_title('eps')
+# ax.plot(epochs, all_actions['beta'][:,1,0], color='red', linestyle='--')
+# ax.plot(epochs, all_actions['beta'][:,1,1], color='red')
 
 ax = axes[4]
 ax.set_xlabel('Epoch')
 ax.set_title('phi_diff')
 ax.plot(epochs, all_actions['alpha_correction'][:,1,0])
 
+# ax = axes[4]
+# ax.set_xlabel('Epoch')
+# ax.set_title('phi_diff')
+# ax.plot(epochs, all_actions['alpha_correction'][:,0,0])
+# ax.plot(epochs, all_actions['alpha_correction'][:,2,0])
+
+
 ax = axes[5]
 ax.set_xlabel('Epoch')
 ax.set_title('phi_sum')
 ax.plot(epochs, all_actions['alpha_correction'][:,1,1])
+
+# ax = axes[5]
+# ax.set_xlabel('Epoch')
+# ax.set_title('phi_sum')
+# ax.plot(epochs, all_actions['alpha_correction'][:,0,1])
+# ax.plot(epochs, all_actions['alpha_correction'][:,2,1])
 
 ax = axes[6]
 ax.set_xlabel('Epoch')
@@ -132,3 +150,85 @@ ax.set_title('drag')
 ax.plot(epochs, all_actions['qb_drag'], linestyle='--')
 
 plt.tight_layout()
+
+
+
+#####################################################################
+#####################################################################
+#####################################################################
+## This is useful for plotting the progress in SBS
+
+fig, axes = plt.subplots(2,2, sharex=True, dpi=200, figsize=(3.375, 3))
+colors = plt.get_cmap('Dark2')
+axes = axes.ravel()
+ax = axes[0]
+ax.set_ylabel('Kerr pump (DAC amp.)')
+ax.plot(epochs, all_actions['Kerr_drive_amp'][:,0], color=colors(0), label='g')
+ax.plot(epochs, all_actions['Kerr_drive_amp'][:,1], color=colors(1), label='e')
+ax.legend()
+
+ax = axes[1]
+ax.set_ylabel('Oscillator phase (radians)')
+ax.plot(epochs, all_actions['cavity_phase'][:,0]+pi/2, color=colors(0), label='g')
+ax.plot(epochs, all_actions['cavity_phase'][:,1], color=colors(1), label='e')
+ax.legend()
+
+ax = axes[2]
+ax.set_ylabel('Small CD amplitude')
+ax.plot(epochs, all_actions['beta'][:,0,0], color=colors(2), linestyle='--')
+ax.plot(epochs, all_actions['beta'][:,0,1], color=colors(2), label=r'$\varepsilon_1$')
+
+ax.plot(epochs, all_actions['beta'][:,2,0], color=colors(3), linestyle='--')
+ax.plot(epochs, all_actions['beta'][:,2,1], color=colors(3), label=r'$\varepsilon_2$')
+ax.set_xlabel('Epoch')
+ax.legend()
+
+ax = axes[3]
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Qubit detuning (MHz)')
+ax.plot(epochs, all_actions['qb_detune']*1e-6, color=colors(6))
+
+plt.tight_layout()
+
+
+#####################################################################
+#####################################################################
+#####################################################################
+## This is useful for plotting the progress in BSB
+
+# fig, axes = plt.subplots(2,2, sharex=True, dpi=200, figsize=(3.375, 3))
+# colors = plt.get_cmap('Dark2')
+# axes = axes.ravel()
+# ax = axes[0]
+# ax.set_ylabel('Kerr pump (DAC amp.)')
+# ax.plot(epochs, all_actions['Kerr_drive_amp'][:,0], color=colors(0), label='g')
+# ax.plot(epochs, all_actions['Kerr_drive_amp'][:,1], color=colors(1), label='e')
+# ax.legend()
+
+# ax = axes[1]
+# ax.set_ylabel('Oscillator phase (radians)')
+# ax.plot(epochs, all_actions['cavity_phase'][:,0]+pi/2, color=colors(0), label='g')
+# ax.plot(epochs, all_actions['cavity_phase'][:,1], color=colors(1), label='e')
+# ax.legend()
+
+# ax = axes[2]
+# ax.set_ylabel('Small CD amplitude')
+# ax.plot(epochs, all_actions['beta'][:,1,0], color=colors(3), linestyle='--')
+# ax.plot(epochs, all_actions['beta'][:,1,1], color=colors(3), label=r'$\varepsilon_1$')
+
+# # ax = axes[3]
+# # ax.set_title('eps')
+# # ax.plot(epochs, all_actions['beta'][:,1,0], color='red', linestyle='--')
+# # ax.plot(epochs, all_actions['beta'][:,1,1], color='red')
+
+# # ax.plot(epochs, all_actions['beta'][:,2,0], color=colors(3), linestyle='--')
+# # ax.plot(epochs, all_actions['beta'][:,2,1], color=colors(3), label=r'$\varepsilon_2$')
+# ax.set_xlabel('Epoch')
+# # ax.legend()
+
+# ax = axes[3]
+# ax.set_xlabel('Epoch')
+# ax.set_ylabel('Qubit detuning (MHz)')
+# ax.plot(epochs, all_actions['qb_detune']*1e-6, color=colors(6))
+
+# plt.tight_layout()

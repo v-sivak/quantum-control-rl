@@ -13,13 +13,14 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
 from math import sqrt, pi
+import numpy as np
 from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_4'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_5'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -41,16 +42,17 @@ reward_kwargs = {
     'N_msmt' : 30,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
                                1j*sqrt(2*pi), -1j*sqrt(2*pi), 
-                               (1-1j)*sqrt(pi/2), -(1-1j)*sqrt(pi/2)],
+                               (1+1j)*sqrt(pi/2), -(1+1j)*sqrt(pi/2)],
     'penalty_coeff' : 0.5}
 
 reward_kwargs_eval = {
     'reward_mode' : 'stabilizer_remote',
     'server_socket' : server_socket,
-    'epoch_type' : 'training',
-    'N_msmt' : 30,
+    'epoch_type' : 'evaluation',
+    'N_msmt' : 300,
     'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(pi/2), -1j*sqrt(pi/2)],
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi), 
+                               (1+1j)*sqrt(pi/2), -(1+1j)*sqrt(pi/2)],
     'penalty_coeff' : 0.5}
 
 # Params for action wrapper
@@ -58,7 +60,7 @@ action_script = 'ECD_control_residuals_GKP_plusY'
 action_scale = {'beta':0.2, 'phi':0.2}
 to_learn = {'beta':True, 'phi':True}
 
-train_batch_size = 10
+train_batch_size = 9
 eval_batch_size = 1
 
 learn_residuals = True
@@ -95,11 +97,11 @@ PPO.train_eval(
         gradient_clipping = 1.0,
         entropy_regularization = 0,
         # Params for log, eval, save
-        eval_interval = 100,
+        eval_interval = 10,
         save_interval = 1,
         checkpoint_interval = None,
         summary_interval = 1,
-        do_evaluation = False,
+        do_evaluation = True,
         # Params for data collection
         train_batch_size = train_batch_size,
         eval_batch_size = eval_batch_size,
@@ -115,5 +117,3 @@ PPO.train_eval(
         actor_lstm_size = (12,),
         value_lstm_size = (12,)
         )
-
-

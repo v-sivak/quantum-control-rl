@@ -31,8 +31,8 @@ import importlib
 
 
 # root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock1'
-# exp_name = 'run_3'
-# policy_str= '000373'
+# exp_name = 'run_5'
+# policy_str= '000516'
 
 # # Params for environment
 # env_kwargs = {
@@ -49,8 +49,8 @@ import importlib
 
 
 # root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y'
-# exp_name = 'run_4'
-# policy_str= '000000'
+# exp_name = 'run_5'
+# policy_str= '000180'
 
 # # Params for environment
 # env_kwargs = {
@@ -67,8 +67,8 @@ import importlib
 
 
 root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli'
-exp_name = 'run_40'
-policy_str= '001176'
+exp_name = 'run_50'
+policy_str= '001040'
 
 # Params for environment
 env_kwargs = {
@@ -79,12 +79,12 @@ env_kwargs = {
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.3, 'phi':0.3, 'flip':0.3, 
+action_scale = {'beta':0.2, 'phi':0.3, 'flip':0.3, 
                 'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
                 'qb_detune':3e6, 'qb_drag':4.0}
 to_learn = {'beta':True, 'phi':True, 'flip':True, 
             'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
-            'qb_detune':True, 'qb_drag':False}
+            'qb_detune':True, 'qb_drag':True}
 
 
 env = env_init(batch_size=1, **env_kwargs, episode_length=env_kwargs['T'])

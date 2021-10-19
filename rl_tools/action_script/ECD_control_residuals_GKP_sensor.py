@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 22 10:35:37 2021
+Created on Tue Oct  5 11:44:00 2021
 
 @author: Vladimir Sivak
 """
 import numpy as np
 
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_plusZ_T_11_Delta_0.30_F_0.9897.npz'
+# filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\init_circuits\test.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_sensor_T_12_Delta_0.30_F_0.9955.npz'
 script_npz = np.load(filename)
 
-period = script_npz['phase'].shape[0]
+period = script_npz['angle'].shape[0]
 
 script = {} # Script of actions
 script['beta'] = [[b_re, b_im] for (b_re, b_im) in zip(script_npz['beta_re'], script_npz['beta_im'])]

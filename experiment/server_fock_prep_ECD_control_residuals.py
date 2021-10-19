@@ -19,7 +19,7 @@ from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock1\run_2'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\fock1\run_5'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -39,7 +39,7 @@ reward_kwargs = {
     'fock' : 1,
     'epoch_type' : 'training',
     'server_socket' : server_socket,
-    'N_msmt' : 50}
+    'N_msmt' : 70}
 
 reward_kwargs_eval = {
     'reward_mode' : 'fock_remote',
