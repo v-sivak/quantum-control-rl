@@ -507,6 +507,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                 epoch_type (str): either 'training' or 'evaluation'
                 stabilizer_amplitudes (list, float): list of stabilizer dis-
                     placement amplitudes.
+                stabilizer_signs (list, flaot): list of stabilizer signs
                 server_socket (Socket): socket for communication
             """
             self.server_socket = reward_kwargs.pop('server_socket')
@@ -834,7 +835,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         return z
         
     def reward_stabilizer_remote(self, N_msmt, epoch_type, penalty_coeff,
-                                 stabilizer_amplitudes):
+                                 stabilizer_amplitudes, stabilizer_signs):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be sigma_z measurement 
@@ -858,7 +859,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                        N_msmt=N_msmt,
                        epoch_type=epoch_type,
                        epoch=self._epoch,
-                       stabilizers=stabilizer_amplitudes)
+                       stabilizers=stabilizer_amplitudes,
+                       stabilizer_signs=stabilizer_signs)
 
         self.server_socket.send_data(message)
 
@@ -866,9 +868,10 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [N_stabilizers, N_msmt, batch_size]
-
+        
+        stabilizer_signs = tf.reshape(stabilizer_signs, [len(stabilizer_signs),1,1])
         # calculate reward. If training, include penalty for measuring m1='e'
-        Z = msmt[1] * mask
+        Z = msmt[1] * mask * tf.cast(stabilizer_signs, tf.float32)
         if epoch_type == 'training':
             Z -= penalty_coeff * (1-mask)
         

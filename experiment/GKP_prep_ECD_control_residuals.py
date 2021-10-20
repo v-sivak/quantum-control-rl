@@ -20,7 +20,7 @@ from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Y\run_5'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_minus_X\run_1'
 
 server_socket = rmt.Server()
 (host, port) = ('172.28.142.46', 5555)
@@ -40,9 +40,9 @@ reward_kwargs = {
     'server_socket' : server_socket,
     'epoch_type' : 'training',
     'N_msmt' : 30,
-    'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(2*pi), -1j*sqrt(2*pi), 
-                               (1+1j)*sqrt(pi/2), -(1+1j)*sqrt(pi/2)],
+    'stabilizer_amplitudes' : [sqrt(pi/2), -sqrt(pi/2), 
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi)],
+    'stabilizer_signs' : [-1, -1, 1, 1],
     'penalty_coeff' : 0.5}
 
 reward_kwargs_eval = {
@@ -50,13 +50,13 @@ reward_kwargs_eval = {
     'server_socket' : server_socket,
     'epoch_type' : 'evaluation',
     'N_msmt' : 300,
-    'stabilizer_amplitudes' : [sqrt(2*pi), -sqrt(2*pi), 
-                               1j*sqrt(2*pi), -1j*sqrt(2*pi), 
-                               (1+1j)*sqrt(pi/2), -(1+1j)*sqrt(pi/2)],
+    'stabilizer_amplitudes' : [sqrt(pi/2), -sqrt(pi/2), 
+                               1j*sqrt(2*pi), -1j*sqrt(2*pi)],
+    'stabilizer_signs' : [-1, -1, 1, 1],
     'penalty_coeff' : 0.5}
 
 # Params for action wrapper
-action_script = 'ECD_control_residuals_GKP_plusY'
+action_script = 'ECD_control_residuals_GKP_minusX'
 action_scale = {'beta':0.2, 'phi':0.2}
 to_learn = {'beta':True, 'phi':True}
 
