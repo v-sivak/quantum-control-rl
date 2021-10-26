@@ -6,8 +6,7 @@ Created on Tue Oct  5 11:44:00 2021
 """
 import numpy as np
 
-# filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\init_circuits\test.npz'
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_sensor_T_12_Delta_0.30_F_0.9955.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_sensor_T_11_Delta_0.30_F_0.9951.npz'
 script_npz = np.load(filename)
 
 period = script_npz['angle'].shape[0]

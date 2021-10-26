@@ -6,7 +6,7 @@ Created on Mon Mar 22 10:35:37 2021
 """
 import numpy as np
 
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_plusZ_T_11_Delta_0.30_F_0.9897.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\ECDC_sequences\gkp_square_plusZ_T_11_Delta_0.30_F_0.9902.npz'
 script_npz = np.load(filename)
 
 period = script_npz['phase'].shape[0]

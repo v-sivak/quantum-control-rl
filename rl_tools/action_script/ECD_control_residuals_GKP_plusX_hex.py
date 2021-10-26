@@ -6,7 +6,7 @@ Created on Mon Mar 22 10:35:37 2021
 """
 import numpy as np
 
-filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_init_circuits\GKP_hex_+X_Delta_0.306_F_98.npz'
+filename = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_init_circuits\gkp_hex_plusX_T_11_Delta_0.30_F_0.9910.npz'
 script_npz = np.load(filename)
 
 period = script_npz['betas'].shape[0]
