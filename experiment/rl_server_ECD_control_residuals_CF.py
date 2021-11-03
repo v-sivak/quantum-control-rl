@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun  2 14:20:11 2021
-
-@author: Vladimir Sivak
+Created on Fri Oct 22 11:47:27 2021
 """
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
@@ -19,48 +17,80 @@ from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
 
-root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\sbs_pauli\run_56'
+root_dir = r'E:\data\gkp_sims\PPO\ECD\EXP_Vlad\GKP_plus_Z\run_23'
 
 server_socket = rmt.Server()
-(host, port) = ('172.28.142.46', 5555)
+# (host, port) = ('172.28.142.46', 5555)
+(host, port) = ('172.22.112.212', 5555)
 server_socket.bind((host, port))
 server_socket.connect_client()
 
+
 # Params for environment
-env_kwargs = eval_env_kwargs = {
-    'control_circuit' : 'SBS_remote',
+env_kwargs = {
+    'control_circuit' : 'ECD_control_remote',
     'init' : 'vac',
-    'T' : 1,
-    'N' : 20}
+    'T' : 11,
+    'N' : 100}
+
+
+# Evaluation environment params
+eval_env_kwargs = {
+    'control_circuit' : 'ECD_control_remote',
+    'init' : 'vac',
+    'T' : 11, 
+    'N' : 100}
+
+
+# Create a target state with a quick simulation of the ECDC sequence
+from rl_tools.tf_env import env_init
+from rl_tools.tf_env import policy as plc
+env = env_init(control_circuit='ECD_control', reward_kwargs=dict(reward_mode='zero'),
+               init='vac', T=env_kwargs['T'], batch_size=1, N=100, episode_length=env_kwargs['T'])
+
+from rl_tools.action_script import ECD_control_residuals_GKP_plusZ as action_script
+policy = plc.ScriptedPolicy(env.time_step_spec(), action_script)
+
+time_step = env.reset()
+policy_state = policy.get_initial_state(env.batch_size)
+while not time_step.is_last()[0]:
+    action_step = policy.action(time_step, policy_state)
+    policy_state = action_step.state
+    time_step = env.step(action_step.action)
+
+target_state = env.info['psi_cached']
+
 
 # Params for reward function
 reward_kwargs = {
-    'reward_mode' : 'stabilizer_remote',
+    'reward_mode' : 'tomography_remote',
+    'tomography' : 'CF',
+    'target_state' : target_state,
+    'window_size' : 13,
     'server_socket' : server_socket,
+    'amplitude_type' : 'displacement',
     'epoch_type' : 'training',
-    'N_msmt' : 40,
-    'stabilizer_amplitudes' : [sqrt(pi/2), 1j*sqrt(pi/2), (1+1j)*sqrt(pi/2)], # doesn't matter what I write here...
-    'stabilizer_signs' : [1,1,1],
-    'penalty_coeff' : 1.0}
+    'N_alpha' : 50,
+    'N_msmt' : 10,
+    'sampling_type' : 'abs'}
 
-reward_kwargs_eval ={
-    'reward_mode' : 'stabilizer_remote',
+reward_kwargs_eval = {
+    'reward_mode' : 'tomography_remote',
+    'tomography' : 'CF',
+    'target_state' : target_state,
+    'window_size' : 13,
     'server_socket' : server_socket,
+    'amplitude_type' : 'displacement',
     'epoch_type' : 'evaluation',
-    'N_msmt' : 1000,
-    'stabilizer_amplitudes' : [sqrt(pi/2), 1j*sqrt(pi/2), (1+1j)*sqrt(pi/2)],
-    'stabilizer_signs' : [1,1,1],
-    'penalty_coeff' : 1.0}
+    'N_alpha' : 200, # can be up to 250
+    'N_msmt' : 60,
+    'sampling_type' : 'sqr'}
+
 
 # Params for action wrapper
-action_script = 'SBS_remote_residuals'
-action_scale = {'beta':0.2, 'phi':0.3, 'flip':0.3, 
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.5, 'alpha_correction':0.2,
-                'qb_detune':3e6, 'qb_drag':4.0}
-to_learn = {'beta':True, 'phi':True, 'flip':True, 
-            'cavity_phase':True, 'Kerr_drive_amp':True, 'alpha_correction':True,
-            'qb_detune':True, 'qb_drag':False}
-
+action_script = 'ECD_control_residuals_GKP_plusZ'
+action_scale = {'beta':0.2, 'phi':0.2}
+to_learn = {'beta':True, 'phi':True}
 
 train_batch_size = 10
 eval_batch_size = 1
@@ -69,6 +99,7 @@ learn_residuals = True
 
 train_episode_length = lambda x: env_kwargs['T']
 eval_episode_length = lambda x: env_kwargs['T']
+
 
 # Create drivers for data collection
 from rl_tools.agents import dynamic_episode_driver_sim_env
@@ -81,6 +112,7 @@ eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
     eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
     to_learn, eval_episode_length, learn_residuals, remote=True)
 
+
 PPO.train_eval(
         root_dir = root_dir,
         random_seed = 0,
@@ -89,7 +121,7 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 1e-3, 
+        lr = 5e-4,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
@@ -101,9 +133,9 @@ PPO.train_eval(
         log_prob_clipping = 0.0,
         # Params for log, eval, save
         eval_interval = 20,
-        save_interval = 2,
+        save_interval = 1,
         checkpoint_interval = None,
-        summary_interval = 2,
+        summary_interval = 1,
         do_evaluation = True,
         # Params for data collection
         train_batch_size = train_batch_size,
