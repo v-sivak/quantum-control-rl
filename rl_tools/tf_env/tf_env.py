@@ -515,6 +515,41 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                 lambda x: self.reward_stabilizer_remote(**reward_kwargs)
 
 
+    # def reward_fock(self, target_projector, N_msmt, error_prob):
+    #     """
+    #     Reward only on last time step using the measurement of a given Fock 
+    #     state of the oscillator.
+
+    #     """
+    #     if self._elapsed_steps < self.episode_length:
+    #         z = tf.zeros(self.batch_size, dtype=tf.float32)
+    #     else:
+    #         Z = 0
+    #         for i in range(N_msmt):
+    #             if self.tensorstate:
+    #                 # measure qubit to disentangle from oscillator
+    #                 psi, m = measurement(self._state, self.P, sample=True)
+    #                 mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+    #             else:
+    #                 psi = self._state
+    #                 mask = tf.ones([self.batch_size])
+
+    #             # sample observations
+    #             p_n = expectation(psi, target_projector, reduce_batch=False)
+    #             p_n = tf.reshape(tf.math.real(p_n), shape=[self.batch_size])
+    #             obs = tfp.distributions.Bernoulli(probs=p_n).sample()
+                
+    #             # sample errors and apply them to measurement outcomes
+    #             e = error_prob * tf.ones_like(p_n)
+    #             err = tfp.distributions.Bernoulli(probs=e).sample()  
+    #             obs = tf.where(err==0, obs, 0)
+    #             obs = 2*tf.cast(obs, dtype=tf.float32)-1 # convert to {-1,1}
+                
+    #             penalty_coeff = 1.0
+    #             Z += obs * mask - penalty_coeff * (1-mask)
+    #         z = Z / N_msmt
+    #     return z
+    
     def reward_fock(self, target_projector, N_msmt, error_prob):
         """
         Reward only on last time step using the measurement of a given Fock 
@@ -525,31 +560,35 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             z = tf.zeros(self.batch_size, dtype=tf.float32)
         else:
             Z = 0
-            for i in range(N_msmt):
-                if self.tensorstate:
-                    # measure qubit to disentangle from oscillator
-                    psi, m = measurement(self._state, self.P, sample=True)
-                    mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
-                else:
-                    psi = self._state
-                    mask = tf.ones([self.batch_size])
 
-                # sample observations
-                p_n = expectation(psi, target_projector, reduce_batch=False)
-                p_n = tf.reshape(tf.math.real(p_n), shape=[self.batch_size])
-                obs = tfp.distributions.Bernoulli(probs=p_n).sample()
-                
-                # sample errors and apply them to measurement outcomes
-                e = error_prob * tf.ones_like(p_n)
-                err = tfp.distributions.Bernoulli(probs=e).sample()  
-                obs = tf.where(err==0, obs, 0)
-                obs = 2*tf.cast(obs, dtype=tf.float32)-1 # convert to {-1,1}
-                
-                penalty_coeff = 1.0
-                Z += obs * mask - penalty_coeff * (1-mask)
-            z = Z / N_msmt
+            if self.tensorstate:
+                # measure qubit to disentangle from oscillator
+                psi, m = measurement(self._state, self.P, sample=True)
+                mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
+            else:
+                psi = self._state
+                mask = tf.ones([self.batch_size])
+            
+            # sample observations
+            p_n = expectation(psi, target_projector, reduce_batch=False)
+            p_n = tf.reshape(tf.math.real(p_n), shape=[1, self.batch_size])
+            p_n = tf.tile(p_n, [N_msmt,1])
+            obs = tfp.distributions.Bernoulli(probs=p_n).sample()
+
+            # NOTE: this version of sampling N_msmt is not well suited for
+            # the case tensorstate=True, because it doesn't re-sample projection
+            
+            # sample errors and apply them to measurement outcomes
+            e = error_prob * tf.ones_like(p_n)
+            err = tfp.distributions.Bernoulli(probs=e).sample()
+            obs = tf.where(err==0, obs, 0)
+            obs = 2*tf.cast(obs, dtype=tf.float32)-1 # convert to {-1,1}
+            obs = tf.reduce_mean(obs, axis=0)
+            
+            penalty_coeff = 1.0
+            Z += obs * mask - penalty_coeff * (1-mask)
+            z = Z
         return z
-    
 
     def reward_overlap(self, target_projector, postselect_0):
         """
