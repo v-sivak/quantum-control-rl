@@ -88,7 +88,7 @@ def GKP_state(tensorstate, N, S=np.array([[1, 0], [0, 1]])):
     return stabilizers, paulis, states, displacements
 
 
-def epsilon_normalizer(N, epsilon=0.1):
+def epsilon_normalizer(N, epsilon=0.3**2):
     a = qt.destroy(N)
     n_op = a.dag()*a
     G = (-epsilon*n_op).expm()

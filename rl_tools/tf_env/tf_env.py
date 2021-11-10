@@ -17,7 +17,7 @@ from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
-from simulator.utils import measurement, expectation, normalize
+from simulator.utils import measurement, expectation, normalize, basis, batch_dot
 from rl_tools.tf_env import helper_functions as hf
 
 
@@ -53,7 +53,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         batch_size=50,
         init="vac",
         reward_kwargs={'reward_mode' : 'zero'},
-        encoding='square',
+        encoding='gkp_square',
         phase_space_rep='wigner',
         **kwargs):
         """
@@ -70,7 +70,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             init (str, optional): Initial quantum state of system. Defaults to "vac".
             reward_kwargs (dict, optional): optional dictionary of parameters 
                 for the reward function of RL agent.
-            encoding (str, optional): Type of GKP lattice. Defaults to "square".
+            encoding (str, optional): Type of logical encoding. Defaults to 
+                "gkp_square".
             phase_space_rep (str, optional): phase space representation to use
                 for rendering ('wigner' or 'CF')
             
@@ -83,9 +84,9 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         self.batch_size = batch_size
         self.init = init
         self.phase_space_rep = phase_space_rep
-        
+
+        self.define_bosonic_code(encoding)        
         self.setup_reward(reward_kwargs)
-        self.define_stabilizer_code(encoding)
         self._epoch = 0
 
         # Define action and observation specs
@@ -176,6 +177,17 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             psi_batch = [self.states[init] for init in self._original]
             psi_batch = tf.convert_to_tensor(psi_batch, dtype=c64)
             self._state = psi_batch
+        elif self.init == 'random_v2':
+            self._original = [np.random.choice(['Z+','Z-','X+','X-','Y+','Y-'])]*self.batch_size
+            psi_batch = [self.states[self._original[0]]]*self.batch_size
+            psi_batch = tf.convert_to_tensor(psi_batch, dtype=c64)
+            self._state = psi_batch            
+        elif self.init == 'cardinal_points':
+            assert self.batch_size == 6
+            self._original = ['X+','X-','Y+','Y-','Z+','Z-']
+            psi_batch = [self.states[init] for init in self._original]
+            psi_batch = tf.convert_to_tensor(psi_batch, dtype=c64)
+            self._state = psi_batch   
 
         # Bookkeeping of episode progress
         self._episode_ended = False
@@ -274,32 +286,59 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         """
         pass
 
-    def define_stabilizer_code(self, encoding):
-        """
+    def define_bosonic_code(self, encoding):
+        """        
+        Args:
+            encoding (str): Type of logical encoding. Can be 'gkp_square',
+                'gkp_hexagonal', 'fock01', 'binomial_1'
+
+        If encoding is GKP:
+            
         Create stabilizer tensors, logical Pauli tensors and GKP state tensors.
         The simulation Hilbert space consists of N levels of the oscillator 
         and, if the 'tensorstate' flag is set, it also includes the qubit. In 
         the latter case the qubit comes first in the tensor product. 
-        
-        Input:
-            encoding (str): Type of GKP lattice (square or hexagonal)
             
         """
-        # S is symplectic 2x2 matrix that defines the code subspace
-        if encoding == 'square':
-            S = np.array([[1, 0], [0, 1]])
-        elif encoding == 'hexagonal':
-            S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))
+        if 'gkp' in encoding:
+            # S is symplectic 2x2 matrix that defines the code subspace
+            if encoding == 'gkp_square':
+                S = np.array([[1, 0], [0, 1]])
+            elif encoding == 'gkp_hexagonal':
+                S = np.array([[1, 1/2], [0, sqrt(3)/2]])*sqrt(2/sqrt(3))
+                
+            stabilizers, pauli, states, self.code_map = \
+                hf.GKP_state(self.tensorstate, self.N, S)
+            # Convert to tensorflow tensors.
+            self.stabilizers = {key : tf.constant(val.full(), dtype=c64)
+                                for key, val in stabilizers.items()}
+            self.pauli = {key : tf.constant(val.full(), dtype=c64)
+                          for key, val in pauli.items()}
+            self.states = {key : tf.squeeze(tf.constant(val.full(), dtype=c64))
+                           for key, val in states.items()}
+        elif encoding == 'fock01':
+            assert self.tensorstate == False
+            self.states = {
+                'Z+' : basis(0,self.N), 
+                'Z-' : basis(1,self.N),
+                'X+' : normalize(basis(0,self.N) + basis(1,self.N))[0],
+                'X-' : normalize(basis(0,self.N) - basis(1,self.N))[0],
+                'Y+' : normalize(basis(0,self.N) + 1j*basis(1,self.N))[0],
+                'Y-' : normalize(basis(0,self.N) - 1j*basis(1,self.N))[0]}
+        elif encoding == 'binomial_1':
+            assert self.tensorstate == False
+            self.states = {
+                'Z+' : normalize(basis(0,self.N)+sqrt(3)*basis(6,self.N))[0], 
+                'Z-' : normalize(basis(9,self.N)+sqrt(3)*basis(3,self.N))[0]}
+            self.states['X+'] = normalize(self.states['Z+']+self.states['Z-'])[0]
+            self.states['X-'] = normalize(self.states['Z+']-self.states['Z-'])[0]
+            self.states['Y+'] = normalize(self.states['Z+']+1j*self.states['Z-'])[0]
+            self.states['Y-'] = normalize(self.states['Z+']-1j*self.states['Z-'])[0]
             
-        stabilizers, pauli, states, self.code_map = \
-            hf.GKP_state(self.tensorstate, self.N, S)
-        # Convert to tensorflow tensors.
-        self.stabilizers = {key : tf.constant(val.full(), dtype=c64)
-                            for key, val in stabilizers.items()}
-        self.pauli = {key : tf.constant(val.full(), dtype=c64)
-                      for key, val in pauli.items()}
-        self.states = {key : tf.squeeze(tf.constant(val.full(), dtype=c64))
-                       for key, val in states.items()}
+            self.states = {key : tf.squeeze(val)
+                           for key, val in self.states.items()}
+        
+        # add vacuum to states too
         vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
         self.states['vac'] = tf.squeeze(tf.constant(vac.full(), dtype=c64))
 
@@ -321,7 +360,9 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                             'tomography',
                             'tomography_remote',
                             'fock_remote',
-                            'stabilizer_remote']
+                            'stabilizer_remote',
+                            'gate',
+                            'gate_fidelity']
             self.reward_mode = mode
         except: 
             raise ValueError('reward_mode not specified or not supported.') 
@@ -333,6 +374,37 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
                 
             """
             self.calculate_reward = self.reward_zero
+        
+        
+        if mode == 'gate':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'gate'
+                gate matrix (Array([2,2], c64)): logical gate matrix, 2x2
+                tomography (str): either 'wigner' or 'CF'
+                window_size (float): size of phase space window
+                N_alpha (int): number of phase space points to sample
+                N_msmt (int): number of measurements per phase space point
+                sampling_type (str): either 'abs' or 'square'
+            """            
+            matrix = reward_kwargs.pop('gate_matrix')
+            gate_map = self.gate_matrix_to_gate_map(matrix)
+            assert reward_kwargs['sampling_type'] in ['abs', 'sqr']
+            assert reward_kwargs['tomography'] in ['wigner', 'CF']
+            reward_kwargs['gate_map'] = gate_map
+            
+            self.calculate_reward = lambda x: self.reward_gate(**reward_kwargs)
+
+        if mode == 'gate_fidelity':
+            """
+            Required reward_kwargs:
+                reward_mode (str): 'gate_fidelity'
+                gate matrix (Array([2,2], c64)): logical gate matrix, 2x2
+            """            
+            matrix = reward_kwargs.pop('gate_matrix')
+            gate_map = self.gate_matrix_to_gate_map(matrix)
+            reward_kwargs['gate_map'] = gate_map
+            self.calculate_reward = lambda x: self.reward_gate_fidelity(**reward_kwargs)
 
         if mode == 'measurement':
             """
@@ -514,42 +586,33 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.calculate_reward = \
                 lambda x: self.reward_stabilizer_remote(**reward_kwargs)
 
-
-    # def reward_fock(self, target_projector, N_msmt, error_prob):
-    #     """
-    #     Reward only on last time step using the measurement of a given Fock 
-    #     state of the oscillator.
-
-    #     """
-    #     if self._elapsed_steps < self.episode_length:
-    #         z = tf.zeros(self.batch_size, dtype=tf.float32)
-    #     else:
-    #         Z = 0
-    #         for i in range(N_msmt):
-    #             if self.tensorstate:
-    #                 # measure qubit to disentangle from oscillator
-    #                 psi, m = measurement(self._state, self.P, sample=True)
-    #                 mask = tf.squeeze(tf.where(m==1, 1.0, 0.0))
-    #             else:
-    #                 psi = self._state
-    #                 mask = tf.ones([self.batch_size])
-
-    #             # sample observations
-    #             p_n = expectation(psi, target_projector, reduce_batch=False)
-    #             p_n = tf.reshape(tf.math.real(p_n), shape=[self.batch_size])
-    #             obs = tfp.distributions.Bernoulli(probs=p_n).sample()
+    def gate_matrix_to_gate_map(self, matrix):
+        """
+        Args:
+            matrix (Array([2,2], c64)): logical gate matrix, 2x2
+            gate_map (dict): dictionary that defines how the gate maps the 
+                cardinal points. 
+        """
+        gate_map = {
+            'Z+' : normalize(matrix[0][0]*self.states['Z+']+
+                             matrix[1][0]*self.states['Z-'])[0],
+            
+            'Z-' : normalize(matrix[0][1]*self.states['Z+']+
+                             matrix[1][1]*self.states['Z-'])[0],
+            
+            'X+' : normalize((matrix[0][0]+matrix[0][1])*self.states['Z+']+
+                             (matrix[1][0]+matrix[1][1])*self.states['Z-'])[0],
                 
-    #             # sample errors and apply them to measurement outcomes
-    #             e = error_prob * tf.ones_like(p_n)
-    #             err = tfp.distributions.Bernoulli(probs=e).sample()  
-    #             obs = tf.where(err==0, obs, 0)
-    #             obs = 2*tf.cast(obs, dtype=tf.float32)-1 # convert to {-1,1}
-                
-    #             penalty_coeff = 1.0
-    #             Z += obs * mask - penalty_coeff * (1-mask)
-    #         z = Z / N_msmt
-    #     return z
-    
+            'X-' : normalize((matrix[0][0]-matrix[0][1])*self.states['Z+']+
+                             (matrix[1][0]-matrix[1][1])*self.states['Z-'])[0],
+
+            'Y+' : normalize((matrix[0][0]+1j*matrix[0][1])*self.states['Z+']+
+                             (matrix[1][0]+1j*matrix[1][1])*self.states['Z-'])[0],
+
+            'Y-' : normalize((matrix[0][0]-1j*matrix[0][1])*self.states['Z+']+
+                             (matrix[1][0]-1j*matrix[1][1])*self.states['Z-'])[0]}
+        return gate_map
+
     def reward_fock(self, target_projector, N_msmt, error_prob):
         """
         Reward only on last time step using the measurement of a given Fock 
@@ -671,6 +734,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         target_vals = list(accepted_targets)
         return buffer, target_vals
 
+
     def collect_tomography_measurements(self, tomography, mini_buffer, N_msmt):
         """
         Given the buffer of 'N_alpha' phase space points, do 'N_msmt'
@@ -725,7 +789,41 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # at this point msmt.shape = [2, N_alpha, N_msmt, B]
         msmt = tf.transpose(msmt, perm=[0,3,1,2])
         return msmt
+
+
+    def reward_gate(self, gate_map, window_size, tomography, 
+                      N_alpha, N_msmt, sampling_type):
+        """
+        This reward is designed for optimizing gates. It samples initial state
+        from a set of cardinal points, this state is the same for whole batch.
+        Then it simply applies tomography reward to the output, using target
+        as expected for the given gate. 
+        """
+        target_state = gate_map[self._original[0]]
+        
+        return self.reward_tomography(target_state, window_size, tomography, 
+                          N_alpha, N_msmt, sampling_type)
     
+    def reward_gate_fidelity(self, gate_map):
+        """
+        This will compute average gate fidelity. It is only compatible with 
+        'cardinal_points' initialization, so the batch size is 6.
+        """
+        assert self.init == 'cardinal_points'
+        
+        # return 0 on all intermediate steps of the episode
+        if self._elapsed_steps < self.episode_length:
+            return tf.zeros(self.batch_size, dtype=tf.float32)
+
+        prepared_state = tf.concat([self.info['psi_cached']]*2, axis=0) #shape=[12,N]
+        target_state_str = ['X+','X-','Y+','Y-','Z+','Z-','X-','X+','Y-','Y+','Z-','Z+']
+        target_state = [gate_map[s] for s in target_state_str]
+        target_state = tf.convert_to_tensor(target_state, dtype=c64)
+        signs = [1]*6 + [-1]*6
+        F = tf.math.abs(batch_dot(target_state, prepared_state))**2
+        F_gate = 1/2 + 1/12 * tf.reduce_sum(tf.squeeze(F) * tf.constant(signs, tf.float32))
+        return tf.broadcast_to(F_gate, [self.batch_size])
+
 
     def reward_tomography(self, target_state, window_size, tomography, 
                           N_alpha, N_msmt, sampling_type):
@@ -1130,7 +1228,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
     @init.setter
     def init(self, val):
         try:
-            assert val in ['vac','random','X+','X-','Y+','Y-','Z+','Z-']
+            assert val in ['vac','random','X+','X-','Y+','Y-','Z+','Z-',
+                           'random_v2', 'cardinal_points']
             self._init = val
         except:
             raise ValueError('Initial state not supported.')
