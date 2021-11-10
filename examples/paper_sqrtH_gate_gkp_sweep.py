@@ -23,7 +23,7 @@ from rl_tools.agents import actor_distribution_network_gkp
 from rl_tools.tf_env import helper_functions as hf
 
 """
-Train PPO agent to optimize a T gate on a logical qubit, realized
+Train PPO agent to optimize a sqrt(H) gate on a GKP logical qubit, realized
 with universal gate set consisting of SNAPs and displacements.
 
 All training episodes start from one of the encoded states chosen at random, 
@@ -31,7 +31,7 @@ All training episodes start from one of the encoded states chosen at random,
 
 """
 
-root_dir = r'E:\data\gkp_sims\PPO\paper_data\T_gate_bin'
+root_dir = r'E:\data\gkp_sims\PPO\paper_data\sqrtH_gate_gkp'
 if not os.path.isdir(root_dir): os.mkdir(root_dir)
 
 random_seeds = [0,1,2,3,4,5]
@@ -41,22 +41,21 @@ for seed in random_seeds:
     # Params for environment
     env_kwargs = {
         'control_circuit' : 'snap_and_displacement',
-        'encoding' : 'binomial_1',
+        'encoding' : 'gkp_square',
         'init' : 'random_v2',
         'T' : 1, 
-        'N' : 100}
+        'N' : 120}
 
     env_kwargs_eval = {
         'control_circuit' : 'snap_and_displacement',
-        'encoding' : 'binomial_1',
+        'encoding' : 'gkp_square',
         'init' : 'cardinal_points',
         'T' : 1, 
-        'N' : 100}
+        'N' : 120}
     
-    # create
-    phase = tf.cast(tf.math.exp(1j*pi/4), tf.complex64)
-    gate_matrix = [[1, 0],
-                   [0, phase]]
+    # this is sqrt(H) gate (non-Clifford), should be doable with 1 SNAP in GKP
+    gate_matrix = [[1/4*((1-1j)*sqrt(2)+2*(1+1j)), 1/4*sqrt(2)*(1-1j)],
+                   [1/4*sqrt(2)*(1-1j), 1/4*((-1+1j)*sqrt(2)+2*(1+1j))]]
 
 
     # Params for reward function
@@ -100,7 +99,7 @@ for seed in random_seeds:
     PPO.train_eval(
             root_dir = sim_dir,
             random_seed = seed,
-            num_epochs = 5000,
+            num_epochs = 10000,
             # Params for train
             normalize_observations = True,
             normalize_rewards = False,

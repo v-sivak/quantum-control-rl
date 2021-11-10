@@ -41,7 +41,7 @@ class QuantumCircuit(Oscillator, TFEnvironmentQuantumControl):
     @property
     def _control_circuit_spec(self):
         spec = {'alpha' : specs.TensorSpec(shape=[2], dtype=tf.float32),
-                'theta' : specs.TensorSpec(shape=[15], dtype=tf.float32)}
+                'theta' : specs.TensorSpec(shape=[80], dtype=tf.float32)}
         return spec
 
     @tf.function

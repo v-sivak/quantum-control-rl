@@ -335,8 +335,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.states['Y+'] = normalize(self.states['Z+']+1j*self.states['Z-'])[0]
             self.states['Y-'] = normalize(self.states['Z+']-1j*self.states['Z-'])[0]
             
-            self.states = {key : tf.squeeze(val)
-                           for key, val in self.states.items()}
+        self.states = {key : tf.squeeze(val)
+                       for key, val in self.states.items()}
         
         # add vacuum to states too
         vac = qt.basis(2*self.N,0) if self.tensorstate else qt.basis(self.N,0)
