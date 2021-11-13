@@ -222,7 +222,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         state = self.info['psi_cached']
         
         # Generate a grid of phase space points
-        lim, pts = 4, 81
+        lim, pts = 5, 81
         x = np.linspace(-lim, lim, pts)
         y = np.linspace(-lim, lim, pts)
 
@@ -237,7 +237,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             W = 1/pi * expectation(state_translated, self.parity, reduce_batch=False)
             W_grid = tf.reshape(W, grid.shape)
     
-            fig, ax = plt.subplots(1,1)
+            fig, ax = plt.subplots(1,1, dpi=200)
             fig.suptitle('Wigner, step %d' %self._elapsed_steps)
             ax.pcolormesh(x, y, np.transpose(W_grid.numpy().real), 
                                cmap='RdBu_r', vmin=-1/pi, vmax=1/pi)
@@ -247,7 +247,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             C = expectation(state, self.translate(grid_flat), reduce_batch=False)
             C_grid = tf.reshape(C, grid.shape)
             
-            fig, axes = plt.subplots(1,2, sharey=True)
+            fig, axes = plt.subplots(1,2, sharey=True, dpi=200)
             fig.suptitle('step %d' %self._elapsed_steps)
             axes[0].pcolormesh(x, y, np.transpose(C_grid.numpy().real), 
                                 cmap='RdBu_r', vmin=-1, vmax=1)
@@ -334,6 +334,21 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.states['X-'] = normalize(self.states['Z+']-self.states['Z-'])[0]
             self.states['Y+'] = normalize(self.states['Z+']+1j*self.states['Z-'])[0]
             self.states['Y-'] = normalize(self.states['Z+']-1j*self.states['Z-'])[0]
+        elif encoding == 'cat_4leg':
+            assert self.tensorstate == False
+            alpha = 2.0
+            L0 = (qt.coherent(self.N, alpha).full() + qt.coherent(self.N, -alpha).full()+
+                  qt.coherent(self.N, 1j*alpha).full() + qt.coherent(self.N, -1j*alpha).full()).transpose()
+            L1 = (qt.coherent(self.N, alpha).full() + qt.coherent(self.N, -alpha).full()-
+                  qt.coherent(self.N, 1j*alpha).full() - qt.coherent(self.N, -1j*alpha).full()).transpose()
+            self.states = {
+                'Z+' : normalize(tf.constant(L0, c64))[0],
+                'Z-' : normalize(tf.constant(L1, c64))[0]}
+            self.states['X+'] = normalize(self.states['Z+']+self.states['Z-'])[0]
+            self.states['X-'] = normalize(self.states['Z+']-self.states['Z-'])[0]
+            self.states['Y+'] = normalize(self.states['Z+']+1j*self.states['Z-'])[0]
+            self.states['Y-'] = normalize(self.states['Z+']-1j*self.states['Z-'])[0]
+
             
         self.states = {key : tf.squeeze(val)
                        for key, val in self.states.items()}
