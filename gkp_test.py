@@ -21,28 +21,24 @@ from rl_tools.tf_env import tf_env_wrappers as wrappers
 from rl_tools.tf_env import env_init
 from simulator.utils import expectation
 import rl_tools.action_script as action_scripts
+import importlib
 
-# N=50
-# target_state = (qt.basis(N,9)+sqrt(3)*qt.basis(N,3)).unit()
+if 1:
+    env = env_init(control_circuit='snap_and_displacement', encoding='gkp_square',
+                   reward_kwargs={'reward_mode' : 'zero'},
+                   init='Z+',T=4, batch_size=1, N=150, episode_length=4)
 
-# reward_kwargs = {'reward_mode' : 'overlap', 
-#                   'target_state' : target_state,
-#                   'postselect_0' : False
-#                   }
+    action_script = 'snap_and_displacements'
+    action_scale = {'alpha':4, 'theta':pi}
+    to_learn = {'alpha':True, 'theta':True}
 
-# env = env_init(control_circuit='snap_and_displacement', 
-#                 reward_kwargs=reward_kwargs,
-#                 init='vac', H=1, T=5, attn_step=1, batch_size=1, N=N, episode_length=5)
-
-# action_script = 'snap_and_displacements'
-# action_scale = {'alpha':4, 'theta':pi}
-# to_learn = {'alpha':True, 'theta':True}
-# action_script = action_scripts.__getattribute__(action_script)
-# env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
-
-# root_dir = r'E:\data\gkp_sims\PPO\examples\test100\seed1'
-# policy_dir = r'policy\001900'
-# policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
+    module_name = 'rl_tools.action_script.' + action_script
+    action_script = importlib.import_module(module_name)
+    env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn)
+    
+    root_dir = r'E:\data\gkp_sims\PPO\paper_data\gates\test\seed2'
+    policy_dir = r'policy\004000'
+    policy = tf.compat.v2.saved_model.load(os.path.join(root_dir,policy_dir))
 
 
 ### simulate GKP stabilization with SBS
@@ -57,7 +53,7 @@ if 0:
 
 
 ### simulate GKP state preparation with ECDC  
-if 1:
+if 0:
     env = env_init(control_circuit='ECD_control', reward_kwargs=dict(reward_mode='zero'),
                     init='vac', T=11, batch_size=1, N=100, episode_length=11)
     
@@ -178,9 +174,9 @@ if 1:
         env.render()
         # print(time_step.observation)
     
-    fig, ax = plt.subplots(1,1)
-    ax.set_xlabel('Step')
-    ax.set_ylabel(r'$\langle \, n \, \rangle$')
-    ax.plot(range(len(n)), n)
+    # fig, ax = plt.subplots(1,1)
+    # ax.set_xlabel('Step')
+    # ax.set_ylabel(r'$\langle \, n \, \rangle$')
+    # ax.plot(range(len(n)), n)
 
-    print("="*25 + '%f' %time_step.reward)
+    # print("="*25 + '%f' %time_step.reward)

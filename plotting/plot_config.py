@@ -8,9 +8,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 ### Setup matplotlib
-fontsize = 7
-fontsize_tick = 7
-linewidth = 0.75
+fontsize = 8
+fontsize_tick = 8
+linewidth = 1.0
 spinewidth = 1.0
 markersize = linewidth*6
 tick_size = 3.0

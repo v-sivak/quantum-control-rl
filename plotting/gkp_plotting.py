@@ -147,7 +147,7 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
             
     
     # Plot returns
-    fig, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1,1,dpi=200)
     ax.set_ylabel('Return')
     ax.set_xlabel('Epoch')
     plt.grid(True)
@@ -161,7 +161,7 @@ def plot_rl_learning_progress(logs_to_plot, baseline=None):
             max_epoch = max(max_epoch, np.max(log['epochs']))
     if baseline:
         ax.plot([0,max_epoch], [baseline,baseline], color='k')
-        
+
     # # Plot experience and training time
     # fig, ax = plt.subplots(1,1)
     # ax.set_ylabel('Time (hrs)')
