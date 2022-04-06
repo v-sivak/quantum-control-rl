@@ -1016,19 +1016,27 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
         self.server_socket.send_data(message)
 
-        # receive sigma_z of shape [2, N_stabilizers, N_msmt, batch_size]
+        # receive sigma_z of shape [2 or 3, N_stabilizers, N_msmt, batch_size]
+        # first dimension is interpreted as m1, m2, & m0 (optionally)
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
         mask = tf.where(msmt[0]==1, 1.0, 0.0) # [N_stabilizers, N_msmt, batch_size]
         
-        stabilizer_signs = tf.reshape(stabilizer_signs, [len(stabilizer_signs),1,1])
-        # calculate reward. If training, include penalty for measuring m1='e'
-        Z = msmt[1] * mask * tf.cast(stabilizer_signs, tf.float32)
-        if epoch_type == 'training':
-            Z -= penalty_coeff * (1-mask)
+        m2 = msmt[1] * np.reshape(stabilizer_signs, [len(stabilizer_signs),1,1])
+        # mask out trajectories where m1 != 'g' 
+        Z = np.ma.array(m2, mask = np.where(msmt[0]==1, 0.0, 1.0))
         
-        z = tf.math.reduce_mean(Z, axis=[0,1])
-        return z
+        # mask out trajectories where m0 != 'g' 
+        if msmt.shape[0] == 3:
+            Z = np.ma.array(Z, mask = np.where(msmt[2]==1, 0.0, 1.0))
+        
+        z = np.mean(Z, axis=(0,1))
+        
+        # If training, include penalty for measuring m1='e'
+        if epoch_type == 'training':
+            z -= penalty_coeff * (1-np.mean(mask, axis=(0,1)))
+        
+        return tf.cast(z, tf.float32)
 
 
     @tf.function
