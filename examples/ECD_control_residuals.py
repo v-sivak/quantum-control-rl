@@ -1,15 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 18 14:54:24 2021
-
-@author: Vladimir Sivak
-"""
-
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# append parent 'gkp-rl' directory to path 
+# append parent 'gkp-rl' directory to path
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
@@ -19,13 +12,11 @@ import numpy as np
 from math import sqrt, pi
 from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
-from rl_tools.agents import actor_distribution_network_gkp
-from rl_tools.tf_env import helper_functions as hf
 
 """
 Train PPO agent to do Fock state N=2 preparation with universal gate sequence.
 
-The episodes start from vacuum, and characteristic function tomography 
+The episodes start from vacuum, and characteristic function tomography
 measurements are performed in the end to assign reward.
 
 """
@@ -37,7 +28,7 @@ root_dir = os.path.join(root_dir,'test')
 env_kwargs = {
     'control_circuit' : 'ECD_control',
     'init' : 'vac',
-    'T' : 8, 
+    'T' : 8,
     'N' : 50}
 
 # Params for reward function
@@ -98,11 +89,11 @@ eval_episode_length = lambda x: env_kwargs['T']
 from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 
+    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale,
     to_learn, train_episode_length, learn_residuals)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
+    env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale,
     to_learn, eval_episode_length, learn_residuals)
 
 
