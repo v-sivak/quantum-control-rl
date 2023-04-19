@@ -1,14 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun  2 14:20:11 2021
-
-@author: Vladimir Sivak
-"""
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# append parent 'gkp-rl' directory to path 
+# append parent 'gkp-rl' directory to path
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
@@ -54,15 +48,15 @@ reward_kwargs_eval ={
 
 # Params for action wrapper
 action_script = 'SBS_remote_residuals_v6'
-action_scale = {'beta_even':0.2, 'beta_odd':0.2, 'phi_even':0.3, 'phi_odd':0.3, 
-                'echo_pulse_even':0.3, 'echo_pulse_odd':0.3, 
-                'cavity_phase':0.5, 'Kerr_drive_amp':0.8, 
+action_scale = {'beta_even':0.2, 'beta_odd':0.2, 'phi_even':0.3, 'phi_odd':0.3,
+                'echo_pulse_even':0.3, 'echo_pulse_odd':0.3,
+                'cavity_phase':0.5, 'Kerr_drive_amp':0.8,
                 'alpha_correction_even':0.2, 'alpha_correction_odd':0.2,
                 'qb_detune':3e6, 'qb_drag':4.0, 'cavity_detune':10e3,
                 'reset_pulse':0.3}
-to_learn = {'beta_even':True, 'beta_odd':True, 'phi_even':True, 'phi_odd':True, 
-            'echo_pulse_even':True, 'echo_pulse_odd':True, 
-            'cavity_phase':True, 'Kerr_drive_amp':True, 
+to_learn = {'beta_even':True, 'beta_odd':True, 'phi_even':True, 'phi_odd':True,
+            'echo_pulse_even':True, 'echo_pulse_odd':True,
+            'cavity_phase':True, 'Kerr_drive_amp':True,
             'alpha_correction_even':True, 'alpha_correction_odd':True,
             'qb_detune':True, 'qb_drag':False, 'cavity_detune':False,
             'reset_pulse':True}
@@ -80,11 +74,11 @@ eval_episode_length = lambda x: env_kwargs['T']
 from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 
+    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale,
     to_learn, train_episode_length, learn_residuals, remote=True)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
+    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale,
     to_learn, eval_episode_length, learn_residuals, remote=True)
 
 PPO.train_eval(
@@ -95,7 +89,7 @@ PPO.train_eval(
         normalize_observations = True,
         normalize_rewards = False,
         discount_factor = 1.0,
-        lr = 3e-3, 
+        lr = 3e-3,
         lr_schedule = None,
         num_policy_updates = 20,
         initial_adaptive_kl_beta = 0.0,
