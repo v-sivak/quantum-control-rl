@@ -1,6 +1,4 @@
-import numpy as np
 import tensorflow as tf
-from numpy import pi, sqrt
 from tf_agents import specs
 from tf_agents.utils import common, nest_utils
 from tf_agents.specs import tensor_spec
@@ -18,7 +16,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     to alternate between learned and scripted values with 'use_mask' flag.
 
     """
-    def __init__(self, env, action_script, scale, to_learn, use_mask=True,
+    def __init__(self, env, action_script, scale, to_learn,
                  learn_residuals=False):
         """
         Args:
@@ -27,7 +25,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                            action components such as 'alpha', 'phi' etc
             scale: dictionary of scaling factors for action components
             to_learn: dictionary of bool values for action components
-            use_mask: flag to control masking of action components
             learn_residuals (bool): flag to learn residual over the scripted
                 protocol. If False, will learn actions from scratch. If True,
                 will learn a residual to be added to scripted protocol.
@@ -36,14 +33,11 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         super(ActionWrapper, self).__init__(env)
 
         self.scale = scale
-        self.period = action_script.period # periodicity of the protocol
         self.to_learn = to_learn
-        self.use_mask = use_mask
-        self.mask = action_script.mask
         self.learn_residuals = learn_residuals
 
         # load the script of actions and convert to tensors
-        self.script = action_script.script
+        self.script = action_script
         for a, val in self.script.items():
             self.script[a] = tf.constant(val, dtype=tf.float32)
 
@@ -63,20 +57,19 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                             components expected by the GKP class.
 
         """
-        # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps % self.period
+        i = self._env._elapsed_steps
         out_shape = nest_utils.get_outer_shape(input_action, self._action_spec)
 
         action = {}
         for a in self.to_learn.keys():
-            C1 = self.use_mask and self.mask[a][i]==0
-            C2 = not self.to_learn[a]
-            if C1 or C2: # if not learning: replicate scripted action
-                action[a] = common.replicate(self.script[a][i], out_shape)
-            else: # if learning: rescale input tensor
-                action[a] = input_action[a]*self.scale[a]
-                if self.learn_residuals:
-                    action[a] += common.replicate(self.script[a][i], out_shape)
+          # if not learning, replicate scripted action
+          if not self.to_learn[a]:
+            action[a] = common.replicate(self.script[a][i], out_shape)
+          # if learning, rescale input tensor
+          else:
+            action[a] = input_action[a] * self.scale[a]
+            if self.learn_residuals:
+                action[a] += common.replicate(self.script[a][i], out_shape)
 
         return action
 
