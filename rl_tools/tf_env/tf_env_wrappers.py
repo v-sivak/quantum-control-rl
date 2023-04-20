@@ -14,11 +14,10 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
     'beta', 'epsilon', 'phi' as dictionary keys. Some action components are
     taken from the action script provided at initialization, and some are
     taken from the input action produced by the agent. Parameter 'to_learn'
-    controls which action components are to be learned. It is also possible
-    to alternate between learned and scripted values with 'use_mask' flag.
+    controls which action components are to be learned.
 
     """
-    def __init__(self, env, action_script, scale, to_learn, use_mask=True,
+    def __init__(self, env, action_script, scale, to_learn,
                  learn_residuals=False):
         """
         Args:
@@ -27,7 +26,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
                            action components such as 'alpha', 'phi' etc
             scale: dictionary of scaling factors for action components
             to_learn: dictionary of bool values for action components
-            use_mask: flag to control masking of action components
             learn_residuals (bool): flag to learn residual over the scripted
                 protocol. If False, will learn actions from scratch. If True,
                 will learn a residual to be added to scripted protocol.
@@ -37,12 +35,10 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
         self.scale = scale
         self.to_learn = to_learn
-        self.use_mask = use_mask
-        self.mask = action_script.mask
         self.learn_residuals = learn_residuals
 
         # load the script of actions and convert to tensors
-        self.script = action_script.script
+        self.script = action_script
         for a, val in self.script.items():
             self.script[a] = tf.constant(val, dtype=tf.float32)
 
@@ -68,9 +64,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
         action = {}
         for a in self.to_learn.keys():
-            C1 = self.use_mask and self.mask[a][i]==0
-            C2 = not self.to_learn[a]
-            if C1 or C2: # if not learning: replicate scripted action
+            if not self.to_learn[a]: # if not learning: replicate scripted action
                 action[a] = common.replicate(self.script[a][i], out_shape)
             else: # if learning: rescale input tensor
                 action[a] = input_action[a]*self.scale[a]

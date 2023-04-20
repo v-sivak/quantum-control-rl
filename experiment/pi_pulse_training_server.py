@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 29 15:36:37 2023
-
-@author: qulab
-"""
-
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -13,9 +6,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
-import qutip as qt
-from math import sqrt, pi
-import numpy as np
+
 from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
@@ -46,11 +37,21 @@ reward_kwargs_eval = {
     'N_msmt' : 5000}
 
 # Params for action wrapper
-action_script = 'pi_pulse_circuit_init'
-action_scale = {'amplitude':0.5,
-                'detune':5e6}
-to_learn = {'amplitude':True,
-            'detune':True}
+action_script = {
+  'amplitude' : [[0.3]], # shape=[1,1]
+  'detune' : [[0.0]] # shape=[1,1]
+  }
+
+action_scale = {
+  'amplitude':0.5,
+  'detune':5e6
+  }
+
+to_learn = {
+  'amplitude':True,
+  'detune':True
+  }
+
 train_batch_size = 20
 eval_batch_size = 1
 

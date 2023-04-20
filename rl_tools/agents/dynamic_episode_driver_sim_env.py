@@ -40,8 +40,6 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         # Create training env and wrap it
         env = env_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
                         **env_kwargs)
-        module_name = 'rl_tools.action_script.' + action_script
-        action_script = importlib.import_module(module_name)
         env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,
                                      learn_residuals=learn_residuals)
 
