@@ -1,16 +1,12 @@
-from abc import ABCMeta, abstractmethod
-from math import sqrt, pi
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
-from tensorflow import complex64 as c64
 from tf_agents import specs
 from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.specs import tensor_spec
 
 
-class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMeta):
+class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
     """
     Custom environment that follows TensorFlow Agents interface and allows to
     train a reinforcement learning agent to find quantum control policies.
@@ -35,14 +31,12 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         self,
         *args,
         # Optional kwargs
-        H=1,
         T=4,
         batch_size=50,
         reward_kwargs={'reward_mode' : 'zero'},
         **kwargs):
         """
         Args:
-            H (int, optional): Horizon for history returned in observations. Defaults to 1.
             T (int, optional): Periodicity of the 'clock' observation. Defaults to 4.
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             reward_kwargs (dict, optional): optional dictionary of parameters
@@ -50,7 +44,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
         """
         # Default simulation parameters
-        self.H = H
         self.T = T
         self.batch_size = batch_size
 
@@ -58,7 +51,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         self._epoch = 0
 
         # Define action and observation specs
-        self.control_circuit = self._control_circuit
         action_spec = self._control_circuit_spec
 
         observation_spec = {
@@ -83,7 +75,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             TimeStep object (see tf-agents docs)
 
         """
-        _, _, obs = self.control_circuit(0, action)
 
         # Calculate rewards
         self._elapsed_steps += 1
@@ -132,7 +123,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         self.history = tensor_spec.zero_spec_nest(
             self.action_spec(), outer_dims=(self.batch_size,))
         for key in self.history.keys():
-            self.history[key] = [self.history[key]]*self.H
+            self.history[key] = [self.history[key]]
 
         # Make observation of horizon H
         observation = {
@@ -144,25 +135,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
     def _current_time_step(self):
         return self._current_time_step_
-
-    @abstractmethod
-    def _control_circuit(self, psi, action):
-        """
-        Quantum circuit to run on every step, to be defined by the subclass.
-        Input:
-            psi (Tensor([batch_size,N], c64)): batch of states
-            action (dict, 'alpha' : Tensor([batch_size,1,2], tf.float32),
-                    'beta': Tensor([batch_size,1,2], tf.float32), etc):
-                    dictionary of actions with keys representing different
-                    operations (translations, rotations etc) as required by
-                    the subclasses.
-
-        Output:
-            psi_final (Tensor([batch_size,N], c64)): batch of final states
-            obs (Tensor([batch_size,1], float32)) measurement outcomes;
-                In open-loop control problems can return a tensor of zeros.
-        """
-        return 0, 0, tf.ones((self.batch_size,1))
 
 
     ### REWARD FUNCTIONS
@@ -176,14 +148,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             self.reward_mode = mode
         except:
             raise ValueError('reward_mode not specified or not supported.')
-
-        if mode == 'zero':
-            """
-            Required reward_kwargs:
-                reward_mode (str): 'zero'
-
-            """
-            self.calculate_reward = self.reward_zero
 
         if mode == 'remote':
             """
@@ -234,27 +198,17 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         return tf.cast(z, tf.float32)
 
 
-    @tf.function
-    def reward_zero(self, *args):
-        """
-        Reward is always zero (use when not training).
-
-        """
-        return tf.zeros(self.batch_size, dtype=tf.float32)
-
 
 
 
     @property
     def batch_size(self):
-        return self._batch_size
+      return self._batch_size
 
     @batch_size.setter
     def batch_size(self, size):
-        # if 'code_map' in self.__dir__():
-        #     raise ValueError('Cannot change batch_size after initialization.')
-        try:
-            assert size>0 and isinstance(size,int)
-            self._batch_size = size
-        except:
-            raise ValueError('Batch size should be positive integer.')
+      try:
+        assert size>0 and isinstance(size,int)
+        self._batch_size = size
+      except:
+        raise ValueError('Batch size should be positive integer.')
