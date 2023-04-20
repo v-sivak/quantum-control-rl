@@ -9,10 +9,13 @@ import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# append parent 'gkp-rl' directory to path
+# append parent 'gkp-rl' directory to path 
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), os.pardir)))
 
+import qutip as qt
+from math import sqrt, pi
+import numpy as np
 from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
@@ -26,9 +29,10 @@ server_socket.connect_client()
 
 # Params for environment
 env_kwargs = eval_env_kwargs = {
-  'control_circuit' : 'pi_pulse_circuit_remote_env',
-  'T' : 1
-  }
+    'control_circuit' : 'pi_pulse_circuit_remote_env',
+    'init' : 'vac',
+    'T' : 1,
+    'N' : 20}
 
 # Params for reward function
 reward_kwargs = {
@@ -43,37 +47,30 @@ reward_kwargs_eval = {
     'epoch_type' : 'evaluation',
     'N_msmt' : 5000}
 
-# Params for learned actions
-action_script = {
-  'amplitude' : [[0.3]], # shape=[1,1]
-  'detune' : [[0.0]] # shape=[1,1]
-}
-
-action_scale = {
-  'amplitude' : 0.5,
-  'detune' : 5e6
-  }
-
-to_learn = {
-  'amplitude':True,
-  'detune':True
-  }
-
+# Params for action wrapper
+action_script = 'pi_pulse_circuit_init'
+action_scale = {'amplitude':0.5, 
+                'detune':5e6}
+to_learn = {'amplitude':True, 
+            'detune':True}
 train_batch_size = 20
 eval_batch_size = 1
 
 learn_residuals = True
 
+train_episode_length = lambda x: env_kwargs['T']
+eval_episode_length = lambda x: env_kwargs['T']
+
 # Create drivers for data collection
 from rl_tools.agents import dynamic_episode_driver_sim_env
 
 collect_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale,
-    to_learn, learn_residuals, remote=True)
+    env_kwargs, reward_kwargs, train_batch_size, action_script, action_scale, 
+    to_learn, train_episode_length, learn_residuals, remote=True)
 
 eval_driver = dynamic_episode_driver_sim_env.DynamicEpisodeDriverSimEnv(
-    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale,
-    to_learn, learn_residuals, remote=True)
+    eval_env_kwargs, reward_kwargs_eval, eval_batch_size, action_script, action_scale, 
+    to_learn, eval_episode_length, learn_residuals, remote=True)
 
 PPO.train_eval(
     root_dir = root_dir,
@@ -83,7 +80,7 @@ PPO.train_eval(
     normalize_observations = True,
     normalize_rewards = False,
     discount_factor = 1.0,
-    lr = 2.5e-3,
+    lr = 2.5e-3, 
     lr_schedule = None,
     num_policy_updates = 20,
     initial_adaptive_kl_beta = 0.0,
