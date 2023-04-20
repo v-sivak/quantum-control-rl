@@ -36,7 +36,6 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
         super(ActionWrapper, self).__init__(env)
 
         self.scale = scale
-        self.period = action_script.period # periodicity of the protocol
         self.to_learn = to_learn
         self.use_mask = use_mask
         self.mask = action_script.mask
@@ -64,7 +63,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
         """
         # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps % self.period
+        i = self._env._elapsed_steps
         out_shape = nest_utils.get_outer_shape(input_action, self._action_spec)
 
         action = {}

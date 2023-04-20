@@ -37,7 +37,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # Optional kwargs
         H=1,
         T=4,
-        episode_length=20,
         batch_size=50,
         reward_kwargs={'reward_mode' : 'zero'},
         **kwargs):
@@ -45,7 +44,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         Args:
             H (int, optional): Horizon for history returned in observations. Defaults to 1.
             T (int, optional): Periodicity of the 'clock' observation. Defaults to 4.
-            episode_length (int, optional): Number of iterations in training episode. Defaults to 20.
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             reward_kwargs (dict, optional): optional dictionary of parameters
                 for the reward function of RL agent.
@@ -54,7 +52,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # Default simulation parameters
         self.H = H
         self.T = T
-        self.episode_length = episode_length
         self.batch_size = batch_size
 
         self.setup_reward(reward_kwargs)
@@ -90,7 +87,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
         # Calculate rewards
         self._elapsed_steps += 1
-        self._episode_ended = (self._elapsed_steps == self.episode_length)
+        self._episode_ended = (self._elapsed_steps == self.T)
 
         # Add dummy time dimension to tensors and append them to history
         for a in action.keys():
@@ -187,7 +184,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
             """
             self.calculate_reward = self.reward_zero
-                
+
         if mode == 'remote':
             """
             Required reward_kwargs:
@@ -210,18 +207,18 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
         """
         # return 0 on all intermediate steps of the episode
-        if self._elapsed_steps != self.episode_length:
+        if self._elapsed_steps != self.T:
             return tf.zeros(self.batch_size, dtype=tf.float32)
 
         action_batch = {}
         for a in self.history.keys() - ['msmt']:
             # reshape to [batch_size, T, action_dim]
             action_history = np.array(self.history[a][1:])
-            action_batch[a] = np.transpose(action_history, 
+            action_batch[a] = np.transpose(action_history,
                             axes=[1,0]+list(range(action_history.ndim)[2:]))
 
         # send action sequence and metadata to remote client
-        message = dict(action_batch=action_batch, 
+        message = dict(action_batch=action_batch,
                        batch_size=self.batch_size,
                        N_msmt=N_msmt,
                        epoch_type=epoch_type,
@@ -233,7 +230,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
         z = np.mean(msmt, axis=0)
-        
+
         return tf.cast(z, tf.float32)
 
 

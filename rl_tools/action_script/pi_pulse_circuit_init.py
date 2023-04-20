@@ -5,12 +5,6 @@ Created on Wed Mar 29 12:18:27 2023
 @author: qulab
 """
 
-import numpy as np
-from math import sqrt, pi
-
-period = 1
-
-
 amplitude = 0.3
 sigma = 16.0 # arbitrary float
 detune = 0.0
