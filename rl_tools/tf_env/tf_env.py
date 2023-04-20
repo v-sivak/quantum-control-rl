@@ -37,7 +37,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # Optional kwargs
         H=1,
         T=4,
-        attn_step=1,
         episode_length=20,
         batch_size=50,
         reward_kwargs={'reward_mode' : 'zero'},
@@ -46,11 +45,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         Args:
             H (int, optional): Horizon for history returned in observations. Defaults to 1.
             T (int, optional): Periodicity of the 'clock' observation. Defaults to 4.
-            attn_step (int, optional): step size for hard-coded attention to
-                measurement outcomes. For example, set to 4 to return history
-                of measurement oucomes separated by 4 steps -- when the same
-                stabilizer is measured in the square code. In hexagonal code
-                this can be 2. Defaults to 1.
             episode_length (int, optional): Number of iterations in training episode. Defaults to 20.
             batch_size (int, optional): Vectorized minibatch size. Defaults to 50.
             reward_kwargs (dict, optional): optional dictionary of parameters
@@ -60,7 +54,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         # Default simulation parameters
         self.H = H
         self.T = T
-        self.attn_step = attn_step
         self.episode_length = episode_length
         self.batch_size = batch_size
 
@@ -125,12 +118,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         Reset the state of the environment to an initial state. States are
         represented as batched tensors.
 
-        Input:
-            init -- type of states to create in a batch
-                * 'vac': vacuum state
-                * 'X+','X-','Y+','Y-','Z+','Z-': one of the cardinal states
-                * 'random': sample batch of random states from 'X+','Y+','Z+'
-
         Output:
             TimeStep object (see tf-agents docs)
 
@@ -175,7 +162,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
             obs (Tensor([batch_size,1], float32)) measurement outcomes;
                 In open-loop control problems can return a tensor of zeros.
         """
-        pass
+        return 0, 0, tf.ones((self.batch_size,1))
 
 
     ### REWARD FUNCTIONS
