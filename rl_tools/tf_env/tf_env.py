@@ -65,7 +65,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         action_spec = self._control_circuit_spec
 
         observation_spec = {
-            'clock' : specs.TensorSpec(shape=[self.T], dtype=tf.float32)}
+            'clock' : specs.TensorSpec(shape=[self.T], dtype=tf.float32),
+            'const' : specs.TensorSpec(shape=[1], dtype=tf.float32)}
         time_step_spec = ts.time_step_spec(observation_spec)
 
         super().__init__(time_step_spec, action_spec, self.batch_size)
@@ -101,6 +102,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         observation = {}
         C = tf.one_hot([self._elapsed_steps%self.T]*self.batch_size, self.T)
         observation['clock'] = C
+        observation['const'] = tf.ones(shape=[self.batch_size,1])
 
         reward = self.calculate_reward(action)
         self._episode_return += reward
@@ -137,7 +139,8 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
         # Make observation of horizon H
         observation = {
-            'clock' : tf.one_hot([0]*self.batch_size, self.T)}
+            'clock' : tf.one_hot([0]*self.batch_size, self.T),
+            'const'   : tf.ones(shape=[self.batch_size,1])}
 
         self._current_time_step_ = ts.restart(observation, self.batch_size)
         return self.current_time_step()
@@ -172,7 +175,7 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         try:
             mode = reward_kwargs.pop('reward_mode')
             assert mode in ['zero',
-                            'stabilizer_remote']
+                            'remote']
             self.reward_mode = mode
         except:
             raise ValueError('reward_mode not specified or not supported.')
@@ -184,30 +187,26 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
 
             """
             self.calculate_reward = self.reward_zero
-
-
-        if mode == 'stabilizer_remote':
+                
+        if mode == 'remote':
             """
             Required reward_kwargs:
-                reward_mode (str): 'stabilizer_remote'
+                reward_mode (str): 'remote'
                 N_msmt (int): number of measurements per protocol
                 epoch_type (str): either 'training' or 'evaluation'
-                stabilizer_amplitudes (list, float): list of stabilizer dis-
-                    placement amplitudes.
-                stabilizer_signs (list, flaot): list of stabilizer signs
                 server_socket (Socket): socket for communication
             """
             self.server_socket = reward_kwargs.pop('server_socket')
             self.calculate_reward = \
-                lambda x: self.reward_stabilizer_remote(**reward_kwargs)
+                lambda x: self.reward_remote(**reward_kwargs)
 
 
-    def reward_stabilizer_remote(self, N_msmt, epoch_type, penalty_coeff,
-                                 stabilizer_amplitudes, stabilizer_signs):
+    def reward_remote(self, N_msmt, epoch_type):
         """
         Send the action sequence to remote environment and receive rewards.
-        The data received from the remote env should be sigma_z measurement
-        outcomes of shape [2, N_stabilizers, N_msmt, batch_size].
+        The data received from the remote env should be Pauli measurement
+        (i.e., range from -1 to 1)
+        outcomes of shape [N_msmt, batch_size].
 
         """
         # return 0 on all intermediate steps of the episode
@@ -218,40 +217,23 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment, metaclass=ABCMet
         for a in self.history.keys() - ['msmt']:
             # reshape to [batch_size, T, action_dim]
             action_history = np.array(self.history[a][1:])
-            action_batch[a] = np.transpose(action_history,
+            action_batch[a] = np.transpose(action_history, 
                             axes=[1,0]+list(range(action_history.ndim)[2:]))
 
         # send action sequence and metadata to remote client
-        message = dict(action_batch=action_batch,
+        message = dict(action_batch=action_batch, 
                        batch_size=self.batch_size,
                        N_msmt=N_msmt,
                        epoch_type=epoch_type,
-                       epoch=self._epoch,
-                       stabilizers=stabilizer_amplitudes,
-                       stabilizer_signs=stabilizer_signs)
+                       epoch=self._epoch)
 
         self.server_socket.send_data(message)
 
-        # receive sigma_z of shape [2 or 3, N_stabilizers, N_msmt, batch_size]
-        # first dimension is interpreted as m1, m2, & m0 (optionally)
+        # receive sigma_z of shape [N_msmt, batch_size]
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
-        mask = tf.where(msmt[0]==1, 1.0, 0.0) # [N_stabilizers, N_msmt, batch_size]
-
-        m2 = msmt[1] * np.reshape(stabilizer_signs, [len(stabilizer_signs),1,1])
-        # mask out trajectories where m1 != 'g'
-        Z = np.ma.array(m2, mask = np.where(msmt[0]==1, 0.0, 1.0))
-
-        # mask out trajectories where m0 != 'g'
-        if msmt.shape[0] == 3:
-            Z = np.ma.array(Z, mask = np.where(msmt[2]==1, 0.0, 1.0))
-
-        z = np.mean(Z, axis=(0,1))
-
-        # If training, include penalty for measuring m1='e'
-        if epoch_type == 'training':
-            z -= penalty_coeff * (1-np.mean(mask, axis=(0,1)))
-
+        z = np.mean(msmt, axis=0)
+        
         return tf.cast(z, tf.float32)
 
 
