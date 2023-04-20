@@ -45,10 +45,14 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,
                                      learn_residuals=learn_residuals)
 
+
         # create dummy placeholder policy to initialize parent class
         dummy_policy = PolicyPlaceholder(env.time_step_spec(), env.action_spec())
 
         super().__init__(env, dummy_policy, num_episodes=batch_size)
+
+    def run(self, epoch):
+        super().run()
 
     def setup(self, policy, observers):
         """Setup policy and observers for the driver."""

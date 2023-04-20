@@ -63,7 +63,7 @@ class ActionWrapper(TFEnvironmentBaseWrapper):
 
         """
         # step counter to follow the script of periodicity 'period'
-        i = self._env._elapsed_steps
+        i = self._env._elapsed_steps % self._env.T
         out_shape = nest_utils.get_outer_shape(input_action, self._action_spec)
 
         action = {}
