@@ -41,7 +41,7 @@ reward_kwargs_eval = {
 
 # Params for action wrapper
 action_script = {
-  'amplitude' : [[0.3]], # shape=[1,1]
+  'amplitude' : [[0.25]], # shape=[1,1]
   'detune' : [[0.0]] # shape=[1,1]
   }
 
@@ -51,7 +51,7 @@ action_spec = {
   }
 
 action_scale = {
-  'amplitude':0.5,
+  'amplitude':0.25,
   'detune':5e6
   }
 
@@ -60,7 +60,7 @@ to_learn = {
   'detune':True
   }
 
-train_batch_size = 20
+train_batch_size = 50
 eval_batch_size = 1
 
 learn_residuals = True
@@ -108,7 +108,7 @@ PPO.train_eval(
     replay_buffer_capacity = 15000,
     # Policy and value networks
     ActorNet = actor_distribution_network.ActorDistributionNetwork,
-    zero_means_kernel_initializer = True,
+    zero_means_kernel_initializer = False,
     init_action_stddev = 0.08,
     actor_fc_layers = (50,20),
     value_fc_layers = (),
