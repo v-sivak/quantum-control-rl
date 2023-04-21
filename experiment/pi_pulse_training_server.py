@@ -12,10 +12,13 @@ from rl_tools.agents import PPO
 from tf_agents.networks import actor_distribution_network
 from rl_tools.remote_env_tools import remote_env_tools as rmt
 
-root_dir = r'E:\data\exp_training\pi_pulse_1'
+root_dir = r'D:\rl_data\exp_training\pi_pulse_1'
 
 server_socket = rmt.Server()
-(host, port) = ('172.28.142.46', 5555)
+# Vlad's old PC: 172.28.142.46
+# DN new msmt PC: 172.28.143.183
+# DN new msmt PC (local): 169.168.1.1
+(host, port) = ('169.168.1.1', 5555)
 server_socket.bind((host, port))
 server_socket.connect_client()
 

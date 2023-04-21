@@ -170,9 +170,14 @@ def train_eval(
                 output_fc_layer_params = value_fc_layers)
         else:
             npn = actor_distribution_network._normal_projection_net
-            normal_projection_net = lambda specs: npn(specs,
-                zero_means_kernel_initializer=zero_means_kernel_initializer,
-                init_action_stddev=init_action_stddev)
+
+            if zero_means_kernel_initializer:
+                normal_projection_net = lambda specs: npn(specs, 
+                    zero_means_kernel_initializer=zero_means_kernel_initializer,
+                    init_action_stddev=init_action_stddev)
+            else:
+                normal_projection_net = lambda specs: npn(specs,
+                    init_action_stddev=init_action_stddev)
 
             actor_net = ActorNet(
                 input_tensor_spec = observation_spec,
