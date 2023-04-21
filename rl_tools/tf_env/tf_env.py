@@ -29,11 +29,10 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
     """
     def __init__(
         self,
-        *args,
-        # Optional kwargs
+        action_spec={},
         T=4,
         batch_size=50,
-        reward_kwargs={'reward_mode' : 'zero'},
+        reward_kwargs={},
         **kwargs):
         """
         Args:
@@ -49,9 +48,6 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
 
         self.setup_reward(reward_kwargs)
         self._epoch = 0
-
-        # Define action and observation specs
-        action_spec = self._control_circuit_spec
 
         observation_spec = {
             'clock' : specs.TensorSpec(shape=[self.T], dtype=tf.float32),

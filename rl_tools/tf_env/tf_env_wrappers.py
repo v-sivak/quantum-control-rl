@@ -1,10 +1,6 @@
-import numpy as np
 import tensorflow as tf
-from numpy import pi, sqrt
 from tf_agents import specs
 from tf_agents.utils import common, nest_utils
-from tf_agents.specs import tensor_spec
-from tf_agents.trajectories import time_step as ts
 from tf_agents.environments.tf_wrappers import TFEnvironmentBaseWrapper
 
 

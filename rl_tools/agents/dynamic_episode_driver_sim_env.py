@@ -1,7 +1,7 @@
 from tf_agents.drivers import dynamic_episode_driver
 from rl_tools.utils.version_helper import TFPolicy
-from rl_tools.tf_env import env_init
 from rl_tools.tf_env import tf_env_wrappers as wrappers
+from rl_tools.tf_env.tf_env import TFEnvironmentQuantumControl
 
 
 class PolicyPlaceholder(TFPolicy):
@@ -15,7 +15,7 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
 
     """
     def __init__(self, env_kwargs, reward_kwargs, batch_size,
-                 action_script, action_scale, to_learn,
+                 action_script, action_scale, action_spec, to_learn,
                  learn_residuals=False, remote=False):
         """
         Args:
@@ -37,8 +37,12 @@ class DynamicEpisodeDriverSimEnv(dynamic_episode_driver.DynamicEpisodeDriver):
         """
         self.remote = remote
         # Create training env and wrap it
-        env = env_init(batch_size=batch_size, reward_kwargs=reward_kwargs,
-                        **env_kwargs)
+        env = TFEnvironmentQuantumControl(
+          action_spec=action_spec,
+          batch_size=batch_size,
+          reward_kwargs=reward_kwargs,
+          **env_kwargs)
+
         env = wrappers.ActionWrapper(env, action_script, action_scale, to_learn,
                                      learn_residuals=learn_residuals)
 
