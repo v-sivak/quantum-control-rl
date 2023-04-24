@@ -48,25 +48,31 @@ amp = 0.4 #initial guess for amp of pulse
 ts = np.linspace(-n_array_vals/2, n_array_vals/2, n_array_vals)
 P = np.exp(-ts**2 / (2.0 * sigma**2))
 ofs = P[0]
-init_pulse = list(amp*((P - ofs) / (1 - ofs)))
+init_pulse_real = list(amp*((P - ofs) / (1 - ofs)))
+init_pulse_imag = np.zeros(n_array_vals,dtype=float)
 
-action_scale_array = list(np.ones(n_array_vals,dtype=float))
+action_scale_array_real = list(np.ones(n_array_vals,dtype=float))
+action_scale_array_imag = list(np.ones(n_array_vals,dtype=float))
 
 # Params for action wrapper
 action_script = {
-  'pulse_array' : [init_pulse] # shape=[n_array_vals]
+  'pulse_array_real' : [init_pulse_real], # shape=[n_array_vals]
+  'pulse_array_imag' : [init_pulse_imag]
   }
 
 action_spec = {
-  'pulse_array' : specs.TensorSpec(shape=[n_array_vals], dtype=tf.float32)
+  'pulse_array_real' : specs.TensorSpec(shape=[n_array_vals], dtype=tf.float32),
+  'pulse_array_imag' : specs.TensorSpec(shape=[n_array_vals], dtype=tf.float32)
   }
 
 action_scale = {
-  'pulse_array':action_scale_array
+  'pulse_array_real':action_scale_array_real,
+  'pulse_array_imag':action_scale_array_imag
   }
 
 to_learn = {
-  'pulse_array':True
+  'pulse_array_real':True,
+  'pulse_array_imag':True
   }
 
 train_batch_size = 50
