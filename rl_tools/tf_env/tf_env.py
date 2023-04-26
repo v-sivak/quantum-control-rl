@@ -71,27 +71,18 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
             TimeStep object (see tf-agents docs)
 
         """
-
+        
         # Calculate rewards
         self._elapsed_steps += 1
         self._episode_ended = (self._elapsed_steps == self.T)
 
         # Add dummy time dimension to tensors and append them to history
-        for a in action.keys():
-            print('\n')
-            print('INSIDE ENVIRONMENT _STEP:')
-            print('elapsed steps = '+str(self._elapsed_steps))
-            print('epoch = '+str(self._epoch))
-            print('self.T = '+str(self.T))
 
-            self.history[a].append(action[a])
-
-            print('action key = '+str(a))
-            print('len(history[key]):')
-            print(len(self.history[a]))
-            print('self.history[a]')
-            print(self.history[a])
-            print('\n')
+        # don't add batch to history on the last time step,
+        # since this batch of actions isn't actually used
+        if not self._current_time_step_.is_last().numpy().all():
+            for a in action.keys():
+                self.history[a].append(action[a])
 
         # Make observations of 'msmt' of horizon H, shape=[batch_size,H]
         # measurements are selected with hard-coded attention step.
@@ -179,6 +170,9 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
         outcomes of shape [N_msmt, batch_size].
 
         """
+
+        
+
         # return 0 on all intermediate steps of the episode
         if self._elapsed_steps != self.T:
             return tf.zeros(self.batch_size, dtype=tf.float32)

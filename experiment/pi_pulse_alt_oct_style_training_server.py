@@ -1,3 +1,5 @@
+
+#%%
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -131,3 +133,5 @@ PPO.train_eval(
     use_rnn = False,
     actor_lstm_size = (12,),
     value_lstm_size = (12,))
+
+# %%
