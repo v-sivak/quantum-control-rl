@@ -1,3 +1,5 @@
+
+#%%
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"]='true'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
@@ -49,7 +51,7 @@ ts = np.linspace(-n_array_vals/2, n_array_vals/2, n_array_vals)
 P = np.exp(-ts**2 / (2.0 * sigma**2))
 ofs = P[0]
 init_pulse_real = list(amp*((P - ofs) / (1 - ofs)))
-init_pulse_imag = np.zeros(n_array_vals,dtype=float)
+init_pulse_imag = list(np.zeros(n_array_vals,dtype=float))
 
 action_scale_array_real = list(np.ones(n_array_vals,dtype=float))
 action_scale_array_imag = list(np.ones(n_array_vals,dtype=float))
@@ -114,7 +116,7 @@ PPO.train_eval(
     save_interval = 2,
     checkpoint_interval = None,
     summary_interval = 2,
-    do_evaluation = True,
+    do_evaluation = False,
     # Params for data collection
     train_batch_size = train_batch_size,
     eval_batch_size = eval_batch_size,
@@ -130,3 +132,5 @@ PPO.train_eval(
     use_rnn = False,
     actor_lstm_size = (12,),
     value_lstm_size = (12,))
+
+# %%

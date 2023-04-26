@@ -78,7 +78,20 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
 
         # Add dummy time dimension to tensors and append them to history
         for a in action.keys():
+            print('\n')
+            print('INSIDE ENVIRONMENT _STEP:')
+            print('elapsed steps = '+str(self._elapsed_steps))
+            print('epoch = '+str(self._epoch))
+            print('self.T = '+str(self.T))
+
             self.history[a].append(action[a])
+
+            print('action key = '+str(a))
+            print('len(history[key]):')
+            print(len(self.history[a]))
+            print('self.history[a]')
+            print(self.history[a])
+            print('\n')
 
         # Make observations of 'msmt' of horizon H, shape=[batch_size,H]
         # measurements are selected with hard-coded attention step.

@@ -5,6 +5,7 @@ Created on Wed Mar  4 12:24:37 2020
 @author: Vladimir Sivak
 """
 import os
+import sys
 import tensorflow as tf
 import numpy as np
 
@@ -279,10 +280,13 @@ def train_eval(
         # Training loop
         train_timer = timer.Timer()
         experience_timer = timer.Timer()
+
+        all_actions = None
+        all_policy_dists = None
         for epoch in range(1,num_epochs+1):
             # Collect new experience
             experience_timer.start()
-            collect_driver.run()
+            this_time_step,this_policy_state = collect_driver.run()
             experience_timer.stop()
             # Update the policy
             train_timer.start()
@@ -290,6 +294,65 @@ def train_eval(
             train_loss = train_step()
             replay_buffer.clear()
             train_timer.stop()
+
+            print('epoch = '+str(epoch))
+            print(collect_driver._env)
+            print(collect_driver._policy)
+            print(collect_driver._env.history.items())
+            print(this_time_step)
+            print(this_policy_state)
+            collect_driver.dummy_time_step = this_time_step
+
+            # getting the batch of actions from this epoch
+            #   as a dict containing numpy arrays; use to save data in custom way
+            #   to access: these_actions[action_name][batch]
+            these_actions = {action_name : np.squeeze(np.array(action_history)[1:])
+                for action_name, action_history in collect_driver._env.history.items()
+                if not action_name=='msmt'}
+
+            # concatenating actions from this epoch into all_actions dict
+            #   to access: all_actions[action_name][epoch,batch]
+            action_names = list(collect_driver._env.history.keys())
+            if not all_actions: 
+                all_actions = {a : np.expand_dims(these_actions[a],0) for a in action_names} # initialize if it's the first epoch
+            else:
+                for a in action_names:
+                    all_actions[a] = np.concatenate((all_actions[a],np.expand_dims(these_actions[a],0)),axis=0)
+
+            # getting the policy distribution (mean,stdev) from this epoch
+            #   as a dict containing numpy arrays; use to save data in custom way
+            #   to access: policy_dist[action_name]['loc' or 'scale']
+            policy_dist_dict = collect_driver._policy.distribution(collect_driver.dummy_time_step).info['dist_params']
+            policy_dist = {a: {} for a in list(policy_dist_dict.keys())}
+            policy_dist = {}
+            for a in list(policy_dist_dict.keys()): # a = action names
+                policy_dist[a] = {}
+                for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
+                    policy_dist[a][b] = policy_dist_dict[a][b].numpy()
+
+            # concatenating dists from this epoch into all_policy_dists dict
+            #   to access: all_policy_dists[action_name]['loc' or 'scale'][epoch]
+            if not all_policy_dists:
+                all_policy_dists = {}
+                for a in list(policy_dist_dict.keys()): # a = action names
+                    all_policy_dists[a] = {}
+                    for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
+                        all_policy_dists[a][b] = np.expand_dims(policy_dist_dict[a][b].numpy(),axis=0)
+            else:
+                for a in list(policy_dist_dict.keys()): # a = action names
+                    for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
+                        all_policy_dists[a][b] = np.concatenate((all_policy_dists[a][b],
+                                                                np.expand_dims(policy_dist_dict[a][b].numpy(),axis=0)),axis=0)
+
+
+
+            
+            print('these_actions[pulse_array_real] shape')
+            print(these_actions['pulse_array_real'].shape)
+            print('these actions:')
+            print(these_actions['pulse_array_real'])
+
+            #sys.exit()
 
             if (epoch % eval_interval == 0) and do_evaluation:
                 # Evaluate the policy
