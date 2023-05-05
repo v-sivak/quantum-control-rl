@@ -304,69 +304,6 @@ def train_eval(
             replay_buffer.clear()
             train_timer.stop()
 
-            '''
-            # useful for debugging
-            #collect_driver.dummy_time_step = this_time_step
-
-            # getting the batch of actions from this epoch
-            #   as a dict containing numpy arrays; use to save data in custom way
-            #   to access: these_actions[action_name][batch]
-            these_actions = {action_name : np.squeeze(np.array(action_history)[1:])
-                for action_name, action_history in collect_driver._env.history.items()
-                if not action_name=='msmt'}
-
-            # concatenating actions from this epoch into all_actions dict
-            #   to access: training_actions[action_name][epoch,batch]
-            action_names = list(collect_driver._env.history.keys())
-            if not training_actions: 
-                training_actions = {a : np.expand_dims(these_actions[a],0) for a in action_names} # initialize if it's the first epoch
-            else:
-                for a in action_names:
-                    training_actions[a] = np.concatenate((training_actions[a],np.expand_dims(these_actions[a],0)),axis=0)
-
-            this_reward = collect_driver._env._episode_return.numpy()
-
-            ####
-            # The below code may not work depending on the tensorflow and tf-agents versions
-            ####
-            
-            # getting the policy distribution (mean,stdev) from this epoch
-            #   as a dict containing numpy arrays; use to save data in custom way
-            #   to access: policy_dist[action_name]['loc' or 'scale']
-            policy_dist_dict = collect_driver._policy.distribution(this_time_step).info['dist_params']
-            policy_dist = {a: {} for a in list(policy_dist_dict.keys())}
-            policy_dist = {}
-            for a in list(policy_dist_dict.keys()): # a = action names
-                policy_dist[a] = {}
-                for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
-                    policy_dist[a][b] = policy_dist_dict[a][b].numpy()
-
-            # concatenating dists from this epoch into all_policy_dists dict
-            #   to access: all_policy_dists[action_name]['loc' or 'scale'][epoch]
-            if not all_policy_dists:
-                all_policy_dists = {}
-                for a in list(policy_dist_dict.keys()): # a = action names
-                    all_policy_dists[a] = {}
-                    for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
-                        all_policy_dists[a][b] = np.expand_dims(policy_dist_dict[a][b].numpy(),axis=0)
-            else:
-                for a in list(policy_dist_dict.keys()): # a = action names
-                    for b in list(policy_dist_dict[a].keys()): # b = 'loc','scale' (mean and stdev of dist)
-                        all_policy_dists[a][b] = np.concatenate((all_policy_dists[a][b],
-                                                                np.expand_dims(policy_dist_dict[a][b].numpy(),axis=0)),axis=0)
-            '''
-
-            ####
-            # For debugging the above data analysis methods
-            ####
-            #key0 = list(these_actions.keys())[0]
-            #print('these_actions[key0] shape')
-            #print('key0 = '+str(key0))
-            #print(these_actions[key0].shape)
-            
-            #print('these_actions[pulse_array_real]')
-            #print(these_actions['pulse_array_real'])
-
             if (epoch % eval_interval == 0) and do_evaluation:
                 # Evaluate the policy
                 eval_driver.run()
