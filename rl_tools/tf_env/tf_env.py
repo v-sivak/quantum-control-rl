@@ -162,12 +162,12 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
                 lambda x: self.reward_remote(**reward_kwargs)
 
 
-    def reward_remote(self, N_msmt, epoch_type):
+    def reward_remote(self, epoch_type):
         """
         Send the action sequence to remote environment and receive rewards.
         The data received from the remote env should be Pauli measurement
         (i.e., range from -1 to 1)
-        outcomes of shape [N_msmt, batch_size].
+        outcomes of shape [batch_size].
 
         """
 
@@ -187,18 +187,18 @@ class TFEnvironmentQuantumControl(tf_environment.TFEnvironment):
         # send action sequence and metadata to remote client
         message = dict(action_batch=action_batch,
                        batch_size=self.batch_size,
-                       N_msmt=N_msmt,
+                       #N_msmt=N_msmt,
                        epoch_type=epoch_type,
                        epoch=self._epoch)
 
         self.server_socket.send_data(message)
 
-        # receive sigma_z of shape [N_msmt, batch_size]
+        # receive sigma_z of shape [batch_size]
         msmt, done = self.server_socket.recv_data()
         msmt = tf.cast(msmt, tf.float32)
-        z = np.mean(msmt, axis=0)
+        #z = np.mean(msmt, axis=0)
 
-        return tf.cast(z, tf.float32)
+        return msmt #tf.cast(z, tf.float32)
 
 
 

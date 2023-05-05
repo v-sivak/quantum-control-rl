@@ -60,6 +60,8 @@ def train_eval(
         use_rnn = True,
         actor_lstm_size = (12,),
         value_lstm_size = (12,),
+        h5datalog = None, 
+        save_tf_style = True,
         **kwargs):
     """ A simple train and eval for PPO agent.
 
@@ -257,6 +259,8 @@ def train_eval(
         # Evaluate policy once before training
         if do_evaluation:
             eval_driver.run()
+            if h5datalog is not None:
+                h5datalog.save_driver_data(eval_driver,'evaluation')
             avg_return = avg_return_metric.result().numpy()
             avg_return_metric.reset()
             log = {
@@ -273,21 +277,26 @@ def train_eval(
             print('  Policy train time: 0.00 mins')
             print('  Average return: %.5f' %avg_return)
 
-        # Save initial random policy
-        path = os.path.join(policy_dir,('0').zfill(6))
-        saved_model.save(path)
+        if save_tf_style:
+            # Save initial random policy
+            path = os.path.join(policy_dir,('0').zfill(6))
+            saved_model.save(path)
 
         # Training loop
         train_timer = timer.Timer()
         experience_timer = timer.Timer()
 
-        all_actions = None
-        all_policy_dists = None
+
+        #all_policy_dists = None
         for epoch in range(1,num_epochs+1):
             # Collect new experience
             experience_timer.start()
             this_time_step,this_policy_state = collect_driver.run()
             experience_timer.stop()
+
+            if h5datalog is not None:
+                h5datalog.save_driver_data(collect_driver,'training')
+
             # Update the policy
             train_timer.start()
             if lr_schedule: optimizer._lr = lr_schedule(epoch)
@@ -295,6 +304,7 @@ def train_eval(
             replay_buffer.clear()
             train_timer.stop()
 
+            '''
             # useful for debugging
             #collect_driver.dummy_time_step = this_time_step
 
@@ -306,19 +316,20 @@ def train_eval(
                 if not action_name=='msmt'}
 
             # concatenating actions from this epoch into all_actions dict
-            #   to access: all_actions[action_name][epoch,batch]
+            #   to access: training_actions[action_name][epoch,batch]
             action_names = list(collect_driver._env.history.keys())
-            if not all_actions: 
-                all_actions = {a : np.expand_dims(these_actions[a],0) for a in action_names} # initialize if it's the first epoch
+            if not training_actions: 
+                training_actions = {a : np.expand_dims(these_actions[a],0) for a in action_names} # initialize if it's the first epoch
             else:
                 for a in action_names:
-                    all_actions[a] = np.concatenate((all_actions[a],np.expand_dims(these_actions[a],0)),axis=0)
+                    training_actions[a] = np.concatenate((training_actions[a],np.expand_dims(these_actions[a],0)),axis=0)
 
+            this_reward = collect_driver._env._episode_return.numpy()
 
             ####
             # The below code may not work depending on the tensorflow and tf-agents versions
             ####
-            '''
+            
             # getting the policy distribution (mean,stdev) from this epoch
             #   as a dict containing numpy arrays; use to save data in custom way
             #   to access: policy_dist[action_name]['loc' or 'scale']
@@ -359,6 +370,10 @@ def train_eval(
             if (epoch % eval_interval == 0) and do_evaluation:
                 # Evaluate the policy
                 eval_driver.run()
+
+                if h5datalog is not None:
+                    h5datalog.save_driver_data(eval_driver,'evaluation')
+
                 avg_return = avg_return_metric.result().numpy()
                 avg_return_metric.reset()
 
@@ -375,16 +390,17 @@ def train_eval(
                 log['experience_time'].append(experience_timer.value())
                 log['train_time'].append(train_timer.value())
                 # Save updated log
-                save_log(log, logfile, ('%d' % epoch).zfill(6))
+                #save_log(log, logfile, ('%d' % epoch).zfill(6))
 
-            if epoch % save_interval == 0:
-                # Save deterministic policy
-                path = os.path.join(policy_dir,('%d' % epoch).zfill(6))
-                saved_model.save(path)
+            if save_tf_style:
+                if epoch % save_interval == 0:
+                    # Save deterministic policy
+                    path = os.path.join(policy_dir,('%d' % epoch).zfill(6))
+                    saved_model.save(path)
 
-            if checkpoint_interval is not None and \
-                epoch % checkpoint_interval == 0:
-                    # Save training checkpoint
-                    train_checkpointer.save(global_step)
+                if checkpoint_interval is not None and \
+                    epoch % checkpoint_interval == 0:
+                        # Save training checkpoint
+                        train_checkpointer.save(global_step)
         collect_driver.finish_training()
         eval_driver.finish_training()
